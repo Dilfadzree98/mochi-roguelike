@@ -289,6 +289,14 @@ export class Game extends Phaser.Scene {
     this.burst(door.x, door.y, 'spark', 8, { distance: 12 });
   }
 
+  // Bombs and the Burger Beam break obstacles; the room remembers.
+  breakObstacle(obstacle) {
+    this.burst(obstacle.x, obstacle.y, 'smoke', 6, { distance: 10 });
+    this.burst(obstacle.x, obstacle.y, 'husk', 6, { distance: 12 });
+    this.cameras.main.shake(80, 0.006);
+    this.view.breakObstacle(obstacle);
+  }
+
   // Thorn clusters hurt on touch.
   onObstacleTouch(obstacle) {
     if (obstacle.data.hurts) this.damagePlayer(1, obstacle.x, obstacle.y);
@@ -664,10 +672,7 @@ export class Game extends Phaser.Scene {
       enemy.hit(BOMB_DAMAGE, { x: Math.cos(angle), y: Math.sin(angle) }, now);
     }
     for (const obstacle of this.view.obstacles.slice()) {
-      if (distance(bomb.x, bomb.y, obstacle.x, obstacle.y) > BOMB_RADIUS + 6) continue;
-      this.burst(obstacle.x, obstacle.y, 'smoke', 6, { distance: 10 });
-      this.burst(obstacle.x, obstacle.y, 'husk', 6, { distance: 12 });
-      this.view.breakObstacle(obstacle);
+      if (distance(bomb.x, bomb.y, obstacle.x, obstacle.y) <= BOMB_RADIUS + 6) this.breakObstacle(obstacle);
     }
     this.hurtPlayerNear(bomb.x, bomb.y, BOMB_RADIUS);
   }

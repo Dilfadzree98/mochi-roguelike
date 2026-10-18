@@ -11,6 +11,7 @@ const BEAM = {
   tickMs: 100,         // damage is dealt in ticks
   damagePerTick: 0.6,  // times the player's damage stat
   moveSlow: 0.6,       // Mangkok moves slower while beaming
+  ticksToBreak: 2,     // obstacles in the way break after this many ticks (0.2 s)
 };
 
 const CAT = {
@@ -87,29 +88,47 @@ export class Skills {
     Audio.play('beam');
   }
 
-  // A straight beam in the facing direction, stopped by walls and obstacles.
+  // A straight beam in the facing direction. It reaches the wall, or the first obstacle
+  // in its way (`blockedBy`, "col,row"), which it then burns through.
   beamRect() {
     const { x: px, y: py } = this.player.hitbox;
     const dir = this.player.facing;
     const startX = px + dir.x * 6;
     const startY = py - 2 + dir.y * 6;
     let length = 0;
+    let blockedBy = null;
     const blocked = this.scene.view.blocked;
     while (length < 260) {
       const x = startX + dir.x * (length + 2);
       const y = startY + dir.y * (length + 2);
       if (x < FLOOR.left || x > FLOOR.right || y < FLOOR.top || y > FLOOR.bottom) break;
       const t = tileOf(x, y);
-      if (blocked.has(`${t.col},${t.row}`)) break;
+      if (blocked.has(`${t.col},${t.row}`)) {
+        blockedBy = `${t.col},${t.row}`;
+        break;
+      }
       length += 2;
     }
     const half = BEAM.width / 2;
     if (dir.x !== 0) {
       const x0 = dir.x > 0 ? startX : startX - length;
-      return { x: x0, y: startY - half, w: length, h: BEAM.width, endX: startX + dir.x * length, endY: startY };
+      return { x: x0, y: startY - half, w: length, h: BEAM.width, endX: startX + dir.x * length, endY: startY, blockedBy };
     }
     const y0 = dir.y > 0 ? startY : startY - length;
-    return { x: startX - half, y: y0, w: BEAM.width, h: length, endX: startX, endY: startY + dir.y * length };
+    return { x: startX - half, y: y0, w: BEAM.width, h: length, endX: startX, endY: startY + dir.y * length, blockedBy };
+  }
+
+  // Each tick on the same obstacle cracks it a little; it breaks after a few.
+  burnObstacle(key) {
+    const obstacle = this.scene.view.obstacles.find((o) => `${o.data.col},${o.data.row}` === key);
+    if (!obstacle) return;
+    obstacle.beamTicks = (obstacle.beamTicks ?? 0) + 1;
+    if (obstacle.beamTicks >= BEAM.ticksToBreak) {
+      this.scene.breakObstacle(obstacle);
+      return;
+    }
+    obstacle.image.setTintFill(0xffd23f);
+    this.scene.time.delayedCall(50, () => obstacle.image.active && obstacle.image.clearTint());
   }
 
   updateBeam(time) {
@@ -132,6 +151,7 @@ export class Skills {
     if (time < this.active.nextTickAt) return;
     this.active.nextTickAt = time + BEAM.tickMs;
     scene.burst(beam.endX, beam.endY, 'crumb', 3, { distance: 8, duration: 250 });
+    if (beam.blockedBy) this.burnObstacle(beam.blockedBy);
 
     const overlaps = (x, y, w, h) => x < beam.x + beam.w && x + w > beam.x && y < beam.y + beam.h && y + h > beam.y;
     const damage = this.player.stats.damage * BEAM.damagePerTick;
