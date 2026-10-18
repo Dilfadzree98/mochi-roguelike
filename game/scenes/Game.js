@@ -76,6 +76,8 @@ export class Game extends Phaser.Scene {
     this.enemyDefs = this.cache.json.get('enemies');
     this.itemDefs = this.cache.json.get('items');
     this.floors = this.cache.json.get('floors');
+    const characters = this.cache.json.get('characters');
+    this.character = characters.find((c) => c.id === data?.character) ?? characters[0];
     this.itemPool = makeItemPool(this.rng, this.itemDefs);
 
     this.shots = this.physics.add.group();
@@ -88,7 +90,7 @@ export class Game extends Phaser.Scene {
     this.roomObjects = []; // extra objects owned by the current room, destroyed on leaving
     this.roomColliders = [];
 
-    this.player = new Player(this, CENTER.x, CENTER.y);
+    this.player = new Player(this, CENTER.x, CENTER.y, this.character.texture);
 
     this.physics.add.collider(this.enemyBodies, this.enemyBodies);
     this.physics.add.overlap(this.shots, this.enemyBodies, (shot, body) => this.onShotHitEnemy(shot, body.owner));
@@ -801,6 +803,7 @@ export class Game extends Phaser.Scene {
         floor: floorReached,
         floorName: this.dungeon.floor.name,
         seed: this.seed,
+        character: this.character,
         newBest,
         items: this.player.items.map((item) => item.icon),
       });

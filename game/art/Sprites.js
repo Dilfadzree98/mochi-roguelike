@@ -70,6 +70,50 @@ function mochi(leaves, faceRows = {}) {
   return [...leaves, ...MOCHI_BODY.map((row, i) => faceRows[i + 4] ?? row)];
 }
 
+// Draws extra rows over a sprite; '.' keeps the pixel underneath.
+function overlay(rows, overrides) {
+  return rows.map((row, y) => (overrides[y] ? [...overrides[y]].map((ch, x) => (ch === '.' ? row[x] : ch)).join('') : row));
+}
+
+// Playable characters: Mochi plus an outfit drawn on top. Keys are row numbers.
+const CHARACTERS = {
+  // Boy: blue cap with a little burger on the front; ear tips poke out at the sides.
+  mangkok: {
+    palette: { n: '#24488A', c: '#3A6FC2', C: '#6E9BE8', M: '#1E3A70', u: '#E0A040', P: '#7A3E20', L: '#6CC24A' },
+    rows: {
+      3: '....nnnnnnnn....',
+      4: '...nCcuuuuccn...',
+      5: '..onCLPPPPLcno..',
+      6: '.oenCcuuuuccneo.',
+      7: '.oMMMMMMMMMMMMo.',
+    },
+  },
+  // Girl: a pink flower on her right ear, and eyelashes.
+  lilo: {
+    palette: { F: '#FFB3D1', Y: '#FFE45C' },
+    rows: {
+      3: '............F...',
+      4: '...........FYF..',
+      5: '............F...',
+      8: '..kk........kk..',
+    },
+  },
+};
+
+// Every look Mochi needs: normal, hurt, wilting (low health), and leafless (death).
+function makeMochiTextures(scene, key, outfit = { rows: {}, palette: {} }) {
+  const variants = {
+    '': mochi(LEAVES_PERKY),
+    _hurt: mochi(LEAVES_PERKY, HURT_EYES),
+    _wilt: mochi(LEAVES_WILT),
+    _wilt_hurt: mochi(LEAVES_WILT, HURT_EYES),
+    _bare: mochi(LEAVES_NONE, HURT_EYES),
+  };
+  for (const [suffix, rows] of Object.entries(variants)) {
+    fromMap(scene, key + suffix, overlay(rows, outfit.rows), { ...MOCHI_PALETTE, ...outfit.palette });
+  }
+}
+
 // ---------- Enemies (cool, muted colours; glowing eyes or tiny teeth) ----------
 
 const ENEMIES = {
@@ -792,11 +836,8 @@ function makeSharedTiles(scene) {
 }
 
 export function makeTextures(scene, floors) {
-  fromMap(scene, 'mochi', mochi(LEAVES_PERKY), MOCHI_PALETTE);
-  fromMap(scene, 'mochi_hurt', mochi(LEAVES_PERKY, HURT_EYES), MOCHI_PALETTE);
-  fromMap(scene, 'mochi_wilt', mochi(LEAVES_WILT), MOCHI_PALETTE);
-  fromMap(scene, 'mochi_wilt_hurt', mochi(LEAVES_WILT, HURT_EYES), MOCHI_PALETTE);
-  fromMap(scene, 'mochi_bare', mochi(LEAVES_NONE, HURT_EYES), MOCHI_PALETTE);
+  makeMochiTextures(scene, 'mochi');
+  for (const [key, outfit] of Object.entries(CHARACTERS)) makeMochiTextures(scene, key, outfit);
 
   for (const [key, sprite] of Object.entries(ENEMIES)) fromMap(scene, key, sprite.rows, sprite.palette);
   const vine = ENEMIES.thornvine;

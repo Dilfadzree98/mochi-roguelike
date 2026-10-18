@@ -2,6 +2,7 @@ import { GAME_WIDTH, GAME_HEIGHT } from './constants.js';
 import { Audio } from './systems/Audio.js';
 import { Boot } from './scenes/Boot.js';
 import { Menu } from './scenes/Menu.js';
+import { CharacterSelect } from './scenes/CharacterSelect.js';
 import { Game } from './scenes/Game.js';
 import { HUD } from './scenes/HUD.js';
 import { GameOver } from './scenes/GameOver.js';
@@ -26,7 +27,7 @@ const game = new Phaser.Game({
     arcade: { debug: new URLSearchParams(location.search).has('debug') },
   },
   // Later scenes draw on top: HUD over Game, Pause over both.
-  scene: [Boot, Menu, Game, HUD, Pause, GameOver],
+  scene: [Boot, Menu, CharacterSelect, Game, HUD, Pause, GameOver],
 });
 
 window.addEventListener('resize', () => game.scale.setZoom(integerZoom()));

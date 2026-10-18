@@ -70,7 +70,7 @@ export class Pause extends Phaser.Scene {
   restart() {
     Audio.setMusicPaused(false);
     this.scene.stop('HUD');
-    this.scene.start('Game', { seed: newSeed() });
+    this.scene.start('Game', { seed: newSeed(), character: this.scene.get('Game').character.id });
   }
 
   quit() {

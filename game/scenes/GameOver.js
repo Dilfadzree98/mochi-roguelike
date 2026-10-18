@@ -11,12 +11,13 @@ export class GameOver extends Phaser.Scene {
     super('GameOver');
   }
 
-  create({ won, roomsCleared, floor, floorName, seed, newBest, items = [] }) {
+  create({ won, roomsCleared, floor, floorName, seed, character, newBest, items = [] }) {
     const cx = GAME_WIDTH / 2;
     Audio.stopMusic();
 
-    addText(this, cx, 26, won ? 'Garden saved!' : 'Mochi wilted...', { scale: 2, tint: won ? UI.gold : UI.peach });
-    this.add.image(cx, 74, won ? 'mochi' : 'mochi_wilt').setOrigin(0.5, 1).setScale(2);
+    const firstName = character.name.split(' ')[0];
+    addText(this, cx, 26, won ? 'Garden saved!' : `${firstName} wilted...`, { scale: 2, tint: won ? UI.gold : UI.peach });
+    this.add.image(cx, 74, won ? character.texture : `${character.texture}_wilt`).setOrigin(0.5, 1).setScale(2);
 
     addText(this, cx, 86, won ? 'The Weed Queen is gone' : `Floor ${floor}: ${floorName}`);
     addText(this, cx, 96, `Rooms cleared ${roomsCleared}`, { tint: UI.muted });
@@ -28,8 +29,8 @@ export class GameOver extends Phaser.Scene {
     addText(this, cx, 148, 'Space new run   R same seed   Esc menu', { tint: UI.muted });
 
     const keyboard = this.input.keyboard;
-    keyboard.once('keydown-SPACE', () => this.scene.start('Game', { seed: newSeed() }));
-    keyboard.once('keydown-R', () => this.scene.start('Game', { seed }));
+    keyboard.once('keydown-SPACE', () => this.scene.start('Game', { seed: newSeed(), character: character.id }));
+    keyboard.once('keydown-R', () => this.scene.start('Game', { seed, character: character.id }));
     keyboard.once('keydown-ESC', () => this.scene.start('Menu'));
   }
 }

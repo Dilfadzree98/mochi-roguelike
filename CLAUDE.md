@@ -53,6 +53,7 @@ game/
 ├── scenes/
 │   ├── Boot.js          loads data, builds textures and font
 │   ├── Menu.js
+│   ├── CharacterSelect.js  pick Mangkok Mochi or Lilo Mochi (remembers last pick)
 │   ├── Game.js          main play scene: floors, rooms, waves, doors, pickups, tooltips, enemy bullets, win/lose
 │   ├── HUD.js           hearts, counters, wave/floor, minimap, boss health bar; listens to Game events
 │   ├── Pause.js         Esc/P overlay: resume, restart, quit (Game also pauses on window blur)
@@ -72,6 +73,7 @@ game/
 │   ├── Fx.js            hit flash
 │   └── Save.js          localStorage (best floor, rooms cleared, wins)
 └── data/
+    ├── characters.json  playable characters: name, short description, texture key
     ├── enemies.json     enemies and bosses: stats, behaviour name + params, death animation
     ├── floors.json      4 floors: palette, wall face, decorations, obstacles, enemy weights, boss
     └── items.json       12 items; each is a list of stat modifiers
@@ -87,6 +89,7 @@ Implementation patterns to keep:
 - **Art is replaceable:** sprites are referenced by texture key only. To use real PNGs, load them in `Boot.preload` under the same keys; `makeTextures` skips keys that already exist.
 - Game → HUD communication is through `Game.events` (`hp`, `wave`, `room`, `inventory`, `floor`, `boss`).
 - **Floors:** `startFloor(i)` makes a new dungeon from `floors.json[i]`; the player, items and item pool carry over. Beating a boss on floors 1-3 leaves an item pedestal and a trapdoor (`descend()`); beating the Weed Queen on floor 4 wins.
+- **Characters:** Mangkok Mochi (boy, blue cap with a burger on it) and Lilo Mochi (girl, pink flower on her right ear, eyelashes). Both play the same. Their sprites are base Mochi plus an outfit overlay (`CHARACTERS` in Sprites.js; `makeMochiTextures` builds `<key>`, `_hurt`, `_wilt`, `_wilt_hurt`, `_bare`). The sprout leaf stays visible on both because it shows health. The character id travels Select → Game → GameOver/Pause restart. Adding one: an outfit in `CHARACTERS` + an entry in `characters.json` (keep descriptions ≤ 22 characters so the two cards don't overlap).
 - **Tooltips:** any pickup spot created with an `info` ({ name, description }) shows a tooltip when Mochi is within 24 px.
 - **Waves:** `makeWave` in DungeonGen.js: each wave is 1-6 enemies of 1-3 types (weights `TYPES_PER_WAVE`), types drawn from the floor's `enemies` weights without repeats; the minimum size grows with distance from start + floor; `maxPerWave` in enemies.json caps strong enemies (gnome 2, thornvine/grumpshroom 3, beetle 4).
 - **Obstacles:** each fight room gets a mirrored layout (`makeLayout` in Pathing.js) of whole-tile obstacles from the floor's `obstacles` list (20% of fight rooms are open; boss rooms get corner cover; start/treasure/shop stay empty). Layouts never block door entrances and always keep every free tile reachable. Obstacles block Mochi, enemies and all bullets; bombs break them (`room.obstacles[].broken` persists); `"hurts": true` (thorn clusters) damages Mochi on touch. Chasing enemies use `Game.chaseAngle()` (straight line if clear, else flow field). Spawns, teleports and drops use `areaFree` / `freeSpot` to avoid obstacles.
@@ -117,7 +120,7 @@ Work in this order; don't start a stage until the previous one is playable.
 1. **One room:** Mochi moves and shoots, one chasing enemy (Gloom Slug), health, damage, death. *Done (2026-10-18): endless waves in one Sunny Garden room, slime trails slow Mochi, leaf wilts at 1 heart, best wave saved.*
 2. **Dungeon:** random floor generator, locking doors, minimap, boss and treasure rooms. *Done (2026-10-18): 8-12 rooms; every fight room has 2 waves (size grows with distance from start) and stays locked until both are cleared; treasure room has an empty pedestal; boss room's 2nd wave has a placeholder boss (Mother Gloom Slug, a 2x slug) and clearing it wins the run. Cleared rooms have a 40% chance to drop a heart.*
 3. **Items:** 10–15 stat/shot items; hearts, coins, keys, bombs. *Done (2026-10-18): 12 items (5 seed types + 7 stat items), treasure room locked with a key and holds an item, new shop room (worm shopkeeper: item 5, heart/bomb/key 3 coins), bombs on E (5 damage, also hurt Mochi), coins drop from enemies, room-clear drops weighted by luck. Mochi starts with 1 bomb and 1 key.*
-4. **Variety and polish:** more enemies, 2–3 bosses, multiple floors, sound, music, screen shake, title screen, unlockable characters. *Mostly done (2026-10-18): 4 floors (Sunny Garden, Dim Greenhouse, Mushroom Cellar, Compost Depths) with their own tiles, decorations and enemy mix; enemies Grumpshroom, Click Beetle, Thornvine, Hexed Gnome; bosses Mother Gloom Slug, Grandshroom, Gnome King and the 3-phase Weed Queen, with health bar; regular enemies +20% HP per floor; synthesized SFX and per-floor music; item/ware tooltips. Not done: unlockable characters, a fancier title screen.*
+4. **Variety and polish:** more enemies, 2–3 bosses, multiple floors, sound, music, screen shake, title screen, unlockable characters. *Mostly done (2026-10-18): 4 floors (Sunny Garden, Dim Greenhouse, Mushroom Cellar, Compost Depths) with their own tiles, decorations and enemy mix; enemies Grumpshroom, Click Beetle, Thornvine, Hexed Gnome; bosses Mother Gloom Slug, Grandshroom, Gnome King and the 3-phase Weed Queen, with health bar; regular enemies +20% HP per floor; synthesized SFX and per-floor music; item/ware tooltips. Character select added 2026-10-19 (Mangkok Mochi, Lilo Mochi; same stats, not unlockable). Not done: unlockable characters, a fancier title screen.*
 5. **Extras (optional):** seeded runs, daily challenge, online leaderboard, mobile touch controls.
 
 Suggested v1.0 scope: 1 character, 3 floors, 20 items, 3 bosses (not final).

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "mangkok",
+    "name": "Mangkok Mochi",
+    "description": "Loves his burger cap",
+    "texture": "mangkok"
+  },
+  {
+    "id": "lilo",
+    "name": "Lilo Mochi",
+    "description": "Flower on her ear",
+    "texture": "lilo"
+  }
+]

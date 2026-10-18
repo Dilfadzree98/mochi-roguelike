@@ -11,6 +11,7 @@ export class Boot extends Phaser.Scene {
     this.load.json('enemies', 'data/enemies.json');
     this.load.json('items', 'data/items.json');
     this.load.json('floors', 'data/floors.json');
+    this.load.json('characters', 'data/characters.json');
   }
 
   create() {

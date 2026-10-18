@@ -17,6 +17,17 @@ function write(data) {
 }
 
 export const Save = {
+  // The character picked last time, so the select screen starts on them.
+  lastCharacter() {
+    return load().lastCharacter ?? null;
+  },
+
+  setLastCharacter(id) {
+    const data = load();
+    data.lastCharacter = id;
+    write(data);
+  },
+
   best() {
     const data = load();
     return { floor: data.bestFloor ?? 0, rooms: data.bestRooms ?? 0, wins: data.wins ?? 0 };

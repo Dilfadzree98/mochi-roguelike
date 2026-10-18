@@ -1,6 +1,5 @@
 import { GAME_WIDTH, UI } from '../constants.js';
 import { addText } from '../art/PixelFont.js';
-import { newSeed, seedFromUrl } from '../systems/Rng.js';
 import { Save } from '../systems/Save.js';
 import { Audio } from '../systems/Audio.js';
 
@@ -16,8 +15,11 @@ export class Menu extends Phaser.Scene {
     addText(this, cx, 20, 'Mochi', { scale: 4, tint: UI.peach });
     addText(this, cx, 40, 'A sprout bun in a haunted garden', { tint: UI.leaf });
 
-    const mochi = this.add.image(cx, 92, 'mochi').setOrigin(0.5, 1).setScale(3);
-    this.tweens.add({ targets: mochi, y: 88, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    // Mangkok and Lilo bouncing side by side, out of step.
+    this.cache.json.get('characters').forEach((character, i, all) => {
+      const sprite = this.add.image(cx + (i - (all.length - 1) / 2) * 40, 92, character.texture).setOrigin(0.5, 1).setScale(3);
+      this.tweens.add({ targets: sprite, y: 88, duration: 500, delay: i * 250, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    });
 
     addText(this, cx, 104, 'WASD move  Arrows shoot  E bomb  Esc pause', { tint: UI.muted });
     const prompt = addText(this, cx, 120, 'Press space', { scale: 2, tint: UI.gold });
@@ -29,7 +31,7 @@ export class Menu extends Phaser.Scene {
 
     const start = () => {
       Audio.play('select');
-      this.scene.start('Game', { seed: seedFromUrl() ?? newSeed() });
+      this.scene.start('CharacterSelect');
     };
     this.input.keyboard.once('keydown-SPACE', start);
     this.input.keyboard.once('keydown-ENTER', start);

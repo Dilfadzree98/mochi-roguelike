@@ -41,8 +41,10 @@ const KNOCKBACK_SPEED = 140;
 // Physics uses an invisible hitbox; the sprite just follows it, so squash and
 // stretch never changes the collision size.
 export class Player {
-  constructor(scene, x, y) {
+  // `skin` is the character's texture key (e.g. 'mangkok'); variants add _hurt, _wilt, _bare.
+  constructor(scene, x, y, skin = 'mochi') {
     this.scene = scene;
+    this.skin = skin;
     this.items = [];
     this.stats = computeStats(BASE_STATS, this.items);
     this.hp = this.stats.maxHp;
@@ -60,7 +62,7 @@ export class Player {
     this.hitbox.owner = this;
 
     this.shadow = scene.add.image(x, y, 'shadow').setAlpha(0.3).setDepth(DEPTH.shadow);
-    this.sprite = scene.add.image(x, y, 'mochi').setOrigin(0.5, 1);
+    this.sprite = scene.add.image(x, y, skin).setOrigin(0.5, 1);
     this.keys = scene.input.keyboard.addKeys('W,A,S,D,E,UP,DOWN,LEFT,RIGHT');
 
     this.syncVisuals(0);
@@ -129,7 +131,7 @@ export class Player {
     scaleY -= 0.2 * this.recoil;
     this.sprite.setScale(scaleX, scaleY);
 
-    const base = this.hp <= WILT_AT_HP ? 'mochi_wilt' : 'mochi';
+    const base = this.hp <= WILT_AT_HP ? `${this.skin}_wilt` : this.skin;
     this.sprite.setTexture(time < this.hurtUntil ? `${base}_hurt` : base);
 
     // Blink while invulnerable.
@@ -205,7 +207,7 @@ export class Player {
     this.alive = false;
     this.hitbox.body.setVelocity(0, 0);
     this.hitbox.body.enable = false;
-    this.sprite.setVisible(true).setTexture('mochi_bare').setScale(1);
+    this.sprite.setVisible(true).setTexture(`${this.skin}_bare`).setScale(1);
     this.scene.tweens.add({ targets: this.sprite, scaleX: 1.5, scaleY: 0.3, duration: 600, ease: 'Quad.easeIn' });
 
     const leaf = this.scene.add.image(this.sprite.x, this.sprite.y - 14, 'leaf').setDepth(DEPTH.overlay - 1);
