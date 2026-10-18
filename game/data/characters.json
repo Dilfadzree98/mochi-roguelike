@@ -26,7 +26,7 @@
       "description": "Cat ally every 30 shots",
       "icon": "icon_cat",
       "every": 30,
-      "durationMs": 8000
+      "durationMs": 4000
     }
   }
 ]
