@@ -2,8 +2,8 @@ import { DEPTH } from '../constants.js';
 import { flashWhite } from '../systems/Fx.js';
 import { computeStats } from '../systems/Items.js';
 
-// Starting stats. player.stats is rebuilt from these plus every held item.
-const BASE_STATS = {
+// Starting stats. player.stats is rebuilt from these, the character's modifiers and every held item.
+export const BASE_STATS = {
   maxHp: 6,        // half-hearts
   speed: 72,       // px per second
   fireDelay: 320,  // ms between shots
@@ -41,12 +41,14 @@ const KNOCKBACK_SPEED = 140;
 // Physics uses an invisible hitbox; the sprite just follows it, so squash and
 // stretch never changes the collision size.
 export class Player {
-  // `skin` is the character's texture key (e.g. 'mangkok'); variants add _hurt, _wilt, _bare.
-  constructor(scene, x, y, skin = 'mochi') {
+  // `character` is an entry from data/characters.json. Its texture key (e.g. 'mangkok') has
+  // variants _hurt, _wilt and _bare; its modifiers adjust the base stats like an item would.
+  constructor(scene, x, y, character) {
     this.scene = scene;
-    this.skin = skin;
+    this.character = character;
+    this.skin = character.texture;
     this.items = [];
-    this.stats = computeStats(BASE_STATS, this.items);
+    this.stats = computeStats(BASE_STATS, [character, ...this.items]);
     this.hp = this.stats.maxHp;
     this.inventory = { ...START_INVENTORY };
     this.alive = true;
@@ -56,13 +58,16 @@ export class Player {
     this.hurtUntil = 0;
     this.recoil = 0;
     this.moving = false;
+    this.facing = FIRE_DIRS.DOWN; // last shooting direction (the Burger Beam follows it)
+    this.beamUntil = 0;           // no seeds while the beam is firing
+    this.shieldUntil = 0;         // Petal Shield: can't be hurt
 
     this.hitbox = scene.add.zone(x, y, HITBOX.w, HITBOX.h);
     scene.physics.add.existing(this.hitbox);
     this.hitbox.owner = this;
 
     this.shadow = scene.add.image(x, y, 'shadow').setAlpha(0.3).setDepth(DEPTH.shadow);
-    this.sprite = scene.add.image(x, y, skin).setOrigin(0.5, 1);
+    this.sprite = scene.add.image(x, y, this.skin).setOrigin(0.5, 1);
     this.keys = scene.input.keyboard.addKeys('W,A,S,D,E,UP,DOWN,LEFT,RIGHT');
 
     this.syncVisuals(0);
@@ -100,12 +105,14 @@ export class Player {
       const key = this.keys[name];
       if (key.isDown && (!held || key.timeDown > this.keys[held].timeDown)) held = name;
     }
-    if (!held || time < this.nextFireAt) return;
+    if (held) this.facing = FIRE_DIRS[held];
+    if (!held || time < this.nextFireAt || time < this.beamUntil) return;
 
     const dir = FIRE_DIRS[held];
     this.nextFireAt = time + this.stats.fireDelay;
     this.recoil = 1;
     this.scene.firePlayerShot(this.hitbox.x + dir.x * 6, this.hitbox.y - 1 + dir.y * 6, dir, this.stats);
+    this.scene.onShotFired();
   }
 
   animate(time, delta) {
@@ -134,8 +141,9 @@ export class Player {
     const base = this.hp <= WILT_AT_HP ? `${this.skin}_wilt` : this.skin;
     this.sprite.setTexture(time < this.hurtUntil ? `${base}_hurt` : base);
 
-    // Blink while invulnerable.
-    this.sprite.setVisible(time >= this.invulnUntil || Math.floor(time / 80) % 2 === 0);
+    // Blink while invulnerable after a hit (but not under the Petal Shield).
+    const blinking = time < this.invulnUntil && time >= this.shieldUntil;
+    this.sprite.setVisible(!blinking || Math.floor(time / 80) % 2 === 0);
 
     this.syncVisuals(hop);
   }
@@ -150,7 +158,7 @@ export class Player {
 
   addItem(item) {
     this.items.push(item);
-    this.stats = computeStats(BASE_STATS, this.items);
+    this.stats = computeStats(BASE_STATS, [this.character, ...this.items]);
     if (item.onPickup?.heal) this.hp += item.onPickup.heal;
     this.hp = Math.min(this.hp, this.stats.maxHp);
     this.emitHp();
@@ -175,7 +183,7 @@ export class Player {
 
   // Returns true if the hit landed (not blocked by invulnerability).
   takeDamage(amount, time) {
-    if (!this.alive || time < this.invulnUntil) return false;
+    if (!this.alive || time < this.invulnUntil || time < this.shieldUntil) return false;
     this.hp = Math.max(0, this.hp - amount);
     this.invulnUntil = time + INVULN_MS;
     this.hurtUntil = time + HURT_FACE_MS;

@@ -3,12 +3,30 @@
     "id": "mangkok",
     "name": "Mangkok Mochi",
     "description": "Loves his burger cap",
-    "texture": "mangkok"
+    "texture": "mangkok",
+    "modifiers": { "damage": { "add": 0.25 }, "speed": { "add": -6 } },
+    "skill": {
+      "id": "burger_beam",
+      "name": "Burger Beam",
+      "description": "Beam every 30 shots",
+      "icon": "icon_burger",
+      "every": 30,
+      "durationMs": 2000
+    }
   },
   {
     "id": "lilo",
     "name": "Lilo Mochi",
     "description": "Flower on her ear",
-    "texture": "lilo"
+    "texture": "lilo",
+    "modifiers": { "speed": { "add": 8 } },
+    "skill": {
+      "id": "petal_shield",
+      "name": "Petal Shield",
+      "description": "Shield every 30 shots",
+      "icon": "icon_flower",
+      "every": 30,
+      "durationMs": 2000
+    }
   }
 ]

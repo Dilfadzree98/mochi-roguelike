@@ -38,6 +38,8 @@ const SOUNDS = {
   bossIntro: [['sawtooth', 130, 55, 700, 0.18]],
   descend: [['triangle', 600, 120, 700, 0.2]],
   select: [['square', 660, 660, 40, 0.08]],
+  beam: [['sawtooth', 180, 90, 1900, 0.1], ['square', 360, 300, 1900, 0.05]],
+  shield: [['triangle', 880, 880, 80, 0.15], ['triangle', 1175, 1175, 80, 0.15, 80], ['sine', 1568, 1568, 300, 0.12, 160]],
   bomb: 'noise',
 };
 

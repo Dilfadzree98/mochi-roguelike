@@ -11,6 +11,7 @@ import { Player } from '../entities/Player.js';
 import { Enemy } from '../entities/Enemy.js';
 import { Projectile } from '../entities/Projectile.js';
 import { EnemyBullet } from '../entities/EnemyBullet.js';
+import { Skills } from '../systems/Skills.js';
 
 const ROOM_START_DELAY_MS = 500;
 const WAVE_BREAK_MS = 900;
@@ -90,7 +91,8 @@ export class Game extends Phaser.Scene {
     this.roomObjects = []; // extra objects owned by the current room, destroyed on leaving
     this.roomColliders = [];
 
-    this.player = new Player(this, CENTER.x, CENTER.y, this.character.texture);
+    this.player = new Player(this, CENTER.x, CENTER.y, this.character);
+    this.skills = new Skills(this, this.player);
 
     this.physics.add.collider(this.enemyBodies, this.enemyBodies);
     this.physics.add.overlap(this.shots, this.enemyBodies, (shot, body) => this.onShotHitEnemy(shot, body.owner));
@@ -153,6 +155,7 @@ export class Game extends Phaser.Scene {
     if (this.transitioning) return;
 
     this.player.speedMultiplier = this.slowAt(this.player.feet);
+    this.skills.update(time);
     this.player.update(time, delta);
 
     for (const enemy of this.enemies) enemy.update(time, delta, this.player);
@@ -215,6 +218,7 @@ export class Game extends Phaser.Scene {
 
   // Finish every effect, then remove everything that belongs to the room.
   leaveRoom() {
+    this.skills.stop();
     this.tweens.getTweens().forEach((tween) => tween.complete());
     this.bombs.forEach((bomb) => bomb.timer.remove());
     this.bombs = [];
@@ -671,6 +675,11 @@ export class Game extends Phaser.Scene {
     Audio.play('shoot');
   }
 
+  // Every shot charges the character's skill.
+  onShotFired() {
+    this.skills.onShotFired();
+  }
+
   spawnShot(x, y, dir, stats, options) {
     const shot = new Projectile(this, x, y, stats.shotTexture);
     this.shots.add(shot, true);
@@ -788,6 +797,7 @@ export class Game extends Phaser.Scene {
     if (this.over) return;
     this.over = true;
     this.waveActive = false;
+    this.skills.stop();
     for (const enemy of this.enemies) enemy.freeze();
     this.endRun(false, GAME_OVER_DELAY_MS);
   }
@@ -861,6 +871,13 @@ export class Game extends Phaser.Scene {
       hold: subtitle ? 1600 : 900,
       onComplete: () => labels.forEach((label) => label.destroy()),
     });
+  }
+
+  // Bigger floating callout above Mochi (skill names).
+  shout(text, tint) {
+    const { x, y } = this.player.hitbox;
+    const label = addText(this, Phaser.Math.Clamp(x, FLOOR.left + 40, FLOOR.right - 40), y - 20, text, { tint }).setDepth(DEPTH.ui);
+    this.tweens.add({ targets: label, y: y - 30, alpha: 0, duration: 900, delay: 400, onComplete: () => label.destroy() });
   }
 
   // Small floating message above Mochi, at most once per cooldown.

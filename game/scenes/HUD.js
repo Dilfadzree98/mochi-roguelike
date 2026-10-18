@@ -4,7 +4,8 @@ import { GRID_W, GRID_H } from '../systems/DungeonGen.js';
 
 const HEART_KEYS = ['heart_empty', 'heart_half', 'heart_full'];
 // Boss name and health bar on one dark strip along the bottom wall.
-const BOSS_BAR = { left: 36, right: 204, barX: 100, h: 3, y: GAME_HEIGHT - 8 };
+const SKILL_METER = { x: 147, w: 30, h: 3 };
+const BOSS_BAR ={ left: 36, right: 204, barX: 100, h: 3, y: GAME_HEIGHT - 8 };
 
 // Minimap: one 6x4 cell per room, in the top-right corner of the room.
 const CELL = { w: 6, h: 4, stepX: 7, stepY: 5 };
@@ -42,6 +43,10 @@ export class HUD extends Phaser.Scene {
       this.counters[kind] = addText(this, x + 6, HUD_HEIGHT / 2, '', { originX: 0, tint: UI.muted });
     });
 
+    // Skill meter: fills with each shot, then drains while the skill runs.
+    this.add.image(SKILL_METER.x - 5, HUD_HEIGHT / 2, game.character.skill.icon);
+    this.skillBar = this.add.graphics();
+
     // Boss health bar along the bottom wall.
     this.bossBar = this.add.graphics();
     this.bossName = addText(this, BOSS_BAR.left + 4, BOSS_BAR.y + 1, '', { originX: 0, tint: 0xd9b8ff }).setVisible(false);
@@ -57,6 +62,7 @@ export class HUD extends Phaser.Scene {
       inventory: (inventory) => this.drawCounters(inventory),
       floor: () => this.drawRightLabel(game),
       boss: (boss) => this.drawBossBar(boss),
+      skill: (skill) => this.drawSkillMeter(skill),
     };
     for (const [event, fn] of Object.entries(listeners)) game.events.on(event, fn);
     this.events.once('shutdown', () => {
@@ -67,12 +73,22 @@ export class HUD extends Phaser.Scene {
     listeners.wave(game.waveActive ? game.waveIndex : 0);
     listeners.room(game.dungeon, game.room);
     listeners.inventory(game.player.inventory);
+    game.skills.emit();
   }
 
   // "WAVE 1/2" during a fight, otherwise the floor number.
   drawRightLabel(game) {
     const text = this.wave > 0 ? `WAVE ${this.wave}/${game.room.waves.length}` : `FLOOR ${game.floorIndex + 1}`;
     this.waveText.setText(text);
+  }
+
+  drawSkillMeter({ progress, active }) {
+    const { x, w, h } = SKILL_METER;
+    const y = HUD_HEIGHT / 2 - 1;
+    const g = this.skillBar.clear();
+    g.fillStyle(0x120e16, 1).fillRect(x - 1, y - 1, w + 2, h + 2);
+    g.fillStyle(0x3b2b33, 1).fillRect(x, y, w, h);
+    g.fillStyle(active ? UI.gold : 0xa6d987, 1).fillRect(x, y, Math.round(w * progress), h);
   }
 
   drawBossBar(boss) {
