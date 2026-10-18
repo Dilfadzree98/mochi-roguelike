@@ -3,7 +3,7 @@ import { addText } from '../art/PixelFont.js';
 import { Rng, newSeed } from '../systems/Rng.js';
 import { Save } from '../systems/Save.js';
 import { Audio } from '../systems/Audio.js';
-import { generateDungeon } from '../systems/DungeonGen.js';
+import { bossIds, generateDungeon } from '../systems/DungeonGen.js';
 import { makeItemPool } from '../systems/Items.js';
 import { buildRoom } from '../systems/Room.js';
 import { areaFree, flowField, lineClear, nearestFree, nextStep, tileOf } from '../systems/Pathing.js';
@@ -25,6 +25,7 @@ const GAME_OVER_DELAY_MS = 1600;
 const WIN_DELAY_MS = 3000;
 const HINT_COOLDOWN_MS = 1200;
 const ENEMY_HP_PER_FLOOR = 0.2; // regular enemies get 20% more health per floor
+const BOSS_HP_BY_FLOOR = [1, 1.5, 2.1, 2.8]; // bosses get tougher the deeper they're met
 
 // Drops. Each point of luck raises the chances.
 const ROOM_DROP_CHANCE = 0.5;
@@ -39,6 +40,7 @@ const BOMB_DAMAGE = 5;
 
 const ROOT_WARNING_MS = 700;
 const ROOT_RADIUS = 11;
+const MARK_RADIUS = 10; // boss attacks that land on a target mark
 
 const SPLIT_SPREAD = 0.6;      // radians between split fragments
 const SPLIT_RANGE = 50;
@@ -87,6 +89,7 @@ export class Game extends Phaser.Scene {
     const characters = this.cache.json.get('characters');
     this.character = characters.find((c) => c.id === data?.character) ?? characters[0];
     this.itemPool = makeItemPool(this.rng, this.itemDefs);
+    this.bossOrder = this.rng.shuffle(bossIds(this.enemyDefs)); // a different boss on every floor
 
     this.shots = this.physics.add.group();
     this.enemyShots = this.physics.add.group();
@@ -123,7 +126,7 @@ export class Game extends Phaser.Scene {
 
   startFloor(index) {
     this.floorIndex = index;
-    this.dungeon = generateDungeon(this.rng, this.floors[index], index, this.enemyDefs);
+    this.dungeon = generateDungeon(this.rng, this.floors[index], index, this.enemyDefs, this.bossOrder[index % this.bossOrder.length]);
     Audio.startMusic(index);
     this.events.emit('floor', index, this.floors[index]);
   }
@@ -464,10 +467,10 @@ export class Game extends Phaser.Scene {
     if (this.over) return;
     this.waveIndex += 1;
     const total = this.room.waves.length;
-    this.events.emit('wave', this.waveIndex, total);
-
     const types = this.room.waves[this.waveIndex - 1];
     const boss = types.map((type) => this.enemyDefs[type]).find((def) => def.boss);
+    this.events.emit('wave', boss ? 0 : this.waveIndex, total); // boss rooms have no waves
+
     if (boss) {
       this.banner(boss.name, 0xb57bff, boss.subtitle);
       Audio.play('bossIntro');
@@ -478,17 +481,26 @@ export class Game extends Phaser.Scene {
     const taken = [];
     for (const type of types) {
       const def = this.enemyDefs[type];
-      const pos = def.spawn === 'top' ? { x: CENTER.x, y: FLOOR.top + 26 } : this.findSpawnPoint(taken);
+      let pos;
+      if (def.spawn === 'top') pos = { x: CENTER.x, y: FLOOR.top + 26 };
+      else if (def.boss) pos = this.freeSpot(CENTER.x, CENTER.y - 8, 12);
+      else pos = this.findSpawnPoint(taken);
       taken.push(pos);
-      this.enemies.push(new Enemy(this, def, pos.x, pos.y, 1 + ENEMY_HP_PER_FLOOR * this.floorIndex));
+      this.enemies.push(new Enemy(this, def, pos.x, pos.y, this.hpScale(def)));
     }
     this.waveActive = true;
   }
 
-  // Extra enemies mid-fight (the Weed Queen's summons).
+  hpScale(def) {
+    if (def.boss) return BOSS_HP_BY_FLOOR[Math.min(this.floorIndex, BOSS_HP_BY_FLOOR.length - 1)];
+    return 1 + ENEMY_HP_PER_FLOOR * this.floorIndex;
+  }
+
+  // Extra enemies mid-fight (a boss's summons).
   spawnEnemyAt(type, x, y) {
+    const def = this.enemyDefs[type];
     const pos = this.freeSpot(Phaser.Math.Clamp(x, FLOOR.left + 12, FLOOR.right - 12), Phaser.Math.Clamp(y, FLOOR.top + 12, FLOOR.bottom - 10), 8);
-    this.enemies.push(new Enemy(this, this.enemyDefs[type], pos.x, pos.y));
+    this.enemies.push(new Enemy(this, def, pos.x, pos.y, this.hpScale(def)));
   }
 
   onWaveCleared() {
@@ -514,7 +526,8 @@ export class Game extends Phaser.Scene {
       if (this.floorIndex >= this.floors.length - 1) {
         this.over = true;
         this.cameras.main.flash(800, 140, 220, 120); // the garden turns green again
-        this.banner('Garden saved!', UI.gold, 'The Weed Queen has wilted');
+        const boss = this.enemyDefs[room.waves[0][0]];
+        this.banner('Garden saved!', UI.gold, `${boss.name} is beaten`);
         this.endRun(true, WIN_DELAY_MS);
       } else {
         this.banner('Boss defeated!', UI.gold, 'A trapdoor opens...');
@@ -882,6 +895,20 @@ export class Game extends Phaser.Scene {
     });
   }
 
+  // A blinking target mark, then `land` runs and anything on the mark gets hurt.
+  markStrike(x, y, delayMs, land) {
+    const mark = this.add.image(x, y + 2, 'target').setDepth(DEPTH.slime);
+    this.roomObjects.push(mark);
+    this.tweens.add({ targets: mark, alpha: { from: 1, to: 0.35 }, duration: 110, yoyo: true, repeat: -1 });
+    this.time.delayedCall(delayMs, () => {
+      mark.destroy();
+      if (!this.waveActive) return;
+      this.burst(x, y, 'smoke', 4, { distance: 7 });
+      this.hurtPlayerNear(x, y, MARK_RADIUS);
+      land();
+    });
+  }
+
   // ---------- Damage to Mochi ----------
 
   onPlayerTouchEnemy(enemy) {
@@ -928,6 +955,7 @@ export class Game extends Phaser.Scene {
         roomsCleared: this.roomsCleared,
         floor: floorReached,
         floorName: this.dungeon.floor.name,
+        bossName: this.enemyDefs[this.dungeon.rooms.find((r) => r.type === 'boss').waves[0][0]].name,
         seed: this.seed,
         character: this.character,
         newBest,

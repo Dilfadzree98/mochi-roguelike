@@ -5,13 +5,13 @@ import { Save } from '../systems/Save.js';
 import { Audio } from '../systems/Audio.js';
 import { drawItemRow } from './Pause.js';
 
-// End of a run, won (Weed Queen defeated) or lost.
+// End of a run, won (last floor's boss defeated) or lost.
 export class GameOver extends Phaser.Scene {
   constructor() {
     super('GameOver');
   }
 
-  create({ won, roomsCleared, floor, floorName, seed, character, newBest, items = [] }) {
+  create({ won, roomsCleared, floor, floorName, bossName, seed, character, newBest, items = [] }) {
     const cx = GAME_WIDTH / 2;
     Audio.stopMusic();
 
@@ -19,7 +19,7 @@ export class GameOver extends Phaser.Scene {
     addText(this, cx, 26, won ? 'Garden saved!' : `${firstName} wilted...`, { scale: 2, tint: won ? UI.gold : UI.peach });
     this.add.image(cx, 74, won ? character.texture : `${character.texture}_wilt`).setOrigin(0.5, 1).setScale(2);
 
-    addText(this, cx, 86, won ? 'The Weed Queen is gone' : `Floor ${floor}: ${floorName}`);
+    addText(this, cx, 86, won ? `${bossName} is beaten` : `Floor ${floor}: ${floorName}`);
     addText(this, cx, 96, `Rooms cleared ${roomsCleared}`, { tint: UI.muted });
     if (newBest) addText(this, cx, 106, 'New best!', { tint: UI.gold });
     else addText(this, cx, 106, `Best: floor ${Save.best().floor}`, { tint: UI.dim });

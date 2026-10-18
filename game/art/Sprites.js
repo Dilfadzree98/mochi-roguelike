@@ -235,6 +235,69 @@ const ENEMIES = {
       '...oooo..oooo...',
     ],
   },
+
+  // ---------- Bosses with their own sprites (drawn at 2x) ----------
+
+  // Faces right. A big stag beetle in a little gold crown.
+  beetle_baron: {
+    palette: { o: '#1E1030', s: '#4A2E6A', h: '#8E6AC8', y: '#F2C94C', Y: '#C98A2E', e: '#FF6B6B', H: '#C9C3A1', l: '#2C2C2A' },
+    rows: [
+      '..........y.y.y.',
+      '..........yYyYy.',
+      '....oooooooooo..',
+      '..oosshhssoossoH',
+      '.ossshhsssosseoH',
+      '.osssssssssssoo.',
+      '.ossssssssssoH..',
+      '.osssssssssoHH..',
+      '..ooooooooooo...',
+      '..l.l..l.l..l...',
+      '.l.l..l.l..l....',
+    ],
+  },
+  // Three bramble heads on one tangled root.
+  bramble_hydra: {
+    palette: { o: '#1A3318', v: '#2E5A2A', V: '#4C7A3A', b: '#6B2F4E', B: '#8A4064', w: '#FFE45C', m: '#E0457B', t: '#C9C3A1', c: '#1F1A14' },
+    rows: [
+      '.bb....bb....bb.',
+      'bBwb..bBwb..bwBb',
+      'bmmb..bmmb..bmmb',
+      '.bb....bb....bb.',
+      '..v....vv....v..',
+      '..vv...vV...vv..',
+      '...vv..vV..vv...',
+      '...vVv.vV.vVv...',
+      '....vVvvVvvV..t.',
+      '.t...vVVVVVv....',
+      '.....vVVVVVv..t.',
+      '....vvVVVVVVv...',
+      '.t.vVVvVVvVVv...',
+      '..cccvvvvvvccc..',
+      '.cccccccccccccc.',
+      'cccccccccccccccc',
+    ],
+  },
+  // A rotten jack-o'-lantern with a crown on its stem.
+  pumpkin_king: {
+    palette: { o: '#5E2410', P: '#E8903C', p: '#B5501F', k: '#FFD23F', g: '#3F7A2A', y: '#F2C94C', Y: '#C98A2E' },
+    rows: [
+      '.....y.y.y......',
+      '.....yYyYy......',
+      '.......gg.......',
+      '...oooooooooo...',
+      '..oPpPPpPPpPPo..',
+      '.oPPpPPpPPpPPPo.',
+      'oPPPpPPpPPpPPPPo',
+      'oPkkpPPpPPkkPPPo',
+      'oPkkpPPpPPkkPPPo',
+      'oPPPpPPkkPpPPPPo',
+      'oPPPpPPpPPpPPPPo',
+      'oPkPkPkPkPkPkPPo',
+      'oPPkkkkkkkkkPPPo',
+      '.oPPpPPpPPpPPPo.',
+      '..oooooooooooo..',
+    ],
+  },
 };
 
 // Thornvine with its bud open (shown while it attacks).
@@ -253,6 +316,7 @@ const BULLETS = {
   spore: ['..oo..', '.offo.', 'ofccfo', 'ofccfo', '.offo.', '..oo..'],
   thorn: ['oo....', 'offo..', 'ofccoo', 'offo..', 'oo....'],
   hex_orb: ['.pppp.', 'poffop', 'pfccfp', 'pfccfp', 'poffop', '.pppp.'],
+  pip: ['.oo.', 'offo', 'ofco', '.oo.'], // Pumpkin King's seeds
 };
 
 // ---------- Small sprites ----------
@@ -272,6 +336,9 @@ const SMALL = {
   hex_spark: { palette: { p: '#B57BFF' }, rows: ['p.', '.p'] },
   petal: { palette: { p: '#C9C3A1', d: '#8C866A' }, rows: ['pp', 'pd'] },
   pink_bit: { palette: { f: '#E0457B' }, rows: ['ff'] },
+  pumpkin_bit: { palette: { P: '#E8903C', p: '#B5501F' }, rows: ['Pp', 'PP'] },
+  // Where a boss attack is about to land.
+  target: { palette: { f: '#E0457B', c: '#FFC2D6' }, rows: ['...fffff...', '.ff.....ff.', 'f....c....f', '.ff.....ff.', '...fffff...'] },
   pedestal: {
     palette: { o: '#4A4A40', t: '#A8A694', s: '#8C8A78', d: '#6B6A5C' },
     rows: [
@@ -286,7 +353,7 @@ const SMALL = {
       '.oooooooooo.',
     ],
   },
-  // Weed Queen's root attack: a warning crack, then roots burst up.
+  // Weed Queen's root attack (and the Beetle Baron's tunnel): a warning crack, then roots burst up.
   crack: {
     palette: { c: '#1A140F' },
     rows: ['...cc.......', '.....c..cc..', '..ccccccc...', '.c....c..c..', '....cc...cc.'],

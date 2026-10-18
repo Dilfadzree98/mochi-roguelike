@@ -1,6 +1,6 @@
 // Builds a random floor: a tree of rooms on a small grid.
 // Room types: start (empty), normal (2 waves), treasure (item pedestal, locked with a key),
-// shop (worm shopkeeper), boss.
+// shop (worm shopkeeper), boss (one boss fight, no waves).
 
 import { makeLayout } from './Pathing.js';
 
@@ -49,15 +49,24 @@ export class Dungeon {
 }
 
 // Deeper floors (floorIndex 0-3) have one more room and bigger waves.
-export function generateDungeon(rng, floor, floorIndex, enemyDefs) {
+// `bossId` is the boss waiting in the boss room; any boss can turn up on any floor.
+export function generateDungeon(rng, floor, floorIndex, enemyDefs, bossId = pickBoss(rng, enemyDefs)) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const dungeon = tryGenerate(rng, floor, floorIndex, enemyDefs);
+    const dungeon = tryGenerate(rng, floor, floorIndex, enemyDefs, bossId);
     if (dungeon) return dungeon;
   }
   throw new Error('Could not generate a dungeon');
 }
 
-function tryGenerate(rng, floor, floorIndex, enemyDefs) {
+export function bossIds(enemyDefs) {
+  return Object.keys(enemyDefs).filter((id) => enemyDefs[id].boss);
+}
+
+function pickBoss(rng, enemyDefs) {
+  return rng.pick(bossIds(enemyDefs));
+}
+
+function tryGenerate(rng, floor, floorIndex, enemyDefs, bossId) {
   const target = rng.int(ROOM_COUNT.min + floorIndex, ROOM_COUNT.max + floorIndex);
   const cells = new Map([[key(START.x, START.y), { ...START }]]);
   const neighborCount = (x, y) => Object.values(DIRS).filter((d) => cells.has(key(x + d.x, y + d.y))).length;
@@ -97,7 +106,7 @@ function tryGenerate(rng, floor, floorIndex, enemyDefs) {
 
     let waves = [];
     if (type === 'normal') waves = normalWaves(rng, floor.enemies, enemyDefs, dist + floorIndex);
-    if (type === 'boss') waves = bossWaves(rng, floor, floorIndex, enemyDefs);
+    if (type === 'boss') waves = [[bossId]]; // no waves: just the boss
 
     const doors = {};
     for (const [dir, d] of Object.entries(DIRS)) doors[dir] = cells.has(key(c.x + d.x, c.y + d.y));
@@ -166,13 +175,6 @@ function makeWave(rng, weights, enemyDefs, difficulty) {
   const open = () => types.filter((t) => count(t) < (enemyDefs[t].maxPerWave ?? WAVE_SIZE.max));
   while (wave.length < size && open().length > 0) wave.push(rng.pick(open()));
   return wave;
-}
-
-// Wave 1: the floor's regular enemies. Wave 2: the boss (the Weed Queen summons her own help).
-function bossWaves(rng, floor, floorIndex, enemyDefs) {
-  const minions = makeWave(rng, floor.enemies, enemyDefs, 6 + floorIndex * 3);
-  const helpers = floor.boss === 'weed_queen' ? [] : makeWave(rng, floor.enemies, enemyDefs, 0).slice(0, 2);
-  return [minions, [floor.boss, ...helpers]];
 }
 
 function distancesFrom(start, cells) {

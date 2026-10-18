@@ -26,7 +26,6 @@
       "gloom_slug": 4,
       "grumpshroom": 1
     },
-    "boss": "mother_slug",
     "obstacles": [
       { "texture": "flower_pot" },
       { "texture": "stump" }
@@ -60,7 +59,6 @@
       "click_beetle": 2,
       "thornvine": 1
     },
-    "boss": "grandshroom",
     "obstacles": [
       { "texture": "planter" },
       { "texture": "bench" }
@@ -94,7 +92,6 @@
       "grumpshroom": 1,
       "hexed_gnome": 1
     },
-    "boss": "gnome_king",
     "obstacles": [
       { "texture": "barrel" },
       { "texture": "crate" },
@@ -130,7 +127,6 @@
       "thornvine": 2,
       "hexed_gnome": 2
     },
-    "boss": "weed_queen",
     "obstacles": [
       { "texture": "root_knot" },
       { "texture": "thorn_cluster", "hurts": true }

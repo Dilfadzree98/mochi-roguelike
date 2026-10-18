@@ -61,6 +61,7 @@ game/
 ├── entities/
 │   ├── Player.js        Mochi; stats rebuilt from BASE_STATS + held items; coins/bombs/keys
 │   ├── Enemy.js         base enemy, BEHAVIOURS registry, DEATHS animations, burn/slow
+│   ├── BossMoves.js     the 7 bosses' moves (generators), idle patterns, enrage
 │   ├── EnemyBullet.js   pink enemy bullets
 │   └── Projectile.js    seeds: pierce, bounce, split, carries burn/slow
 ├── systems/
@@ -75,12 +76,14 @@ game/
 │   └── Save.js          localStorage (best floor, rooms cleared, wins)
 └── data/
     ├── characters.json  playable characters: name, description, texture, stat modifiers, skill
-    ├── enemies.json     enemies and bosses: stats, behaviour name + params, death animation
-    ├── floors.json      4 floors: palette, wall face, decorations, obstacles, enemy weights, boss
+    ├── enemies.json     enemies and 7 bosses: stats, behaviour name + params (bosses: idle + 3 moves), death animation
+    ├── floors.json      4 floors: palette, wall face, decorations, obstacles, enemy weights
     └── items.json       37 items (20 shot, 17 stat); each is a list of stat modifiers
 ```
 
-Adding an enemy: add an entry to `data/enemies.json` using an existing `behaviour` (`chase`, `ring_shooter`, `charger`, `aimed_shooter`, `teleporter`, `boss_shroom`, `weed_queen`) with its `params`, a `death` from `DEATHS`, and a sprite in `art/Sprites.js` ENEMIES; then give it a weight in a floor's `enemies` in `floors.json`. A new movement pattern goes in `BEHAVIOURS` in Enemy.js. Enemy attacks use Game's `fireRing` / `fireSpread` / `fireSpiral` / `fireSweep` / `rootStrike`.
+Adding an enemy: add an entry to `data/enemies.json` using an existing `behaviour` (`chase`, `ring_shooter`, `charger`, `aimed_shooter`, `teleporter`) with its `params`, a `death` from `DEATHS`, and a sprite in `art/Sprites.js` ENEMIES; then give it a weight in a floor's `enemies` in `floors.json`. A new movement pattern goes in `BEHAVIOURS` in Enemy.js. Enemy attacks use Game's `fireRing` / `fireSpread` / `fireSpiral` / `fireSweep` / `rootStrike` / `markStrike`.
+
+Adding a boss: an entry in `data/enemies.json` with `"boss": true`, `"behaviour": "boss"`, an `idle` (`still`, `chase`, `wander`), three `moves` and `params.cooldownMs`. Moves are generators in `BOSS_MOVES` (entities/BossMoves.js): `yield ms` waits, a bare `yield` waits one frame. It joins the boss pool automatically.
 
 Adding an item: add an entry to `data/items.json` with `modifiers` like `{ "damage": { "add": 0.5 } }`, `{ "fireDelay": { "mul": 0.75 } }` or `{ "pierce": { "set": true } }`, and an `icon` texture key (draw it in `art/Sprites.js` ICONS). A brand-new stat also needs a default in `BASE_STATS` (Player.js) and code that reads it.
 
@@ -89,7 +92,9 @@ Implementation patterns to keep:
 - **Two RNG streams in Game:** `this.rng` for gameplay, `this.fxRng` for cosmetics (particles, animation offsets), so visual effects never change gameplay rolls.
 - **Art is replaceable:** sprites are referenced by texture key only. To use real PNGs, load them in `Boot.preload` under the same keys; `makeTextures` skips keys that already exist.
 - Game → HUD communication is through `Game.events` (`hp`, `wave`, `room`, `inventory`, `floor`, `boss`).
-- **Floors:** `startFloor(i)` makes a new dungeon from `floors.json[i]`; the player, items and item pool carry over. Beating a boss on floors 1-3 leaves an item pedestal and a trapdoor (`descend()`); beating the Weed Queen on floor 4 wins.
+- **Floors:** `startFloor(i)` makes a new dungeon from `floors.json[i]`; the player, items and item pool carry over. Beating a boss on floors 1-3 leaves an item pedestal and a trapdoor (`descend()`); beating floor 4's boss wins.
+- **Bosses:** 7 bosses, 3 moves each (BossMoves.js). At run start `Game.bossOrder` shuffles every boss id, and floor *i* gets `bossOrder[i]`, so any boss can be on any floor and none repeats in a run. A boss room has no waves: `room.waves` is `[[bossId]]` and the HUD shows FLOOR, not WAVE. Boss HP is `hp` x `BOSS_HP_BY_FLOOR` ([1, 1.5, 2.1, 2.8]). After each move the boss rests for `cooldownMs` and then picks a different move. Below 50% HP it is enraged: pink tint, a banner, 0.65x rest time and stronger moves (`e.ai.enraged`). Bosses ignore knockback and Catnip. Killing one kills its summons.
+- **Mochi's invincibility:** 0.5 s after each hit (`INVULN_MS` in Player.js), with blinking.
 - **Characters:** Mangkok Mochi (boy, blue cap with a burger on it) and Lilo Mochi (girl, pink flower on her right ear, eyelashes). Each has stat `modifiers` in characters.json, applied like an item (Mangkok: damage +0.25, speed -6; Lilo: speed +8). The select screen shows hearts plus Damage/Speed/Fire rate as 1-5 pips (3 = base Mochi; `STAT_ROWS` in CharacterSelect.js).
 - **Skills** (systems/Skills.js): every `skill.every` (30) shots the character's skill casts automatically for `skill.durationMs` (2 s). Shots don't charge it while it runs. **Burger Beam** (Mangkok): a beam in the facing direction that stops at walls and burns through obstacles (each breaks after 2 ticks / 0.2 s, via `Game.breakObstacle`, same as bombs), damages every enemy it overlaps (0.6 x damage per 100 ms tick), pops enemy bullets, slows Mochi, and replaces normal shots. **Spawn Chinggu** (Lilo, 4 s): Chinggu, a calico cat (white with orange and black patches, pink bow), appears next to Lilo, runs to the nearest enemy using `Game.pathAngle()` and scratches it (1.5 x damage every 450 ms); with no enemies she follows Lilo. Enemies ignore her and she can't be hurt. The HUD meter (icon + bar) fills per shot and drains while active. Skills stop when leaving a room or dying. Their sprites are base Mochi plus an outfit overlay (`CHARACTERS` in Sprites.js; `makeMochiTextures` builds `<key>`, `_hurt`, `_wilt`, `_wilt_hurt`, `_bare`). The sprout leaf stays visible on both because it shows health. The character id travels Select → Game → GameOver/Pause restart. Adding one: an outfit in `CHARACTERS` + an entry in `characters.json` (keep descriptions ≤ 22 characters so the two cards don't overlap).
 - **Tooltips:** any pickup spot created with an `info` ({ name, description }) shows a tooltip when Mochi is within 24 px.
@@ -154,7 +159,17 @@ Cute but slightly creepy pixel art. A soft, warm hero in a world that grows dark
 | Thornvine | 2–3 | Stationary; bud opens and fires 3 aimed thorns |
 | Hexed Gnome | 3–4 | Mini-elite; teleports, freezes 1 s, fires 3-way spread |
 
-Bosses (one per floor): Mother Gloom Slug (2x slug), Grandshroom (2.5x Grumpshroom: rings, hops, spirals below half HP), The Gnome King (2x gnome: 7-way spreads + rings), The Weed Queen (final).
+Bosses (7; one random boss per floor, never the same one twice in a run):
+
+| Boss | Idle | Moves |
+|---|---|---|
+| Mother Gloom Slug | chases | Slime Dash (charge, thick slime), Brood (2-3 baby slugs), Goo Rain (blobs land on target marks and splash) |
+| Grandshroom | still | Hop Slam (2-3 hops, spore ring on landing), Spore Rings, Spore Spiral |
+| The Gnome King | still | Blink Volley (teleport + 7-way fan), Hex Nova (3 rings), Hex Curse (marks around Mochi burst into orbs) |
+| The Weed Queen | rooted at top | Vine Sweep, Root Strike (roots under Mochi, 3-5 times), Thorn Volley (3 aimed fans) |
+| Beetle Baron | wanders | Triple Charge, Shell Shrapnel (2 rings), Burrow (crack follows Mochi, bursts out) |
+| Bramble Hydra | rooted at top | Triple Spit (each head fires a fan), Bramble Wall (row of thorns with a gap), Thorn Rain |
+| Pumpkin King | chases | Rolling Bounce (bounces off walls), Seed Stream, Star Burst (8-way rings) |
 
 ### Items (37)
 
@@ -169,9 +184,9 @@ Bosses (one per floor): Mother Gloom Slug (2x slug), Grandshroom (2.5x Grumpshro
 3. Mushroom Cellar: floor `#4A3B35`, wall `#2E2424`, accent `#6FD3FF`
 4. Compost Depths: floor `#3A2E3F`, wall `#1F1A24`, accent `#B57BFF`
 
-### Final boss: The Weed Queen
+### Boss fights
 
-Three phases (100–66%, 66–33%, 33–0%): vine sweeps and slow pink seed rings; then summons 2 Gloom Slugs and roots erupt under the player after a warning crack; then a pink bullet spiral and faster sweeps. 0.5 s glowing windup before every attack.
+Every attack is announced: a glowing windup, a shake before charges, or a blinking target mark on the floor. Below half health the boss is enraged. The boss on the 4th floor is the final boss, whichever one it is.
 
 ### Game feel
 

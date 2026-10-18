@@ -1,9 +1,7 @@
 import { DEPTH, FLOOR } from '../constants.js';
 import { flashWhite } from '../systems/Fx.js';
+import { BOSS_IDLE, BOSS_MOVES, angleTo } from './BossMoves.js';
 
-const DEG = Math.PI / 180;
-
-const angleTo = (enemy, target) => Math.atan2(target.hitbox.y - enemy.y, target.hitbox.x - enemy.x);
 
 // True when the enemy's hitbox is pressed against a wall.
 function againstWall(enemy) {
@@ -130,81 +128,35 @@ const BEHAVIOURS = {
     }
   },
 
-  // Boss: rings of spores, hops at the player, spirals when below half health.
-  boss_shroom(e, player, time) {
-    const p = e.def.params;
+  // Every boss: idles, then runs one of its three moves (see BossMoves.js).
+  // Below half health it becomes enraged: faster moves and shorter rests.
+  boss(e, player, time) {
     const ai = e.ai;
-    ai.nextAt ??= time + 1000;
-    ai.step ??= 0;
-
-    if (ai.hopUntil) {
-      if (time < ai.hopUntil) return;
-      ai.hopUntil = null;
-      e.stop();
-      e.squish();
-      e.scene.fireRing(e.x, e.y, 8, p.bulletSpeed * 1.2, 'spore', 0);
-      e.scene.cameras.main.shake(120, 0.008);
+    const p = e.def.params ?? {};
+    if (!ai.enraged && e.hp < e.maxHp * ENRAGE_AT) {
+      ai.enraged = true;
+      e.scene.banner(`${e.def.name} is furious!`, 0xb57bff);
     }
-    e.stop();
+
+    if (ai.move) {
+      if (time < ai.waitUntil) return;
+      const { value, done } = ai.move.next();
+      if (!done) {
+        ai.waitUntil = value ? time + value : 0;
+        return;
+      }
+      ai.move = null;
+      ai.nextAt = time + (p.cooldownMs ?? 900) * (ai.enraged ? ENRAGED_COOLDOWN : 1);
+    }
+
+    BOSS_IDLE[e.def.idle ?? 'still'](e, player, time);
+    ai.nextAt ??= time + FIRST_MOVE_MS;
     if (time < ai.nextAt) return;
-    ai.nextAt = time + p.interval;
-    ai.step += 1;
-
-    const move = ai.step % 3;
-    if (move === 0) {
-      e.hitbox.body.velocity.setToPolar(angleTo(e, player), p.hopSpeed);
-      ai.hopUntil = time + p.hopMs;
-    } else if (move === 1) {
-      e.squish();
-      e.scene.fireRing(e.x, e.y - 8, p.ringBullets, p.bulletSpeed, 'spore', ai.step * 0.3);
-    } else if (e.hp < e.maxHp / 2) {
-      e.scene.fireSpiral(e.x, e.y - 8, 24, p.bulletSpeed, 'spore', 1000);
-    } else {
-      e.scene.fireSpread(e.x, e.y - 8, angleTo(e, player), 5, 16, p.bulletSpeed * 1.2, 'spore');
-    }
-  },
-
-  // Final boss. Rooted in place; three phases by health. Glows for a moment before every attack.
-  weed_queen(e, player, time) {
-    const p = e.def.params;
-    const ai = e.ai;
-    const scene = e.scene;
-    const ratio = e.hp / e.maxHp;
-    const phase = ratio > 0.66 ? 0 : ratio > 0.33 ? 1 : 2;
-    if (phase !== ai.phase) {
-      ai.phase = phase;
-      if (phase > 0) {
-        scene.banner(phase === 1 ? 'Her buds open!' : 'She is furious!', 0xb57bff);
-        e.sprite.setTint(phase === 1 ? 0xe0c8ff : 0xffb3d0);
-      }
-    }
-    ai.nextAt ??= time + 1200;
-
-    if (ai.attack && time >= ai.attackAt) {
-      const attack = ai.attack;
-      ai.attack = null;
-      const faster = phase === 2;
-      if (attack === 'sweep') scene.fireSweep(e.x, e.y + 4, 15 * DEG, 165 * DEG, faster ? 16 : 12, faster ? 95 : 70, 'thorn', 600);
-      if (attack === 'ring') scene.fireRing(e.x, e.y, 14, 50, 'spore', scene.rng.range(0, Math.PI));
-      if (attack === 'spiral') scene.fireSpiral(e.x, e.y, 36, 60, 'spore', 1500);
-      if (attack === 'roots') {
-        scene.rootStrike(player.hitbox.x, player.hitbox.y);
-        if (faster) scene.rootStrike(scene.rng.range(FLOOR.left + 20, FLOOR.right - 20), scene.rng.range(FLOOR.top + 50, FLOOR.bottom - 10));
-      }
-      if (attack === 'summon') {
-        scene.spawnEnemyAt('gloom_slug', e.x - 30, e.y + 24);
-        scene.spawnEnemyAt('gloom_slug', e.x + 30, e.y + 24);
-      }
-      ai.nextAt = time + p.cooldownMs[phase];
-    }
-
-    if (!ai.attack && time >= ai.nextAt) {
-      const attacks = [['sweep', 'ring'], ['summon', 'roots', 'ring', 'roots'], ['spiral', 'sweep', 'roots']][phase];
-      ai.turn = (ai.turn ?? -1) + 1;
-      ai.attack = attacks[ai.turn % attacks.length];
-      ai.attackAt = time + p.windupMs;
-      e.windup(p.windupMs);
-    }
+    const others = e.def.moves.filter((m) => m !== ai.lastMove);
+    const choices = others.length > 0 ? others : e.def.moves;
+    ai.lastMove = e.scene.rng.pick(choices);
+    ai.move = BOSS_MOVES[ai.lastMove](e, player);
+    ai.waitUntil = 0;
   },
 };
 
@@ -218,6 +170,10 @@ const SLOW_TINT = 0xa8e0ff;
 const POISON_TINT = 0x9bd86a;
 const DIZZY_TINT = 0xfff0a0;
 const WINDUP_TINT = 0xd9b8ff;
+const ENRAGED_TINT = 0xffb3d0;
+const ENRAGE_AT = 0.5;          // bosses get angry below half health
+const ENRAGED_COOLDOWN = 0.65;  // and rest this much less between moves
+const FIRST_MOVE_MS = 1200;
 
 // States: spawning -> active -> dead (or frozen when the run ends).
 export class Enemy {
@@ -225,7 +181,7 @@ export class Enemy {
     if (!BEHAVIOURS[def.behaviour]) throw new Error(`Unknown enemy behaviour "${def.behaviour}"`);
     this.scene = scene;
     this.def = def;
-    this.maxHp = def.boss ? def.hp : def.hp * hpScale;
+    this.maxHp = def.hp * hpScale;
     this.hp = this.maxHp;
     this.state = 'spawning';
     this.destroyed = false;
@@ -340,8 +296,8 @@ export class Enemy {
     else if (this.poison) this.sprite.setTint(POISON_TINT);
     else if (this.slow) this.sprite.setTint(SLOW_TINT);
     else if (time < this.dizzyUntil) this.sprite.setTint(DIZZY_TINT);
-    else if (this.def.behaviour !== 'weed_queen' || this.ai.phase === 0) this.sprite.clearTint();
-    else this.sprite.setTint(this.ai.phase === 1 ? 0xe0c8ff : 0xffb3d0);
+    else if (this.ai.enraged) this.sprite.setTint(ENRAGED_TINT);
+    else this.sprite.clearTint();
   }
 
   syncVisuals(shakeX = 0) {

@@ -26,6 +26,16 @@ export class Rng {
     return list[Math.floor(this.next() * list.length)];
   }
 
+  // A shuffled copy of the list.
+  shuffle(list) {
+    const copy = [...list];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(this.next() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
   chance(probability) {
     return this.next() < probability;
   }
