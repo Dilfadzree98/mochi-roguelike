@@ -31,8 +31,10 @@ const BOSS_HP_BY_FLOOR = [1, 1.5, 2.1, 2.8]; // bosses get tougher the deeper th
 const ROOM_DROP_CHANCE = 0.5;
 const ROOM_DROP_LUCK_BONUS = 0.15;
 const ROOM_DROP_WEIGHTS = { coin: 40, heart: 30, bomb: 15, key: 15 };
-const COIN_DROP_CHANCE = 0.12;
-const COIN_DROP_LUCK_BONUS = 0.08;
+const ENEMY_DROP_CHANCE = 0.04;      // a regular enemy drops a coin or a heart
+const ENEMY_DROP_LUCK_BONUS = 0.03;
+const ENEMY_DROP_WEIGHTS = { coin: 1, heart: 1 };
+const BOSS_DOUBLE_HEART_CHANCE = 0.4; // a boss always drops a heart, sometimes two
 
 const BOMB_FUSE_MS = 1500;
 const BOMB_RADIUS = 30;
@@ -532,6 +534,9 @@ export class Game extends Phaser.Scene {
       } else {
         this.banner('Boss defeated!', UI.gold, 'A trapdoor opens...');
         this.setUpBossReward(room);
+        // Hearts below the item and trapdoor, so picking them up never means stepping on the trapdoor.
+        const hearts = this.rng.chance(BOSS_DOUBLE_HEART_CHANCE) ? [-8, 8] : [0];
+        for (const dx of hearts) this.dropPickup('heart', CENTER.x + dx, CENTER.y + 28);
       }
       return;
     }
@@ -552,8 +557,8 @@ export class Game extends Phaser.Scene {
       this.cameras.main.shake(300, 0.015);
       return;
     }
-    const chance = COIN_DROP_CHANCE + COIN_DROP_LUCK_BONUS * this.player.stats.luck;
-    if (this.rng.chance(chance)) this.dropPickup('coin', enemy.x, enemy.y);
+    const chance = ENEMY_DROP_CHANCE + ENEMY_DROP_LUCK_BONUS * this.player.stats.luck;
+    if (this.rng.chance(chance)) this.dropPickup(this.rng.weighted(ENEMY_DROP_WEIGHTS), enemy.x, enemy.y);
   }
 
   onBossHp(enemy) {
