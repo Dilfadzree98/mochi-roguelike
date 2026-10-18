@@ -8,7 +8,8 @@ const DOOR_SLOTS = {
   right: { col: ROOM_COLS - 1, row: 4, angle: 90 },
 };
 
-const DECORATIONS = ['flower', 'flower', 'clover', 'clover', 'pebble'];
+// Decorations that give off a soft light.
+const DECOR_GLOW = { glow_mushroom: 'glow_blue', purple_sprout: 'glow_purple' };
 
 // A door to or from a special room uses that room's gate.
 function closedDoorTexture(room, neighbor) {
@@ -41,11 +42,12 @@ function staticZones(scene, rects) {
   return group;
 }
 
-// Draws one Sunny Garden room and its colliders.
+// Draws one room, in its floor's theme, and its colliders.
 //  - solidWalls: full ring with no gaps (enemies and shots)
 //  - playerWalls + doorBlockers: walls with door gaps, and a blocker per door while it's closed
 export function buildRoom(scene, room, dungeon) {
   const rng = new Rng(room.seed);
+  const floor = dungeon.floor;
   const objects = [];
   const add = (obj) => {
     objects.push(obj);
@@ -58,10 +60,10 @@ export function buildRoom(scene, room, dungeon) {
       const y = ROOM_Y + row * TILE;
       const isWall = row === 0 || col === 0 || row === ROOM_ROWS - 1 || col === ROOM_COLS - 1;
       if (isWall) {
-        const key = row === 0 ? 'wall_top' : `hedge${rng.int(0, 2)}`;
+        const key = row === 0 ? `${floor.id}_wall_top` : `${floor.id}_wall${rng.int(0, 2)}`;
         add(scene.add.image(x, y, key).setOrigin(0).setDepth(DEPTH.wall));
       } else {
-        const key = rng.chance(0.1) ? 'grass3' : `grass${rng.int(0, 2)}`;
+        const key = `${floor.id}_floor${rng.chance(0.1) ? 3 : rng.int(0, 2)}`;
         add(scene.add.image(x, y, key).setOrigin(0).setDepth(DEPTH.floor));
       }
     }
@@ -71,10 +73,12 @@ export function buildRoom(scene, room, dungeon) {
   for (let i = 0; i < decorationCount; i++) {
     const x = rng.int(FLOOR.left + 4, FLOOR.right - 4);
     const y = rng.int(FLOOR.top + 4, FLOOR.bottom - 4);
-    add(scene.add.image(x, y, rng.pick(DECORATIONS)).setDepth(DEPTH.decor));
+    const key = rng.pick(floor.decorations);
+    if (DECOR_GLOW[key]) add(scene.add.image(x, y, DECOR_GLOW[key]).setDepth(DEPTH.decor).setAlpha(0.8));
+    add(scene.add.image(x, y, key).setDepth(DEPTH.decor));
   }
 
-  add(scene.add.image(ROOM_X, ROOM_Y, 'vignette').setOrigin(0).setDepth(DEPTH.overlay));
+  add(scene.add.image(ROOM_X, ROOM_Y, `vignette_${floor.id}`).setOrigin(0).setDepth(DEPTH.overlay));
 
   const solidWalls = staticZones(scene, wallRects());
   const playerWalls = staticZones(scene, wallRects(room.doors));

@@ -22,9 +22,11 @@ const MAX_WAVE_SIZE = 6;
 const key = (x, y) => `${x},${y}`;
 
 export class Dungeon {
-  constructor(rooms, start) {
+  constructor(rooms, start, floor, floorIndex) {
     this.rooms = rooms;
     this.start = start;
+    this.floor = floor; // entry from data/floors.json
+    this.floorIndex = floorIndex;
     this.byKey = new Map(rooms.map((room) => [key(room.x, room.y), room]));
     this.combatRoomCount = rooms.filter((room) => room.waves.length > 0).length;
   }
@@ -40,16 +42,17 @@ export class Dungeon {
   }
 }
 
-export function generateDungeon(rng, enemyDefs) {
+// Deeper floors (floorIndex 0-3) have one more room and bigger waves.
+export function generateDungeon(rng, floor, floorIndex) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const dungeon = tryGenerate(rng, enemyDefs);
+    const dungeon = tryGenerate(rng, floor, floorIndex);
     if (dungeon) return dungeon;
   }
   throw new Error('Could not generate a dungeon');
 }
 
-function tryGenerate(rng, enemyDefs) {
-  const target = rng.int(ROOM_COUNT.min, ROOM_COUNT.max);
+function tryGenerate(rng, floor, floorIndex) {
+  const target = rng.int(ROOM_COUNT.min + floorIndex, ROOM_COUNT.max + floorIndex);
   const cells = new Map([[key(START.x, START.y), { ...START }]]);
   const neighborCount = (x, y) => Object.values(DIRS).filter((d) => cells.has(key(x + d.x, y + d.y))).length;
 
@@ -78,9 +81,6 @@ function tryGenerate(rng, enemyDefs) {
   const treasure = others.splice(Math.floor(rng.next() * others.length), 1)[0];
   const shop = rng.pick(others);
 
-  const normalTypes = Object.keys(enemyDefs).filter((type) => !enemyDefs[type].boss);
-  const bossTypes = Object.keys(enemyDefs).filter((type) => enemyDefs[type].boss);
-
   const rooms = [...cells.values()].map((c) => {
     const dist = distance.get(key(c.x, c.y));
     let type = 'normal';
@@ -90,8 +90,8 @@ function tryGenerate(rng, enemyDefs) {
     else if (c === shop) type = 'shop';
 
     let waves = [];
-    if (type === 'normal') waves = normalWaves(rng, normalTypes, dist);
-    if (type === 'boss') waves = bossWaves(rng, normalTypes, bossTypes);
+    if (type === 'normal') waves = normalWaves(rng, floor.enemies, dist + floorIndex);
+    if (type === 'boss') waves = bossWaves(rng, floor, floorIndex);
 
     const doors = {};
     for (const [dir, d] of Object.entries(DIRS)) doors[dir] = cells.has(key(c.x + d.x, c.y + d.y));
@@ -112,20 +112,23 @@ function tryGenerate(rng, enemyDefs) {
     };
   });
 
-  return new Dungeon(rooms, rooms.find((room) => room.type === 'start'));
+  return new Dungeon(rooms, rooms.find((room) => room.type === 'start'), floor, floorIndex);
 }
 
-// Rooms further from the start get bigger waves; the second wave is one bigger.
-function normalWaves(rng, types, dist) {
-  const first = Math.min(2 + Math.floor(dist / 2), MAX_WAVE_SIZE - 1);
+// Rooms further from the start (and on deeper floors) get bigger waves; the second wave is one bigger.
+// `weights` is the floor's enemy mix, e.g. { "gloom_slug": 4, "grumpshroom": 1 }.
+function normalWaves(rng, weights, difficulty) {
+  const first = Math.min(2 + Math.floor(difficulty / 2), MAX_WAVE_SIZE - 1);
   return Array.from({ length: WAVES_PER_ROOM }, (_, i) =>
-    Array.from({ length: first + i }, () => rng.pick(types)),
+    Array.from({ length: first + i }, () => rng.weighted(weights)),
   );
 }
 
-function bossWaves(rng, normalTypes, bossTypes) {
-  const minions = (n) => Array.from({ length: n }, () => rng.pick(normalTypes));
-  return [minions(4), [rng.pick(bossTypes), ...minions(2)]];
+// Wave 1: the floor's regular enemies. Wave 2: the boss (the Weed Queen summons her own help).
+function bossWaves(rng, floor, floorIndex) {
+  const minions = (n) => Array.from({ length: n }, () => rng.weighted(floor.enemies));
+  const helpers = floor.boss === 'weed_queen' ? 0 : 2;
+  return [minions(3 + floorIndex), [floor.boss, ...minions(helpers)]];
 }
 
 function distancesFrom(start, cells) {

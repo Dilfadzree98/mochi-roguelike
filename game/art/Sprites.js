@@ -70,37 +70,145 @@ function mochi(leaves, faceRows = {}) {
   return [...leaves, ...MOCHI_BODY.map((row, i) => faceRows[i + 4] ?? row)];
 }
 
-// ---------- Enemies ----------
+// ---------- Enemies (cool, muted colours; glowing eyes or tiny teeth) ----------
 
-const GLOOM_SLUG = {
-  palette: {
-    o: '#4E4260',
-    b: '#7A6A8F',
-    h: '#C9BEDA', // glossy slime highlight
-    L: '#A99BBD', // belly
-    y: '#FFE45C', // glowing eyes
-    k: '#2C2C2A',
-    w: '#FFFFFF',
-  },
+const ENEMIES = {
   // Faces right; flipped in code to face left.
-  rows: [
-    '................',
-    '................',
-    '................',
-    '................',
-    '................',
-    '................',
-    '..........y..y..',
-    '..........o..o..',
-    '..........o..o..',
-    '.....ooooooooo..',
-    '...oobbhhbbbbbo.',
-    '..obbbhbbbbbbbbo',
-    '.obbbbbbbbbbbbbo',
-    'obbbbbbbbbbbbkwo',
-    'oLLLLLLLLLLLLLLo',
-    '.oooooooooooooo.',
-  ],
+  gloom_slug: {
+    palette: { o: '#4E4260', b: '#7A6A8F', h: '#C9BEDA', L: '#A99BBD', y: '#FFE45C', k: '#2C2C2A', w: '#FFFFFF' },
+    rows: [
+      '................',
+      '................',
+      '................',
+      '................',
+      '................',
+      '................',
+      '..........y..y..',
+      '..........o..o..',
+      '..........o..o..',
+      '.....ooooooooo..',
+      '...oobbhhbbbbbo.',
+      '..obbbhbbbbbbbbo',
+      '.obbbbbbbbbbbbbo',
+      'obbbbbbbbbbbbkwo',
+      'oLLLLLLLLLLLLLLo',
+      '.oooooooooooooo.',
+    ],
+  },
+  grumpshroom: {
+    palette: { o: '#7A2420', r: '#C2413B', s: '#F3E9DC', S: '#E6D2B5', b: '#2C2C2A', k: '#2C2C2A', m: '#6B2F2E', f: '#A8916E' },
+    rows: [
+      '.....oooooo.....',
+      '...oorrrrrroo...',
+      '..orrsrrrrrsrro.',
+      '.orsssrrrrrrrrro',
+      '.orrsrrrrrrssrro',
+      'orrrrrrrrrrssrro',
+      'oooooooooooooooo',
+      '..oSSSSSSSSSSo..',
+      '..obbSSSSSSbbo..',
+      '..oSSbSSSSbSSo..',
+      '..oSkkSSSSkkSo..',
+      '..oSSSSmmSSSSo..',
+      '..oSSSmSSmSSSo..',
+      '...oSSSSSSSSo...',
+      '...ofo....ofo...',
+      '...ooo....ooo...',
+    ],
+  },
+  // Faces right.
+  click_beetle: {
+    palette: { o: '#0F3333', s: '#1F5C5C', h: '#4FA3A3', e: '#FF6B6B', K: '#2C2C2A', l: '#2C2C2A' },
+    rows: [
+      '................',
+      '................',
+      '................',
+      '................',
+      '................',
+      '................',
+      '................',
+      '....ooooooo.....',
+      '..oosshhsssoo...',
+      '.ossshhssssssoo.',
+      '.osssssssssssoeo',
+      '.ossssssssssooo.',
+      '..oooooooooooKK.',
+      '..l.l..l.l..l...',
+      '.l.l..l.l..l....',
+      '................',
+    ],
+  },
+  thornvine: {
+    palette: { o: '#1A3318', v: '#2E5A2A', V: '#4C7A3A', t: '#C9C3A1', b: '#6B2F4E', B: '#8A4064', c: '#1F1A14' },
+    rows: [
+      '................',
+      '......obbo......',
+      '.....obBbbo.....',
+      '.....obbbbo.....',
+      '......obbo......',
+      '.......vv.......',
+      '.....t.vv.......',
+      '......vVv.t.....',
+      '.....vVv........',
+      '...t.vVv........',
+      '.......vVv......',
+      '......t.vVv.....',
+      '........vVv.t...',
+      '.......vVv......',
+      '.....cccvvccc...',
+      '....cccccccccc..',
+    ],
+  },
+  hexed_gnome: {
+    palette: {
+      o: '#2E3B5C', h: '#4A5F8C', H: '#6A7FAC', k: '#3B3B3B', f: '#D9A88A', g: '#B57BFF',
+      w: '#E8E4DA', W: '#C9C3B8', c: '#8C5A50', C: '#3B3B3B',
+    },
+    rows: [
+      '.......oo.......',
+      '......ohho......',
+      '......ohho......',
+      '.....ohhHho.....',
+      '.....ohhhho.....',
+      '....ohhHhhho....',
+      '....ohhhhkho....',
+      '...ohhhhhhhho...',
+      '..oooooooooooo..',
+      '...offffffffo...',
+      '...ofgfffgffo...',
+      '...offkffffffo..',
+      '..owwwfffwwwo...',
+      '..owwwwwwwwwo...',
+      '.oowwwwWwwwwoo..',
+      '.occwwwWwwwcco..',
+      '.occcwwwwwccco..',
+      '.occccwwwcccco..',
+      '..occcccccccco..',
+      '..occcccccccco..',
+      '..oCCCCCCCCCCo..',
+      '...occcccccco...',
+      '...okko..okko...',
+      '...oooo..oooo...',
+    ],
+  },
+};
+
+// Thornvine with its bud open (shown while it attacks).
+const THORNVINE_OPEN_TOP = [
+  '....ob....bo....',
+  '...obBw..wBbo...',
+  '...obmmmmmmbo...',
+  '....obwmmwbo....',
+  '......obbo......',
+];
+
+// ---------- Enemy bullets: always the same hot pink so danger is easy to read ----------
+
+const PINK = { f: '#E0457B', o: '#8A1E47', c: '#FFC2D6', p: '#B57BFF' };
+const BULLETS = {
+  spore: ['..oo..', '.offo.', 'ofccfo', 'ofccfo', '.offo.', '..oo..'],
+  thorn: ['oo....', 'offo..', 'ofccoo', 'offo..', 'oo....'],
+  hex_orb: ['.pppp.', 'poffop', 'pfccfp', 'pfccfp', 'poffop', '.pppp.'],
 };
 
 // ---------- Small sprites ----------
@@ -110,38 +218,16 @@ const SMALL = {
     palette: { o: '#3F7A2A', g: '#8BC86A', w: '#FFFFFF' },
     rows: ['..oo..', '.ogwo.', 'oggggo', 'oggggo', '.oggo.', '..oo..'],
   },
-  husk: {
-    palette: { a: '#8BC86A', b: '#3F7A2A' },
-    rows: ['ab', 'ba'],
-  },
-  leaf: {
-    palette: { g: '#8BC86A', G: '#A6D987', s: '#5E9C3A' },
-    rows: ['.gG', 'gGG', 's..'],
-  },
-  shadow: {
-    palette: { o: '#000000' },
-    rows: ['..oooooo..', '.oooooooo.', '..oooooo..'],
-  },
-  slime: {
-    palette: { c: '#9FD8C8', w: '#D6F2EA' },
-    rows: ['.cccccc.', 'ccwccccc', 'cccccccc', '.cccccc.'],
-  },
-  slime_bit: {
-    palette: { L: '#A99BBD' },
-    rows: ['LL', 'LL'],
-  },
-  flower: {
-    palette: { y: '#F2C94C', c: '#C98A2E' },
-    rows: ['.y.', 'ycy', '.y.'],
-  },
-  clover: {
-    palette: { d: '#4C733B', D: '#3F6531' },
-    rows: ['d.d', '.D.'],
-  },
-  pebble: {
-    palette: { p: '#8C8A78', q: '#6B6A5C' },
-    rows: ['.pp', 'ppq'],
-  },
+  husk: { palette: { a: '#8BC86A', b: '#3F7A2A' }, rows: ['ab', 'ba'] },
+  leaf: { palette: { g: '#8BC86A', G: '#A6D987', s: '#5E9C3A' }, rows: ['.gG', 'gGG', 's..'] },
+  shadow: { palette: { o: '#000000' }, rows: ['..oooooo..', '.oooooooo.', '..oooooo..'] },
+  slime: { palette: { c: '#9FD8C8', w: '#D6F2EA' }, rows: ['.cccccc.', 'ccwccccc', 'cccccccc', '.cccccc.'] },
+  slime_bit: { palette: { L: '#A99BBD' }, rows: ['LL', 'LL'] },
+  cap_bit: { palette: { r: '#C2413B', s: '#F3E9DC' }, rows: ['rs', 'rr'] },
+  ceramic: { palette: { w: '#E8E4DA', h: '#4A5F8C' }, rows: ['wh', 'ww'] },
+  hex_spark: { palette: { p: '#B57BFF' }, rows: ['p.', '.p'] },
+  petal: { palette: { p: '#C9C3A1', d: '#8C866A' }, rows: ['pp', 'pd'] },
+  pink_bit: { palette: { f: '#E0457B' }, rows: ['ff'] },
   pedestal: {
     palette: { o: '#4A4A40', t: '#A8A694', s: '#8C8A78', d: '#6B6A5C' },
     rows: [
@@ -156,6 +242,32 @@ const SMALL = {
       '.oooooooooo.',
     ],
   },
+  // Weed Queen's root attack: a warning crack, then roots burst up.
+  crack: {
+    palette: { c: '#1A140F' },
+    rows: ['...cc.......', '.....c..cc..', '..ccccccc...', '.c....c..c..', '....cc...cc.'],
+  },
+  roots: {
+    palette: { o: '#1A3318', v: '#2E5A2A', V: '#4C7A3A' },
+    rows: ['..o.....o...', '.ovo...ovo..', '.ovo.o.ovo..', 'ovVvovoovVo.', 'ovVvovoovVvo', 'oooooooooooo'],
+  },
+};
+
+// ---------- Floor decorations (never shaped like enemies or bullets) ----------
+
+const DECOR = {
+  flower: { palette: { y: '#F2C94C', c: '#C98A2E' }, rows: ['.y.', 'ycy', '.y.'] },
+  clover: { palette: { d: '#4C733B', D: '#3F6531' }, rows: ['d.d', '.D.'] },
+  pebble: { palette: { p: '#8C8A78', q: '#6B6A5C' }, rows: ['.pp', 'ppq'] },
+  puddle: { palette: { p: '#4E6A66', w: '#7FA8A0' }, rows: ['.pppp.', 'ppwppp', '.pppp.'] },
+  broken_pot: { palette: { o: '#6E3A22', b: '#A0603C' }, rows: ['.o.o.', 'obbo.', 'obbbo', '.ooo.'] },
+  moss: { palette: { m: '#4C6A44', M: '#5E8050' }, rows: ['mMmm', '.mm.'] },
+  glow_mushroom: { palette: { c: '#6FD3FF', C: '#C9F2FF', s: '#C9E6F0' }, rows: ['.ccc.', 'cCccc', '..s..', '..s..', '.sss.'] },
+  jar: { palette: { o: '#5E6A6E', g: '#8C9A9E', G: '#C9D6DA' }, rows: ['.oo.', 'oggo', 'oGgo', 'oggo', 'oooo'] },
+  root: { palette: { r: '#5E4A38' }, rows: ['r....r', '.rr.r.', '...rr.'] },
+  rot_leaf: { palette: { l: '#4A3E22', L: '#5E5030' }, rows: ['.ll..', 'lLlll', '..ll.'] },
+  purple_sprout: { palette: { p: '#9B5CFF', P: '#B57BFF', s: '#4A2E5A' }, rows: ['p.p', 'PpP', '.s.', '.s.'] },
+  murky_puddle: { palette: { m: '#4A3A50', M: '#5E4A66', b: '#7A6A8F' }, rows: ['.mmmmm.', 'mmMmmbm', '.mmmmm.'] },
 };
 
 // ---------- Shots (player seeds; one per shot item) ----------
@@ -214,18 +326,12 @@ const ICONS = {
 // ---------- Pickups, bombs, shop ----------
 
 const PICKUPS = {
-  coin: {
-    palette: { o: '#C98A2E', y: '#F2C94C', Y: '#FFF4B8' },
-    rows: ['.ooo.', 'oyYyo', 'oyyyo', 'oyyyo', '.ooo.'],
-  },
+  coin: { palette: { o: '#C98A2E', y: '#F2C94C', Y: '#FFF4B8' }, rows: ['.ooo.', 'oyYyo', 'oyyyo', 'oyyyo', '.ooo.'] },
   bomb: {
     palette: { o: '#1A1418', k: '#3B3340', b: '#7A6A8F', f: '#FFD23F', s: '#FF8A3D' },
     rows: ['....fs.', '...o...', '.ooooo.', 'oobkkko', 'okkkkko', 'okkkkko', '.ooooo.'],
   },
-  key: {
-    palette: { y: '#F2C94C', o: '#C98A2E' },
-    rows: ['.yy....', 'y..yyyy', '.yy.o.o'],
-  },
+  key: { palette: { y: '#F2C94C', o: '#C98A2E' }, rows: ['.yy....', 'y..yyyy', '.yy.o.o'] },
   spark: { palette: { y: '#FFD23F' }, rows: ['yy', 'yy'] },
   smoke: { palette: { s: '#5A5060' }, rows: ['ss', 'ss'] },
   worm: {
@@ -245,11 +351,18 @@ const PICKUPS = {
   },
 };
 
-const HEART_PALETTE ={ o: '#5A1E2A', r: '#E25C4B', h: '#FFB3A3', e: '#3B2B33' };
+const HEART_PALETTE = { o: '#5A1E2A', r: '#E25C4B', h: '#FFB3A3', e: '#3B2B33' };
 const HEARTS = {
   heart_full: ['.oo.oo.', 'orrorro', 'ohrrrro', '.orrro.', '..oro..', '...o...'],
   heart_half: ['.oo.oo.', 'orroeeo', 'ohrreeo', '.orreo.', '..oro..', '...o...'],
   heart_empty: ['.oo.oo.', 'oeeoeeo', 'oeeeeeo', '.oeeeo.', '..oeo..', '...o...'],
+};
+
+const GATES = {
+  door: { frame: '#2A2219', wood: '#7A5C3A', dark: '#5E4630', lock: '#F2C94C' },
+  door_boss: { frame: '#1F1A24', wood: '#4E3A5E', dark: '#2E2238', lock: '#B57BFF' },
+  door_treasure: { frame: '#5C4520', wood: '#8A6A3A', dark: '#6E5234', lock: '#FFE45C' },
+  door_shop: { frame: '#2A2219', wood: '#5E7A3A', dark: '#3E5A2A', lock: '#F2A0A8' },
 };
 
 // ---------- Drawing helpers ----------
@@ -272,65 +385,184 @@ function paint(scene, key, width, height, draw) {
     ctx.fillStyle = color;
     ctx.fillRect(x, y, w, h);
   };
-  draw({ ctx, rect, px: (x, y, color) => rect(x, y, 1, 1, color) });
+  const px = (x, y, color) => rect(x, y, 1, 1, color);
+  // Hard-edged filled circle (no anti-aliasing).
+  const disc = (cx, cy, r, color) => {
+    for (let y = Math.floor(cy - r); y <= cy + r; y++) {
+      for (let x = Math.floor(cx - r); x <= cx + r; x++) {
+        if ((x - cx) ** 2 + (y - cy) ** 2 <= r * r) px(x, y, color);
+      }
+    }
+  };
+  draw({ ctx, rect, px, disc });
   texture.refresh();
 }
 
-// ---------- Tiles (Sunny Garden) ----------
+function paintGlow(scene, key, rgb, size = 40) {
+  paint(scene, key, size, size, ({ ctx }) => {
+    const r = size / 2;
+    const gradient = ctx.createRadialGradient(r, r, 2, r, r, r);
+    gradient.addColorStop(0, `rgba(${rgb}, 0.5)`);
+    gradient.addColorStop(1, `rgba(${rgb}, 0)`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+  });
+}
 
-const GRASS = { base: '#5F8A4A', dark: '#4C733B', light: '#6B9653', dirt: '#6E5B3F', dirtDark: '#5C4B34' };
-const HEDGE = { base: '#3A5A2C', dark: '#2E4A23', light: '#4C733B' };
-const FENCE = { gap: '#2A2219', picket: '#8A7050', shade: '#6E5840' };
-const GATES = {
-  door: { frame: '#2A2219', wood: '#7A5C3A', dark: '#5E4630', lock: '#F2C94C' },
-  door_boss: { frame: '#1F1A24', wood: '#4E3A5E', dark: '#2E2238', lock: '#B57BFF' },
-  door_treasure: { frame: '#5C4520', wood: '#8A6A3A', dark: '#6E5234', lock: '#FFE45C' },
-  door_shop: { frame: '#2A2219', wood: '#5E7A3A', dark: '#3E5A2A', lock: '#F2A0A8' },
+// ---------- The Weed Queen (48x48, drawn from shapes) ----------
+
+function paintWeedQueen(scene) {
+  const C = {
+    outline: '#141C12',
+    stalk: '#2E3F2A',
+    gownShadow: '#1F2A1C',
+    leaf: '#3F5A34',
+    petals: '#C9C3A1',
+    petalEdge: '#8C866A',
+    face: '#E8E4DA',
+    faceEdge: '#A8A494',
+    eyes: '#B57BFF',
+    mouth: '#6B2F4E',
+    thorns: '#6B2F4E',
+    buds: '#9B5CFF',
+  };
+  paint(scene, 'weed_queen', 48, 48, ({ rect, px, disc }) => {
+    // Gown: a widening stalk rooted into the floor.
+    for (let y = 22; y < 48; y++) {
+      const half = Math.round(5 + (y - 22) * 0.6);
+      rect(24 - half - 1, y, half * 2 + 2, 1, C.outline);
+      rect(24 - half, y, half * 2, 1, C.stalk);
+      rect(24 + Math.round(half / 3), y, Math.round((half * 2) / 3), 1, C.gownShadow);
+    }
+    for (const [x, y] of [[20, 28], [27, 32], [17, 38], [30, 40], [23, 44], [13, 44], [34, 45]]) rect(x, y, 1, 3, C.leaf);
+
+    // Vine arms ending in leaf hands.
+    for (let i = 0; i <= 13; i++) {
+      const dy = Math.round(i * 0.9);
+      px(18 - i, 25 + dy, C.stalk);
+      px(18 - i, 26 + dy, C.outline);
+      px(29 + i, 25 + dy, C.stalk);
+      px(29 + i, 26 + dy, C.outline);
+    }
+    disc(4, 39, 2.5, C.leaf);
+    disc(43, 39, 2.5, C.leaf);
+
+    // Dandelion head with jagged petals.
+    for (let y = 0; y < 32; y++) {
+      for (let x = 8; x < 40; x++) {
+        const angle = Math.atan2(y - 15, x - 24);
+        const r = 12.5 + (Math.cos(angle * 12) > 0 ? 1.5 : 0);
+        const d = Math.hypot(x - 24, y - 15);
+        if (d <= r) px(x, y, d > r - 1.2 ? C.petalEdge : C.petals);
+      }
+    }
+
+    // Pale face, narrow glowing eyes, thin smug smile.
+    disc(24, 15, 7, C.faceEdge);
+    disc(24, 15, 6, C.face);
+    rect(20, 14, 3, 1, C.eyes);
+    rect(26, 14, 3, 1, C.eyes);
+    rect(22, 18, 5, 1, C.mouth);
+    px(21, 17, C.mouth);
+    px(27, 17, C.mouth);
+
+    // Crown of thorns with three purple buds.
+    for (const x of [17, 24, 31]) {
+      rect(x, 3, 1, 3, C.thorns);
+      px(x - 1, 5, C.thorns);
+      px(x + 1, 5, C.thorns);
+      rect(x - 1, 1, 3, 2, C.buds);
+    }
+  });
+}
+
+// ---------- Tiles, one set per floor ----------
+
+// The front face of the top wall, different on each floor.
+const FACES = {
+  fence: (p) => {
+    p.rect(0, 10, TILE, 6, '#2A2219');
+    for (const x of [0, 4, 8, 12]) {
+      p.rect(x, 10, 3, 6, '#8A7050');
+      p.px(x + 1, 9, '#8A7050');
+      p.rect(x + 2, 11, 1, 5, '#6E5840');
+    }
+  },
+  glass: (p) => {
+    p.rect(0, 10, TILE, 6, '#4A3A30');
+    for (const x of [1, 9]) {
+      p.rect(x, 11, 6, 4, '#6F8A86');
+      p.px(x + 1, 11, '#A8C4BE');
+    }
+    p.px(4, 13, '#C9E6E0');
+    p.px(5, 12, '#C9E6E0');
+  },
+  brick: (p) => {
+    p.rect(0, 10, TILE, 6, '#1A1212');
+    p.rect(0, 10, TILE, 1, '#5E4630');
+    for (const [x, y, w] of [[0, 11, 7], [8, 11, 7], [0, 14, 3], [4, 14, 7], [12, 14, 4]]) p.rect(x, y, w, 2, '#4A3030');
+  },
+  roots: (p) => {
+    p.rect(0, 10, TILE, 6, '#16121A');
+    for (const [x, y] of [[1, 11], [2, 12], [3, 12], [4, 13], [8, 11], [9, 11], [10, 12], [11, 13], [12, 13], [14, 11]]) p.px(x, y, '#3E2E36');
+    for (const [x, y] of [[3, 11], [10, 14], [6, 13]]) p.px(x, y, '#6B2F4E');
+  },
 };
 
-function makeTiles(scene) {
-  // Fixed seed: tiles look the same every run. Run randomness only decides placement.
-  const rng = new Rng(20261018);
+function makeFloorTiles(scene, floor, rng) {
+  const c = floor.palette;
 
   for (let v = 0; v < 4; v++) {
-    paint(scene, `grass${v}`, TILE, TILE, ({ rect, px }) => {
-      rect(0, 0, TILE, TILE, GRASS.base);
-      for (let i = 0; i < 10; i++) px(rng.int(0, 15), rng.int(0, 15), GRASS.dark);
-      for (let i = 0; i < 4; i++) {
-        const x = rng.int(0, 15);
-        const y = rng.int(1, 15);
-        rect(x, y - 1, 1, 2, GRASS.light);
+    paint(scene, `${floor.id}_floor${v}`, TILE, TILE, ({ rect, px }) => {
+      rect(0, 0, TILE, TILE, c.floor);
+      for (let i = 0; i < 10; i++) px(rng.int(0, 15), rng.int(0, 15), c.floorDark);
+      for (let i = 0; i < 4; i++) rect(rng.int(0, 15), rng.int(0, 14), 1, 2, c.floorLight);
+      if (floor.pattern === 'stone') {
+        // Cracked stone tiles with moss in the gaps.
+        rect(0, 15, TILE, 1, c.floorDark);
+        rect(15, 0, 1, TILE, c.floorDark);
+        for (let i = 0; i < 3; i++) px(rng.int(0, 14), 15, c.patch);
       }
       if (v === 3) {
-        rect(5, 6, 6, 4, GRASS.dirt);
-        rect(4, 7, 8, 2, GRASS.dirt);
-        rect(5, 9, 6, 1, GRASS.dirtDark);
+        // A patch: dirt, moss, planks or rotting leaves depending on the floor.
+        if (floor.pattern === 'earth') {
+          rect(0, 6, TILE, 4, c.patch);
+          rect(0, 9, TILE, 1, c.patchDark);
+          rect(7, 6, 1, 4, c.patchDark);
+        } else {
+          rect(5, 6, 6, 4, c.patch);
+          rect(4, 7, 8, 2, c.patch);
+          rect(5, 9, 6, 1, c.patchDark);
+        }
       }
     });
   }
 
-  const drawHedge = ({ rect, px }, height) => {
-    rect(0, 0, TILE, height, HEDGE.base);
-    for (let i = 0; i < 6; i++) rect(rng.int(0, 13), rng.int(0, height - 2), 3, 2, HEDGE.dark);
-    for (let i = 0; i < 6; i++) px(rng.int(0, 15), rng.int(0, height - 1), HEDGE.light);
+  const drawWall = ({ rect, px }, height) => {
+    rect(0, 0, TILE, height, c.wall);
+    for (let i = 0; i < 6; i++) rect(rng.int(0, 13), rng.int(0, height - 2), 3, 2, c.wallDark);
+    for (let i = 0; i < 6; i++) px(rng.int(0, 15), rng.int(0, height - 1), c.wallLight);
   };
-
-  for (let v = 0; v < 3; v++) {
-    paint(scene, `hedge${v}`, TILE, TILE, (p) => drawHedge(p, TILE));
-  }
-
-  // Top wall: hedge seen from above, with the front face of a picket fence.
-  paint(scene, 'wall_top', TILE, TILE, (p) => {
-    drawHedge(p, 10);
-    p.rect(0, 10, TILE, 6, FENCE.gap);
-    for (const x of [0, 4, 8, 12]) {
-      p.rect(x, 10, 3, 6, FENCE.picket);
-      p.px(x + 1, 9, FENCE.picket);
-      p.rect(x + 2, 11, 1, 5, FENCE.shade);
-    }
+  for (let v = 0; v < 3; v++) paint(scene, `${floor.id}_wall${v}`, TILE, TILE, (p) => drawWall(p, TILE));
+  paint(scene, `${floor.id}_wall_top`, TILE, TILE, (p) => {
+    drawWall(p, 10);
+    FACES[floor.face](p);
   });
 
-  // Closed wooden garden gates, drawn for the top wall and rotated for the others.
+  // Soft dark vignette, heavier on deeper floors.
+  const width = TILE * ROOM_COLS;
+  const height = TILE * ROOM_ROWS;
+  paint(scene, `vignette_${floor.id}`, width, height, ({ ctx }) => {
+    const gradient = ctx.createRadialGradient(width / 2, height / 2, height * 0.35, width / 2, height / 2, width * 0.62);
+    gradient.addColorStop(0, 'rgba(10, 6, 14, 0)');
+    gradient.addColorStop(1, `rgba(10, 6, 14, ${floor.vignette})`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+  });
+}
+
+function makeSharedTiles(scene) {
+  // Closed gates, drawn for the top wall and rotated for the others.
   for (const [key, gate] of Object.entries(GATES)) {
     paint(scene, key, TILE, TILE, ({ rect }) => {
       rect(0, 0, TILE, TILE, gate.frame);
@@ -342,49 +574,52 @@ function makeTiles(scene) {
     });
   }
 
-  // Open gateway: a dirt path between two posts.
+  // Open gateway: a dark path between two posts.
   paint(scene, 'door_open', TILE, TILE, ({ rect }) => {
-    rect(0, 0, TILE, TILE, GRASS.dark);
-    rect(4, 0, 8, TILE, GRASS.dirt);
-    rect(5, 0, 1, TILE, GRASS.dirtDark);
+    rect(0, 0, TILE, TILE, '#2A2219');
+    rect(4, 0, 8, TILE, '#4A3A2C');
+    rect(5, 0, 1, TILE, '#3A2C20');
     rect(0, 0, 2, TILE, GATES.door.dark);
     rect(14, 0, 2, TILE, GATES.door.dark);
   });
 
-  // Soft golden glow behind the treasure pedestal.
-  paint(scene, 'glow', 40, 40, ({ ctx }) => {
-    const gradient = ctx.createRadialGradient(20, 20, 2, 20, 20, 20);
-    gradient.addColorStop(0, 'rgba(242, 201, 76, 0.5)');
-    gradient.addColorStop(1, 'rgba(242, 201, 76, 0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 40, 40);
+  // Trapdoor to the next floor.
+  paint(scene, 'trapdoor', TILE, TILE, ({ rect }) => {
+    rect(1, 1, 14, 14, '#5E4630');
+    rect(2, 2, 12, 12, '#2A2219');
+    rect(3, 3, 10, 10, '#0A0608');
+    rect(3, 3, 10, 1, '#1A140F');
   });
 
-  // Soft dark vignette around the room edges.
-  const width = TILE * ROOM_COLS;
-  const height = TILE * ROOM_ROWS;
-  paint(scene, 'vignette', width, height, ({ ctx }) => {
-    const gradient = ctx.createRadialGradient(width / 2, height / 2, height * 0.35, width / 2, height / 2, width * 0.62);
-    gradient.addColorStop(0, 'rgba(10, 6, 14, 0)');
-    gradient.addColorStop(1, 'rgba(10, 6, 14, 0.4)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-  });
+  paintGlow(scene, 'glow', '242, 201, 76');
+  paintGlow(scene, 'glow_blue', '111, 211, 255', 24);
+  paintGlow(scene, 'glow_purple', '181, 123, 255', 20);
 }
 
-export function makeTextures(scene) {
+export function makeTextures(scene, floors) {
   fromMap(scene, 'mochi', mochi(LEAVES_PERKY), MOCHI_PALETTE);
   fromMap(scene, 'mochi_hurt', mochi(LEAVES_PERKY, HURT_EYES), MOCHI_PALETTE);
   fromMap(scene, 'mochi_wilt', mochi(LEAVES_WILT), MOCHI_PALETTE);
   fromMap(scene, 'mochi_wilt_hurt', mochi(LEAVES_WILT, HURT_EYES), MOCHI_PALETTE);
   fromMap(scene, 'mochi_bare', mochi(LEAVES_NONE, HURT_EYES), MOCHI_PALETTE);
 
-  fromMap(scene, 'gloom_slug', GLOOM_SLUG.rows, GLOOM_SLUG.palette);
+  for (const [key, sprite] of Object.entries(ENEMIES)) fromMap(scene, key, sprite.rows, sprite.palette);
+  const vine = ENEMIES.thornvine;
+  fromMap(scene, 'thornvine_open', [...THORNVINE_OPEN_TOP, ...vine.rows.slice(THORNVINE_OPEN_TOP.length)], {
+    ...vine.palette,
+    m: '#E0457B',
+    w: '#FFFFFF',
+  });
+  paintWeedQueen(scene);
 
-  for (const group of [SMALL, SHOTS, ICONS, PICKUPS]) {
+  for (const [key, rows] of Object.entries(BULLETS)) fromMap(scene, key, rows, PINK);
+  for (const group of [SMALL, DECOR, SHOTS, ICONS, PICKUPS]) {
     for (const [key, sprite] of Object.entries(group)) fromMap(scene, key, sprite.rows, sprite.palette);
   }
   for (const [key, rows] of Object.entries(HEARTS)) fromMap(scene, key, rows, HEART_PALETTE);
 
-  makeTiles(scene);
+  // Fixed seed: tiles look the same every run. Run randomness only decides placement.
+  const rng = new Rng(20261018);
+  for (const floor of floors) makeFloorTiles(scene, floor, rng);
+  makeSharedTiles(scene);
 }

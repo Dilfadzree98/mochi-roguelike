@@ -1,4 +1,5 @@
 import { GAME_WIDTH, GAME_HEIGHT } from './constants.js';
+import { Audio } from './systems/Audio.js';
 import { Boot } from './scenes/Boot.js';
 import { Menu } from './scenes/Menu.js';
 import { Game } from './scenes/Game.js';
@@ -29,3 +30,10 @@ const game = new Phaser.Game({
 });
 
 window.addEventListener('resize', () => game.scale.setZoom(integerZoom()));
+
+// Browsers only allow sound after the player presses something. M toggles mute anywhere.
+window.addEventListener('keydown', (event) => {
+  Audio.unlock();
+  if (event.code === 'KeyM' && !event.repeat) Audio.toggleMute();
+});
+window.addEventListener('pointerdown', () => Audio.unlock());

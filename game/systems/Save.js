@@ -17,19 +17,21 @@ function write(data) {
 }
 
 export const Save = {
-  bestRooms() {
-    return load().bestRooms ?? 0;
-  },
-
-  wins() {
-    return load().wins ?? 0;
-  },
-
-  // Returns true when roomsCleared is a new best.
-  recordRun(roomsCleared, won) {
+  best() {
     const data = load();
-    const newBest = roomsCleared > (data.bestRooms ?? 0);
-    if (newBest) data.bestRooms = roomsCleared;
+    return { floor: data.bestFloor ?? 0, rooms: data.bestRooms ?? 0, wins: data.wins ?? 0 };
+  },
+
+  // Returns true when this run went deeper (or cleared more rooms on the same floor) than ever before.
+  recordRun({ roomsCleared, floor, won }) {
+    const data = load();
+    const bestFloor = data.bestFloor ?? 0;
+    const bestRooms = data.bestRooms ?? 0;
+    const newBest = floor > bestFloor || (floor === bestFloor && roomsCleared > bestRooms);
+    if (newBest) {
+      data.bestFloor = floor;
+      data.bestRooms = roomsCleared;
+    }
     if (won) data.wins = (data.wins ?? 0) + 1;
     write(data);
     return newBest;

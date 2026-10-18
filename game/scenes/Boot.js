@@ -10,10 +10,11 @@ export class Boot extends Phaser.Scene {
   preload() {
     this.load.json('enemies', 'data/enemies.json');
     this.load.json('items', 'data/items.json');
+    this.load.json('floors', 'data/floors.json');
   }
 
   create() {
-    makeTextures(this);
+    makeTextures(this, this.cache.json.get('floors'));
     makeFont(this);
     this.scene.start('Menu');
   }

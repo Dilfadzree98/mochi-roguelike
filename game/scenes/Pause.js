@@ -1,6 +1,7 @@
 import { GAME_WIDTH, GAME_HEIGHT, UI } from '../constants.js';
 import { addText } from '../art/PixelFont.js';
 import { newSeed } from '../systems/Rng.js';
+import { Audio } from '../systems/Audio.js';
 
 // A centred row of item icons (used on the pause and game over screens).
 export function drawItemRow(scene, cx, y, icons) {
@@ -34,13 +35,14 @@ export class Pause extends Phaser.Scene {
     this.refresh();
 
     drawItemRow(this, cx, 114, game.player.items.map((item) => item.icon));
-    addText(this, cx, 126, `Rooms cleared ${game.roomsCleared}/${game.dungeon.combatRoomCount}`, { tint: UI.muted });
-    addText(this, cx, 136, `Seed ${game.seed}`, { tint: UI.dim });
+    addText(this, cx, 126, `Floor ${game.floorIndex + 1}: ${game.dungeon.floor.name}   Rooms cleared ${game.roomsCleared}`, { tint: UI.muted });
+    addText(this, cx, 136, `Seed ${game.seed}   M mute`, { tint: UI.dim });
     addText(this, cx, 150, 'WASD move  Arrows shoot  E bomb  Esc resume', { tint: UI.dim });
 
     const keyboard = this.input.keyboard;
     const move = (step) => {
       this.selected = (this.selected + step + OPTIONS.length) % OPTIONS.length;
+      Audio.play('select');
       this.refresh();
     };
     keyboard.on('keydown-W', () => move(-1));
@@ -66,11 +68,13 @@ export class Pause extends Phaser.Scene {
   }
 
   restart() {
+    Audio.setMusicPaused(false);
     this.scene.stop('HUD');
     this.scene.start('Game', { seed: newSeed() });
   }
 
   quit() {
+    Audio.setMusicPaused(false);
     this.scene.stop('HUD');
     this.scene.stop('Game');
     this.scene.start('Menu');

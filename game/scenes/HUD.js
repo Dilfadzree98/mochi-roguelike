@@ -1,8 +1,10 @@
-import { GAME_WIDTH, HUD_HEIGHT, UI } from '../constants.js';
+import { GAME_WIDTH, GAME_HEIGHT, HUD_HEIGHT, UI } from '../constants.js';
 import { addText } from '../art/PixelFont.js';
 import { GRID_W, GRID_H } from '../systems/DungeonGen.js';
 
 const HEART_KEYS = ['heart_empty', 'heart_half', 'heart_full'];
+// Boss name and health bar on one dark strip along the bottom wall.
+const BOSS_BAR = { left: 36, right: 204, barX: 100, h: 3, y: GAME_HEIGHT - 8 };
 
 // Minimap: one 6x4 cell per room, in the top-right corner of the room.
 const CELL = { w: 6, h: 4, stepX: 7, stepY: 5 };
@@ -19,7 +21,7 @@ const MAP_COLORS = {
   shop: 0xf2a0a8,
 };
 
-// Top bar (hearts, wave) and minimap. Runs on top of the Game scene and listens to its events.
+// Top bar (hearts, counters, wave/floor), minimap and boss health bar. Runs on top of the Game scene and listens to its events.
 export class HUD extends Phaser.Scene {
   constructor() {
     super('HUD');
@@ -40,11 +42,21 @@ export class HUD extends Phaser.Scene {
       this.counters[kind] = addText(this, x + 6, HUD_HEIGHT / 2, '', { originX: 0, tint: UI.muted });
     });
 
+    // Boss health bar along the bottom wall.
+    this.bossBar = this.add.graphics();
+    this.bossName = addText(this, BOSS_BAR.left + 4, BOSS_BAR.y + 1, '', { originX: 0, tint: 0xd9b8ff }).setVisible(false);
+
     const listeners = {
       hp: (hp, maxHp) => this.drawHearts(hp, maxHp),
-      wave: (wave, total) => this.waveText.setText(wave > 0 ? `WAVE ${wave}/${total}` : ''),
+      wave: (wave) => {
+        this.wave = wave;
+        this.drawRightLabel(game);
+        if (wave === 0) this.drawBossBar(null);
+      },
       room: (dungeon, room) => this.drawMap(dungeon, room),
       inventory: (inventory) => this.drawCounters(inventory),
+      floor: () => this.drawRightLabel(game),
+      boss: (boss) => this.drawBossBar(boss),
     };
     for (const [event, fn] of Object.entries(listeners)) game.events.on(event, fn);
     this.events.once('shutdown', () => {
@@ -52,9 +64,27 @@ export class HUD extends Phaser.Scene {
     });
 
     listeners.hp(game.player.hp, game.player.stats.maxHp);
-    listeners.wave(game.waveActive ? game.waveIndex : 0, game.room.waves.length);
+    listeners.wave(game.waveActive ? game.waveIndex : 0);
     listeners.room(game.dungeon, game.room);
     listeners.inventory(game.player.inventory);
+  }
+
+  // "WAVE 1/2" during a fight, otherwise the floor number.
+  drawRightLabel(game) {
+    const text = this.wave > 0 ? `WAVE ${this.wave}/${game.room.waves.length}` : `FLOOR ${game.floorIndex + 1}`;
+    this.waveText.setText(text);
+  }
+
+  drawBossBar(boss) {
+    const g = this.bossBar.clear();
+    this.bossName.setVisible(!!boss);
+    if (!boss) return;
+    this.bossName.setText(boss.name.toUpperCase()); // the pixel font only has capitals
+    const { left, right, barX, h, y } = BOSS_BAR;
+    const barW = right - 4 - barX;
+    g.fillStyle(0x120e16, 0.9).fillRect(left, y - 4, right - left, 10);
+    g.fillStyle(0x4a2e5a, 1).fillRect(barX, y, barW, h);
+    g.fillStyle(0xb57bff, 1).fillRect(barX, y, Math.round((barW * boss.hp) / boss.maxHp), h);
   }
 
   drawCounters(inventory) {

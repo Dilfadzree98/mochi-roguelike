@@ -41,8 +41,6 @@ URL options: `?seed=12345` replays a run, `?debug` shows hitboxes.
 
 ## Code structure
 
-Files marked *(later)* don't exist yet.
-
 ```
 game/
 ├── index.html
@@ -50,30 +48,35 @@ game/
 ├── constants.js         room size, floor bounds, draw depths, UI tints
 ├── lib/phaser.min.js
 ├── art/
-│   ├── Sprites.js       placeholder pixel art as text maps + generated tiles
-│   └── PixelFont.js     3x5 bitmap font; use addText() for all text
+│   ├── Sprites.js       placeholder pixel art as text maps; per-floor tiles; Weed Queen drawn from shapes
+│   └── PixelFont.js     3x5 bitmap font, CAPITALS ONLY; use addText() (it uppercases); uppercase before setText()
 ├── scenes/
 │   ├── Boot.js          loads data, builds textures and font
 │   ├── Menu.js
-│   ├── Game.js          main play scene: enter/leave rooms, waves, doors, pickups, win/lose
-│   ├── HUD.js           hearts, wave counter, minimap; listens to Game events
+│   ├── Game.js          main play scene: floors, rooms, waves, doors, pickups, tooltips, enemy bullets, win/lose
+│   ├── HUD.js           hearts, counters, wave/floor, minimap, boss health bar; listens to Game events
 │   ├── Pause.js         Esc/P overlay: resume, restart, quit (Game also pauses on window blur)
 │   └── GameOver.js
 ├── entities/
 │   ├── Player.js        Mochi; stats rebuilt from BASE_STATS + held items; coins/bombs/keys
-│   ├── Enemy.js         base enemy + BEHAVIOURS registry; burn/slow status effects
+│   ├── Enemy.js         base enemy, BEHAVIOURS registry, DEATHS animations, burn/slow
+│   ├── EnemyBullet.js   pink enemy bullets
 │   └── Projectile.js    seeds: pierce, bounce, split, carries burn/slow
 ├── systems/
 │   ├── Rng.js           seeded RNG, newSeed(), seedFromUrl()
-│   ├── DungeonGen.js    random floor: tree of 8-12 rooms on a 7x5 grid, room types, waves
+│   ├── DungeonGen.js    random floor: tree of 8-12 (+1 per floor) rooms on a 7x5 grid, room types, waves
+│   ├── Audio.js         Web Audio synth: sound effects + one generated tune per floor; M mutes
 │   ├── Items.js         computeStats() (add/mul/set modifiers) and the per-run item pool
 │   ├── Room.js          draws one room, its walls, door gaps and door blockers
 │   ├── Fx.js            hit flash
-│   └── Save.js          localStorage (best rooms cleared, wins)
+│   └── Save.js          localStorage (best floor, rooms cleared, wins)
 └── data/
-    ├── enemies.json
+    ├── enemies.json     enemies and bosses: stats, behaviour name + params, death animation
+    ├── floors.json      4 floors: palette, wall face, decorations, enemy weights, boss
     └── items.json       12 items; each is a list of stat modifiers
 ```
+
+Adding an enemy: add an entry to `data/enemies.json` using an existing `behaviour` (`chase`, `ring_shooter`, `charger`, `aimed_shooter`, `teleporter`, `boss_shroom`, `weed_queen`) with its `params`, a `death` from `DEATHS`, and a sprite in `art/Sprites.js` ENEMIES; then give it a weight in a floor's `enemies` in `floors.json`. A new movement pattern goes in `BEHAVIOURS` in Enemy.js. Enemy attacks use Game's `fireRing` / `fireSpread` / `fireSpiral` / `fireSweep` / `rootStrike`.
 
 Adding an item: add an entry to `data/items.json` with `modifiers` like `{ "damage": { "add": 0.5 } }`, `{ "fireDelay": { "mul": 0.75 } }` or `{ "pierce": { "set": true } }`, and an `icon` texture key (draw it in `art/Sprites.js` ICONS). A brand-new stat also needs a default in `BASE_STATS` (Player.js) and code that reads it.
 
@@ -81,13 +84,15 @@ Implementation patterns to keep:
 - **Hitbox + sprite split:** Player and Enemy own an invisible physics `zone` (the hitbox) and a separate image that follows it. Squash/stretch scales only the image, so collisions stay stable. `hitbox.owner` points back to the entity.
 - **Two RNG streams in Game:** `this.rng` for gameplay, `this.fxRng` for cosmetics (particles, animation offsets), so visual effects never change gameplay rolls.
 - **Art is replaceable:** sprites are referenced by texture key only. To use real PNGs, load them in `Boot.preload` under the same keys; `makeTextures` skips keys that already exist.
-- Game → HUD communication is through `Game.events` (`hp`, `wave`, `room`).
+- Game → HUD communication is through `Game.events` (`hp`, `wave`, `room`, `inventory`, `floor`, `boss`).
+- **Floors:** `startFloor(i)` makes a new dungeon from `floors.json[i]`; the player, items and item pool carry over. Beating a boss on floors 1-3 leaves an item pedestal and a trapdoor (`descend()`); beating the Weed Queen on floor 4 wins.
+- **Tooltips:** any pickup spot created with an `info` ({ name, description }) shows a tooltip when Mochi is within 24 px.
 - **One room on screen at a time:** `enterRoom` builds the room from its data, `leaveRoom` finishes all tweens and destroys everything room-owned (enemies, shots, slime, `roomObjects`, room colliders). Anything that must survive leaving a room is stored on the room record in the dungeon (e.g. `room.cleared`, `room.pickups`).
 - **Walls:** enemies and shots collide with a solid wall ring; the player collides with walls that have gaps at doors plus a blocker per door that is disabled when the room is cleared. Walking past the floor edge (only possible through a door gap) moves to the neighbouring room.
 
 ## Conventions
 
-- **Data-driven content.** Items and enemies live in `data/*.json`. Adding one should not require touching game logic. Enemy behaviours are named patterns (e.g. `chase`, `ring_shot`, `charge`, `teleport_spread`) that JSON entries reference.
+- **Data-driven content.** Items, enemies and floors live in `data/*.json`. Adding one should not require touching game logic. Enemy behaviours are named patterns in Enemy.js that JSON entries reference.
 - **Items are small, separate modifiers.** Each item applies one stat or shot change and must stack cleanly with others. Avoid special-case code between specific items.
 - **Keep rendering separate from logic** so placeholder rectangles can be swapped for sprites later without code changes beyond asset keys.
 - **Pixel-perfect rendering:** `pixelArt: true`, integer zoom, no anti-aliasing or smoothing.
@@ -96,9 +101,9 @@ Implementation patterns to keep:
 
 ## Gameplay basics
 
-- Controls: WASD to move, arrow keys to shoot in four directions, E to drop a bomb, Esc/P to pause. Gamepad and mobile touch are undecided / later.
+- Controls: WASD to move, arrow keys to shoot in four directions, E to drop a bomb, Esc/P to pause, M to mute. Gamepad and mobile touch are undecided / later.
 - Room: one screen, 13×7 floor tiles of 16×16 px inside a 1-tile wall border. One door slot centred on each wall; doors lock until the room is cleared.
-- Floor: grid of 8–12 rooms with boss room, treasure room and (later) shop.
+- Run: 4 floors, each a grid of 8–15 rooms with start, treasure (key-locked), shop and boss rooms.
 - Pick-ups: hearts, coins, keys, bombs.
 - Mochi's leaf shows health: perky when full, wilting when low.
 
@@ -109,7 +114,7 @@ Work in this order; don't start a stage until the previous one is playable.
 1. **One room:** Mochi moves and shoots, one chasing enemy (Gloom Slug), health, damage, death. *Done (2026-10-18): endless waves in one Sunny Garden room, slime trails slow Mochi, leaf wilts at 1 heart, best wave saved.*
 2. **Dungeon:** random floor generator, locking doors, minimap, boss and treasure rooms. *Done (2026-10-18): 8-12 rooms; every fight room has 2 waves (size grows with distance from start) and stays locked until both are cleared; treasure room has an empty pedestal; boss room's 2nd wave has a placeholder boss (Mother Gloom Slug, a 2x slug) and clearing it wins the run. Cleared rooms have a 40% chance to drop a heart.*
 3. **Items:** 10–15 stat/shot items; hearts, coins, keys, bombs. *Done (2026-10-18): 12 items (5 seed types + 7 stat items), treasure room locked with a key and holds an item, new shop room (worm shopkeeper: item 5, heart/bomb/key 3 coins), bombs on E (5 damage, also hurt Mochi), coins drop from enemies, room-clear drops weighted by luck. Mochi starts with 1 bomb and 1 key.*
-4. **Variety and polish:** *Next.* More enemies, 2–3 bosses, multiple floors, sound, music, screen shake, title screen, unlockable characters.
+4. **Variety and polish:** more enemies, 2–3 bosses, multiple floors, sound, music, screen shake, title screen, unlockable characters. *Mostly done (2026-10-18): 4 floors (Sunny Garden, Dim Greenhouse, Mushroom Cellar, Compost Depths) with their own tiles, decorations and enemy mix; enemies Grumpshroom, Click Beetle, Thornvine, Hexed Gnome; bosses Mother Gloom Slug, Grandshroom, Gnome King and the 3-phase Weed Queen, with health bar; regular enemies +20% HP per floor; synthesized SFX and per-floor music; item/ware tooltips. Not done: unlockable characters, a fancier title screen.*
 5. **Extras (optional):** seeded runs, daily challenge, online leaderboard, mobile touch controls.
 
 Suggested v1.0 scope: 1 character, 3 floors, 20 items, 3 bosses (not final).
@@ -140,6 +145,8 @@ Cute but slightly creepy pixel art. A soft, warm hero in a world that grows dark
 | Click Beetle | 2 | Pauses, wiggles warning, charges straight until it hits a wall |
 | Thornvine | 2–3 | Stationary; bud opens and fires 3 aimed thorns |
 | Hexed Gnome | 3–4 | Mini-elite; teleports, freezes 1 s, fires 3-way spread |
+
+Bosses (one per floor): Mother Gloom Slug (2x slug), Grandshroom (2.5x Grumpshroom: rings, hops, spirals below half HP), The Gnome King (2x gnome: 7-way spreads + rings), The Weed Queen (final).
 
 ### Shot items
 

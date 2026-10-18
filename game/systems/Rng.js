@@ -29,6 +29,17 @@ export class Rng {
   chance(probability) {
     return this.next() < probability;
   }
+
+  // Picks a key from { key: weight, ... }.
+  weighted(weights) {
+    const entries = Object.entries(weights);
+    let roll = this.next() * entries.reduce((sum, [, w]) => sum + w, 0);
+    for (const [key, weight] of entries) {
+      roll -= weight;
+      if (roll < 0) return key;
+    }
+    return entries[0][0];
+  }
 }
 
 export function newSeed() {
