@@ -9,5 +9,18 @@
     "hitbox": { "w": 12, "h": 6 },
     "trail": { "interval": 220, "lifetime": 3000, "slow": 0.5 },
     "deathParticle": "slime_bit"
+  },
+  "mother_slug": {
+    "name": "Mother Gloom Slug",
+    "texture": "gloom_slug",
+    "scale": 2,
+    "boss": true,
+    "hp": 24,
+    "speed": 14,
+    "contactDamage": 1,
+    "behaviour": "chase",
+    "hitbox": { "w": 24, "h": 12 },
+    "trail": { "interval": 180, "lifetime": 4000, "slow": 0.5 },
+    "deathParticle": "slime_bit"
   }
 }

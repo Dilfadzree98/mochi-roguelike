@@ -142,6 +142,20 @@ const SMALL = {
     palette: { p: '#8C8A78', q: '#6B6A5C' },
     rows: ['.pp', 'ppq'],
   },
+  pedestal: {
+    palette: { o: '#4A4A40', t: '#A8A694', s: '#8C8A78', d: '#6B6A5C' },
+    rows: [
+      '.oooooooooo.',
+      'otttttttttto',
+      'osssssssssso',
+      'oddddddddddo',
+      '..osssssdo..',
+      '..osssssdo..',
+      '.oossssddoo.',
+      '.oddddddddo.',
+      '.oooooooooo.',
+    ],
+  },
 };
 
 const HEART_PALETTE = { o: '#5A1E2A', r: '#E25C4B', h: '#FFB3A3', e: '#3B2B33' };
@@ -180,7 +194,11 @@ function paint(scene, key, width, height, draw) {
 const GRASS = { base: '#5F8A4A', dark: '#4C733B', light: '#6B9653', dirt: '#6E5B3F', dirtDark: '#5C4B34' };
 const HEDGE = { base: '#3A5A2C', dark: '#2E4A23', light: '#4C733B' };
 const FENCE = { gap: '#2A2219', picket: '#8A7050', shade: '#6E5840' };
-const GATE = { frame: '#2A2219', wood: '#7A5C3A', dark: '#5E4630', lock: '#F2C94C' };
+const GATES = {
+  door: { frame: '#2A2219', wood: '#7A5C3A', dark: '#5E4630', lock: '#F2C94C' },
+  door_boss: { frame: '#1F1A24', wood: '#4E3A5E', dark: '#2E2238', lock: '#B57BFF' },
+  door_treasure: { frame: '#5C4520', wood: '#8A6A3A', dark: '#6E5234', lock: '#FFE45C' },
+};
 
 function makeTiles(scene) {
   // Fixed seed: tiles look the same every run. Run randomness only decides placement.
@@ -224,14 +242,34 @@ function makeTiles(scene) {
     }
   });
 
-  // Closed wooden garden gate, drawn for the top wall and rotated for the others.
-  paint(scene, 'door', TILE, TILE, ({ rect }) => {
-    rect(0, 0, TILE, TILE, GATE.frame);
-    rect(1, 1, 14, 15, GATE.wood);
-    for (const x of [4, 8, 12]) rect(x, 1, 1, 15, GATE.dark);
-    rect(1, 4, 14, 2, GATE.dark);
-    rect(1, 11, 14, 2, GATE.dark);
-    rect(7, 7, 2, 3, GATE.lock);
+  // Closed wooden garden gates, drawn for the top wall and rotated for the others.
+  for (const [key, gate] of Object.entries(GATES)) {
+    paint(scene, key, TILE, TILE, ({ rect }) => {
+      rect(0, 0, TILE, TILE, gate.frame);
+      rect(1, 1, 14, 15, gate.wood);
+      for (const x of [4, 8, 12]) rect(x, 1, 1, 15, gate.dark);
+      rect(1, 4, 14, 2, gate.dark);
+      rect(1, 11, 14, 2, gate.dark);
+      rect(7, 7, 2, 3, gate.lock);
+    });
+  }
+
+  // Open gateway: a dirt path between two posts.
+  paint(scene, 'door_open', TILE, TILE, ({ rect }) => {
+    rect(0, 0, TILE, TILE, GRASS.dark);
+    rect(4, 0, 8, TILE, GRASS.dirt);
+    rect(5, 0, 1, TILE, GRASS.dirtDark);
+    rect(0, 0, 2, TILE, GATES.door.dark);
+    rect(14, 0, 2, TILE, GATES.door.dark);
+  });
+
+  // Soft golden glow behind the treasure pedestal.
+  paint(scene, 'glow', 40, 40, ({ ctx }) => {
+    const gradient = ctx.createRadialGradient(20, 20, 2, 20, 20, 20);
+    gradient.addColorStop(0, 'rgba(242, 201, 76, 0.5)');
+    gradient.addColorStop(1, 'rgba(242, 201, 76, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 40, 40);
   });
 
   // Soft dark vignette around the room edges.

@@ -17,16 +17,21 @@ function write(data) {
 }
 
 export const Save = {
-  bestWave() {
-    return load().bestWave ?? 0;
+  bestRooms() {
+    return load().bestRooms ?? 0;
   },
 
-  // Returns true when this is a new best.
-  recordWave(wave) {
+  wins() {
+    return load().wins ?? 0;
+  },
+
+  // Returns true when roomsCleared is a new best.
+  recordRun(roomsCleared, won) {
     const data = load();
-    if (wave <= (data.bestWave ?? 0)) return false;
-    data.bestWave = wave;
+    const newBest = roomsCleared > (data.bestRooms ?? 0);
+    if (newBest) data.bestRooms = roomsCleared;
+    if (won) data.wins = (data.wins ?? 0) + 1;
     write(data);
-    return true;
+    return newBest;
   },
 };

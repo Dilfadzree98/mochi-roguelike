@@ -28,18 +28,19 @@ export class Enemy {
     this.nextTrailAt = 0;
     this.animOffset = scene.fxRng.range(0, CRAWL_FRAME_MS * 2);
     this.footOffset = def.hitbox.h / 2 + 1;
+    this.size = def.scale ?? 1; // sprite scale, e.g. 2 for big variants
 
     this.hitbox = scene.add.zone(x, y, def.hitbox.w, def.hitbox.h);
     scene.enemyBodies.add(this.hitbox);
     this.hitbox.owner = this;
     this.hitbox.body.enable = false;
 
-    this.shadow = scene.add.image(x, y, 'shadow').setDepth(DEPTH.shadow).setAlpha(0);
-    this.sprite = scene.add.image(x, y, def.texture).setOrigin(0.5, 1).setAlpha(0).setScale(1, 0.2);
+    this.shadow = scene.add.image(x, y, 'shadow').setDepth(DEPTH.shadow).setAlpha(0).setScale(this.size);
+    this.sprite = scene.add.image(x, y, def.texture).setOrigin(0.5, 1).setAlpha(0).setScale(this.size, 0.2 * this.size);
     this.syncVisuals();
 
     // Pop up out of the ground; harmless until fully spawned.
-    scene.tweens.add({ targets: this.sprite, alpha: 1, scaleY: 1, duration: SPAWN_MS, ease: 'Back.easeOut' });
+    scene.tweens.add({ targets: this.sprite, alpha: 1, scaleY: this.size, duration: SPAWN_MS, ease: 'Back.easeOut' });
     scene.tweens.add({ targets: this.shadow, alpha: 0.3, duration: SPAWN_MS });
     scene.time.delayedCall(SPAWN_MS, () => {
       if (this.state !== 'spawning') return;
@@ -70,7 +71,7 @@ export class Enemy {
 
     // 2-frame stretch-and-squash crawl.
     const stretched = Math.floor((time + this.animOffset) / CRAWL_FRAME_MS) % 2 === 1;
-    this.sprite.setScale(stretched ? 1.15 : 1, stretched ? 0.85 : 1);
+    this.sprite.setScale(this.size * (stretched ? 1.15 : 1), this.size * (stretched ? 0.85 : 1));
     this.syncVisuals();
   }
 
@@ -93,14 +94,14 @@ export class Enemy {
     this.state = 'dead';
     this.hitbox.body.setVelocity(0, 0);
     this.hitbox.body.enable = false;
-    if (this.def.deathParticle) this.scene.burst(this.x, this.y, this.def.deathParticle, 6, { distance: 10 });
+    if (this.def.deathParticle) this.scene.burst(this.x, this.y, this.def.deathParticle, 6 * this.size, { distance: 10 * this.size });
     if (this.def.trail) this.scene.dropSlime(this.x, this.y + this.footOffset - 1, this.def.trail);
 
     this.scene.tweens.add({ targets: this.shadow, alpha: 0, duration: 450 });
     this.scene.tweens.add({
       targets: this.sprite,
-      scaleX: 1.5,
-      scaleY: 0.15,
+      scaleX: 1.5 * this.size,
+      scaleY: 0.15 * this.size,
       alpha: 0,
       duration: 450,
       ease: 'Quad.easeIn',
@@ -115,6 +116,7 @@ export class Enemy {
   }
 
   destroy() {
+    if (this.destroyed) return;
     this.sprite.destroy();
     this.shadow.destroy();
     this.hitbox.destroy();

@@ -55,8 +55,8 @@ game/
 ├── scenes/
 │   ├── Boot.js          loads data, builds textures and font
 │   ├── Menu.js
-│   ├── Game.js          main play scene (Stage 1: one room, endless waves)
-│   ├── HUD.js           hearts, wave (items, minimap later); listens to Game events
+│   ├── Game.js          main play scene: enter/leave rooms, waves, doors, pickups, win/lose
+│   ├── HUD.js           hearts, wave counter, minimap; listens to Game events
 │   └── GameOver.js
 ├── entities/
 │   ├── Player.js        Mochi; stats object that items will modify
@@ -65,11 +65,10 @@ game/
 │   └── Item.js          (later)
 ├── systems/
 │   ├── Rng.js           seeded RNG, newSeed(), seedFromUrl()
-│   ├── Room.js          draws a room and its wall colliders
+│   ├── DungeonGen.js    random floor: tree of 8-12 rooms on a 7x5 grid, room types, waves
+│   ├── Room.js          draws one room, its walls, door gaps and door blockers
 │   ├── Fx.js            hit flash
-│   ├── Save.js          localStorage (best wave)
-│   ├── DungeonGen.js    (later) random floor layout
-│   └── RoomManager.js   (later) doors, locking, clearing
+│   └── Save.js          localStorage (best rooms cleared, wins)
 └── data/
     ├── enemies.json
     └── items.json       (later)
@@ -79,7 +78,9 @@ Implementation patterns to keep:
 - **Hitbox + sprite split:** Player and Enemy own an invisible physics `zone` (the hitbox) and a separate image that follows it. Squash/stretch scales only the image, so collisions stay stable. `hitbox.owner` points back to the entity.
 - **Two RNG streams in Game:** `this.rng` for gameplay, `this.fxRng` for cosmetics (particles, animation offsets), so visual effects never change gameplay rolls.
 - **Art is replaceable:** sprites are referenced by texture key only. To use real PNGs, load them in `Boot.preload` under the same keys; `makeTextures` skips keys that already exist.
-- Game → HUD communication is through `Game.events` (`hp`, `wave`).
+- Game → HUD communication is through `Game.events` (`hp`, `wave`, `room`).
+- **One room on screen at a time:** `enterRoom` builds the room from its data, `leaveRoom` finishes all tweens and destroys everything room-owned (enemies, shots, slime, `roomObjects`, room colliders). Anything that must survive leaving a room is stored on the room record in the dungeon (e.g. `room.cleared`, `room.pickups`).
+- **Walls:** enemies and shots collide with a solid wall ring; the player collides with walls that have gaps at doors plus a blocker per door that is disabled when the room is cleared. Walking past the floor edge (only possible through a door gap) moves to the neighbouring room.
 
 ## Conventions
 
@@ -103,8 +104,9 @@ Implementation patterns to keep:
 Work in this order; don't start a stage until the previous one is playable.
 
 1. **One room:** Mochi moves and shoots, one chasing enemy (Gloom Slug), health, damage, death. *Done (2026-10-18): endless waves in one Sunny Garden room, slime trails slow Mochi, leaf wilts at 1 heart, best wave saved.*
-2. **Dungeon:** random floor generator, locking doors, minimap, boss and treasure rooms. *Next.*
-3. **Items:** 10–15 stat/shot items; hearts, coins, keys, bombs.
+2. **Dungeon:** random floor generator, locking doors, minimap, boss and treasure rooms. *Done (2026-10-18): 8-12 rooms; every fight room has 2 waves (size grows with distance from start) and stays locked until both are cleared; treasure room has an empty pedestal; boss room's 2nd wave has a placeholder boss (Mother Gloom Slug, a 2x slug) and clearing it wins the run. Cleared rooms have a 40% chance to drop a heart.*
+3. **Items:** *Next.* Fill the treasure pedestal first.
+   10–15 stat/shot items; hearts, coins, keys, bombs.
 4. **Variety and polish:** more enemies, 2–3 bosses, multiple floors, sound, music, screen shake, title screen, unlockable characters.
 5. **Extras (optional):** seeded runs, daily challenge, online leaderboard, mobile touch controls.
 

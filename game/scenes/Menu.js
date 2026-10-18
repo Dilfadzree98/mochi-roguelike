@@ -21,8 +21,9 @@ export class Menu extends Phaser.Scene {
     const prompt = addText(this, cx, 126, 'Press space', { scale: 2, tint: UI.gold });
     this.tweens.add({ targets: prompt, alpha: 0.2, duration: 600, yoyo: true, repeat: -1 });
 
-    const best = Save.bestWave();
-    if (best > 0) addText(this, cx, 148, `Best wave ${best}`, { tint: UI.dim });
+    const best = Save.bestRooms();
+    const wins = Save.wins();
+    if (best > 0) addText(this, cx, 148, `Best ${best} rooms   Wins ${wins}`, { tint: UI.dim });
 
     const start = () => this.scene.start('Game', { seed: seedFromUrl() ?? newSeed() });
     this.input.keyboard.once('keydown-SPACE', start);

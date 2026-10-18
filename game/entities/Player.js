@@ -141,6 +141,21 @@ export class Player {
     return true;
   }
 
+  heal(amount) {
+    this.hp = Math.min(this.stats.maxHp, this.hp + amount);
+    this.scene.events.emit('hp', this.hp, this.stats.maxHp);
+  }
+
+  // Teleport (used when entering a room) and stop moving.
+  placeAt(x, y) {
+    this.hitbox.body.reset(x, y);
+    this.syncVisuals(0);
+  }
+
+  stop() {
+    this.hitbox.body.setVelocity(0, 0);
+  }
+
   knockbackFrom(x, y) {
     const angle = Math.atan2(this.hitbox.y - y, this.hitbox.x - x);
     this.hitbox.body.velocity.set(Math.cos(angle) * KNOCKBACK_SPEED, Math.sin(angle) * KNOCKBACK_SPEED);
