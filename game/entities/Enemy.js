@@ -20,7 +20,7 @@ const BEHAVIOURS = {
     ai.nextAt = time + p.interval;
     ai.offset = (ai.offset ?? 0) + Math.PI / p.bullets; // alternate the gaps
     e.squish();
-    e.scene.fireRing(e.x, e.y - 4 * e.size, p.bullets, p.bulletSpeed, p.bullet, ai.offset);
+    e.scene.fireRing(e.x, e.y - 4 * e.size, p.bullets, p.bulletSpeed, p.bullet, ai.offset, p.range);
   },
 
   // Wanders, wiggles as a warning, then charges in a straight line until it hits something.
@@ -65,7 +65,7 @@ const BEHAVIOURS = {
     const ai = e.ai;
     ai.nextAt ??= time + e.scene.rng.range(800, p.interval);
     if (ai.fireAt && time >= ai.fireAt) {
-      e.scene.fireSpread(e.x, e.y - 8, angleTo(e, player), p.bullets, p.spreadDeg, p.bulletSpeed, p.bullet);
+      e.scene.fireSpread(e.x, e.y - 8, angleTo(e, player), p.bullets, p.spreadDeg, p.bulletSpeed, p.bullet, p.range);
       ai.fireAt = null;
       ai.closeAt = time + 300;
     }
@@ -90,9 +90,9 @@ const BEHAVIOURS = {
     if (time < ai.until) return;
 
     if (ai.phase === 'shown') {
-      e.scene.fireSpread(e.x, e.y - 6 * e.size, angleTo(e, player), p.bullets, p.spreadDeg, p.bulletSpeed, p.bullet);
+      e.scene.fireSpread(e.x, e.y - 6 * e.size, angleTo(e, player), p.bullets, p.spreadDeg, p.bulletSpeed, p.bullet, p.range);
       ai.cycle = (ai.cycle ?? 0) + 1;
-      if (p.ringEvery && ai.cycle % p.ringEvery === 0) e.scene.fireRing(e.x, e.y, p.ringBullets, p.bulletSpeed * 0.8, p.bullet, 0);
+      if (p.ringEvery && ai.cycle % p.ringEvery === 0) e.scene.fireRing(e.x, e.y, p.ringBullets, p.bulletSpeed * 0.8, p.bullet, 0, p.range);
       e.scene.tweens.add({ targets: e.sprite, alpha: 0, delay: 350, duration: p.fadeMs });
       Object.assign(ai, { phase: 'leaving', until: time + 350 + p.fadeMs });
     } else if (ai.phase === 'leaving') {

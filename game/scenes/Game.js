@@ -31,9 +31,8 @@ const BOSS_HP_BY_FLOOR = [1, 1.5, 2.1, 2.8]; // bosses get tougher the deeper th
 const ROOM_DROP_CHANCE = 0.5;
 const ROOM_DROP_LUCK_BONUS = 0.15;
 const ROOM_DROP_WEIGHTS = { coin: 40, heart: 30, bomb: 15, key: 15 };
-const ENEMY_DROP_CHANCE = 0.04;      // a regular enemy drops a coin or a heart
-const ENEMY_DROP_LUCK_BONUS = 0.03;
-const ENEMY_DROP_WEIGHTS = { coin: 1, heart: 1 };
+const COIN_DROP_CHANCE = 0.1;        // a regular enemy drops a coin
+const COIN_DROP_LUCK_BONUS = 0.03;
 const BOSS_DOUBLE_HEART_CHANCE = 0.4; // a boss always drops a heart, sometimes two
 
 const BOMB_FUSE_MS = 1500;
@@ -557,8 +556,8 @@ export class Game extends Phaser.Scene {
       this.cameras.main.shake(300, 0.015);
       return;
     }
-    const chance = ENEMY_DROP_CHANCE + ENEMY_DROP_LUCK_BONUS * this.player.stats.luck;
-    if (this.rng.chance(chance)) this.dropPickup(this.rng.weighted(ENEMY_DROP_WEIGHTS), enemy.x, enemy.y);
+    const chance = COIN_DROP_CHANCE + COIN_DROP_LUCK_BONUS * this.player.stats.luck;
+    if (this.rng.chance(chance)) this.dropPickup('coin', enemy.x, enemy.y);
   }
 
   onBossHp(enemy) {
@@ -849,21 +848,22 @@ export class Game extends Phaser.Scene {
 
   // ---------- Enemy bullets (used by enemy behaviours) ----------
 
-  fireEnemyBullet(x, y, angle, speed, type) {
+  // `range` (px) is how far the bullet flies; regular enemies set one, bosses don't.
+  fireEnemyBullet(x, y, angle, speed, type, range = null) {
     if (this.over) return;
     const bullet = new EnemyBullet(this, x, y, type);
     this.enemyShots.add(bullet, true);
-    bullet.launch(angle, speed, this.time.now);
+    bullet.launch(angle, speed, this.time.now, range);
     Audio.play('enemyShot');
   }
 
-  fireRing(x, y, count, speed, type, offset = 0) {
-    for (let i = 0; i < count; i++) this.fireEnemyBullet(x, y, offset + (i / count) * Math.PI * 2, speed, type);
+  fireRing(x, y, count, speed, type, offset = 0, range = null) {
+    for (let i = 0; i < count; i++) this.fireEnemyBullet(x, y, offset + (i / count) * Math.PI * 2, speed, type, range);
   }
 
-  fireSpread(x, y, angle, count, spreadDeg, speed, type) {
+  fireSpread(x, y, angle, count, spreadDeg, speed, type, range = null) {
     const step = (spreadDeg * Math.PI) / 180;
-    for (let i = 0; i < count; i++) this.fireEnemyBullet(x, y, angle + (i - (count - 1) / 2) * step, speed, type);
+    for (let i = 0; i < count; i++) this.fireEnemyBullet(x, y, angle + (i - (count - 1) / 2) * step, speed, type, range);
   }
 
   // Bullets one after another, turning as they go.
