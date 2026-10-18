@@ -57,6 +57,7 @@ game/
 │   ├── Menu.js
 │   ├── Game.js          main play scene: enter/leave rooms, waves, doors, pickups, win/lose
 │   ├── HUD.js           hearts, wave counter, minimap; listens to Game events
+│   ├── Pause.js         Esc/P overlay: resume, restart, quit (Game also pauses on window blur)
 │   └── GameOver.js
 ├── entities/
 │   ├── Player.js        Mochi; stats object that items will modify

@@ -4,6 +4,7 @@ import { Menu } from './scenes/Menu.js';
 import { Game } from './scenes/Game.js';
 import { HUD } from './scenes/HUD.js';
 import { GameOver } from './scenes/GameOver.js';
+import { Pause } from './scenes/Pause.js';
 
 // Scale the 240x160 canvas by a whole number so every pixel stays square.
 function integerZoom() {
@@ -23,8 +24,8 @@ const game = new Phaser.Game({
     // Add ?debug to the URL to see hitboxes.
     arcade: { debug: new URLSearchParams(location.search).has('debug') },
   },
-  // HUD is listed after Game so it draws on top.
-  scene: [Boot, Menu, Game, HUD, GameOver],
+  // Later scenes draw on top: HUD over Game, Pause over both.
+  scene: [Boot, Menu, Game, HUD, Pause, GameOver],
 });
 
 window.addEventListener('resize', () => game.scale.setZoom(integerZoom()));

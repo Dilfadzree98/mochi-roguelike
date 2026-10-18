@@ -65,6 +65,29 @@ export class Game extends Phaser.Scene {
 
     this.scene.launch('HUD');
     this.enterRoom(this.dungeon.start, null);
+    this.setupPause();
+  }
+
+  // Esc or P opens the pause menu; leaving the window or tab pauses automatically.
+  setupPause() {
+    this.input.keyboard.on('keydown-ESC', () => this.pause());
+    this.input.keyboard.on('keydown-P', () => this.pause());
+
+    // Keys released while paused never reached this scene, so forget held keys on resume.
+    const onResume = () => this.input.keyboard.resetKeys();
+    const onBlur = () => this.pause();
+    this.events.on('resume', onResume);
+    this.game.events.on(Phaser.Core.Events.BLUR, onBlur);
+    this.events.once('shutdown', () => {
+      this.events.off('resume', onResume);
+      this.game.events.off(Phaser.Core.Events.BLUR, onBlur);
+    });
+  }
+
+  pause() {
+    if (this.over || this.transitioning || !this.sys.isActive()) return;
+    this.scene.pause();
+    this.scene.launch('Pause');
   }
 
   update(time, delta) {
@@ -161,7 +184,7 @@ export class Game extends Phaser.Scene {
   }
 
   addStartHint() {
-    const hint = addText(this, CENTER.x, FLOOR.bottom - 14, 'WASD move   Arrows shoot', { tint: UI.muted })
+    const hint = addText(this, CENTER.x, FLOOR.bottom - 14, 'WASD move   Arrows shoot   Esc pause', { tint: UI.muted })
       .setDepth(DEPTH.decor)
       .setAlpha(0.7);
     this.roomObjects.push(hint);
