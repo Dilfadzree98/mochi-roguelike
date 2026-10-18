@@ -596,11 +596,34 @@ const SKILLS = {
     palette: { u: '#E0A040', L: '#6CC24A', P: '#7A3E20' },
     rows: ['.uuuuu.', 'uuuuuuu', 'LLLLLLL', 'PPPPPPP', 'uuuuuuu', '.uuuuu.'],
   },
-  icon_flower: {
-    palette: { F: '#FFB3D1', Y: '#FFE45C' },
-    rows: ['..F..', '.FFF.', 'FFYFF', '.FFF.', '..F..'],
+  icon_cat: {
+    palette: { O: '#E8903C', k: '#2C2C2A', w: '#F5F0E8', e: '#7FCF5A', p: '#F7AEC0' },
+    rows: ['O.....k', 'OO...kk', 'wwwwwww', 'wewwwew', 'wwwpwww', '.wwwww.'],
   },
-  shield_petal: { palette: { F: '#FFB3D1', W: '#FFE6F0' }, rows: ['.F.', 'FWF', '.F.'] },
+  // Chinggu, Lilo's calico cat: white with orange and black patches, a pink bow. Faces right.
+  chinggu: {
+    palette: { o: '#3A2E2A', w: '#F5F0E8', O: '#E8903C', k: '#2C2C2A', e: '#7FCF5A', p: '#F7AEC0', b: '#FF8FB8' },
+    rows: [
+      '................',
+      '................',
+      '..........o...o.',
+      '.........oOoboko',
+      '.........oOwwwko',
+      '........owewwewo',
+      '........owwwpwwo',
+      '.o......oOwwwwo.',
+      'oO...oooOOwwwo..',
+      'oOo.okkOOwwwwwo.',
+      '.oOokkkOwwwwwwo.',
+      '..oowwwwwwOOwwo.',
+      '...owwwwwwOOwwo.',
+      '...owwoooowwwo..',
+      '...owo....owo...',
+      '...oo.....oo....',
+    ],
+  },
+  // Claw marks shown where Chinggu scratches.
+  scratch: { palette: { w: '#FFFFFF' }, rows: ['w.w.w...', '.w.w.w..', '..w.w.w.', '...w.w.w'] },
   crumb: { palette: { u: '#E0A040', L: '#6CC24A' }, rows: ['uL'] },
 };
 
@@ -847,7 +870,6 @@ function makeSharedTiles(scene) {
   paintGlow(scene, 'glow', '242, 201, 76');
   paintGlow(scene, 'glow_blue', '111, 211, 255', 24);
   paintGlow(scene, 'glow_purple', '181, 123, 255', 20);
-  paintGlow(scene, 'glow_pink', '255, 179, 209', 36);
 }
 
 export function makeTextures(scene, floors) {

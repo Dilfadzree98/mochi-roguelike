@@ -3,7 +3,8 @@ import { Audio } from './Audio.js';
 import { tileOf } from './Pathing.js';
 
 // Character skills. Every `skill.every` shots the character's skill casts by itself
-// for `skill.durationMs`. The HUD meter listens to the 'skill' event.
+// for `skill.durationMs`: Burger Beam (Mangkok) or Spawn Chinggu (Lilo).
+// The HUD meter listens to the 'skill' event.
 
 const BEAM = {
   width: 6,
@@ -12,7 +13,14 @@ const BEAM = {
   moveSlow: 0.6,       // Mangkok moves slower while beaming
 };
 
-const SHIELD = { petals: 6, radius: 13, spin: 0.006 };
+const CAT = {
+  speed: 95,
+  reach: 6,             // extra px beyond touching the target
+  scratchMs: 450,       // time between scratches
+  damage: 1.5,          // times the player's damage stat
+  followDistance: 18,   // with no enemies she trots after Lilo and sits this close
+  footOffset: 4,
+};
 
 export class Skills {
   constructor(scene, player) {
@@ -43,9 +51,9 @@ export class Skills {
   cast() {
     const now = this.scene.time.now;
     const until = now + this.skill.durationMs;
-    this.scene.shout(`${this.skill.name}!`, this.skill.id === 'burger_beam' ? 0xffd23f : 0xffb3d1);
+    this.scene.shout(`${this.skill.name}!`, this.skill.id === 'burger_beam' ? 0xffd23f : 0xe8903c);
     if (this.skill.id === 'burger_beam') this.startBeam(until);
-    if (this.skill.id === 'petal_shield') this.startShield(until);
+    if (this.skill.id === 'chinggu') this.startCat(until);
   }
 
   update(time) {
@@ -55,16 +63,17 @@ export class Skills {
       return;
     }
     if (this.active.kind === 'beam') this.updateBeam(time);
-    if (this.active.kind === 'shield') this.updateShield(time);
+    if (this.active.kind === 'cat') this.updateCat(time);
     this.emit();
   }
 
   // Ends whatever is running (also called when leaving a room or dying).
   stop() {
     if (!this.active) return;
+    if (this.active.kind === 'cat') this.scene.burst(this.active.zone.x, this.active.zone.y, 'smoke', 6, { distance: 8 });
+    (this.active.colliders ?? []).forEach((collider) => this.scene.physics.world.removeCollider(collider));
     this.active.objects.forEach((obj) => obj.destroy());
     this.player.beamUntil = 0;
-    this.player.shieldUntil = 0;
     this.active = null;
     this.emit();
   }
@@ -137,38 +146,91 @@ export class Skills {
     }
   }
 
-  // ---------- Petal Shield (Lilo) ----------
+  // ---------- Spawn Chinggu (Lilo) ----------
 
-  startShield(until) {
+  // Chinggu, a calico cat, appears next to Lilo. Enemies ignore her and she can't be hurt.
+  startCat(until) {
     const scene = this.scene;
-    const glow = scene.add.image(0, 0, 'glow_pink');
-    const petals = Array.from({ length: SHIELD.petals }, () => scene.add.image(0, 0, 'shield_petal'));
-    this.active = { kind: 'shield', until, objects: [glow, ...petals], glow, petals };
-    this.player.shieldUntil = until;
-    Audio.play('shield');
-    this.updateShield(scene.time.now);
+    const { x: px, y: py } = this.player.hitbox;
+    const spot = scene.freeSpot(Phaser.Math.Clamp(px + 14, FLOOR.left + 8, FLOOR.right - 8), py, 5);
+
+    const zone = scene.add.zone(spot.x, spot.y, 8, 6);
+    scene.physics.add.existing(zone);
+    const shadow = scene.add.image(spot.x, spot.y, 'shadow').setAlpha(0.3).setDepth(DEPTH.shadow);
+    const sprite = scene.add.image(spot.x, spot.y, 'chinggu').setOrigin(0.5, 1);
+    const colliders = [
+      scene.physics.add.collider(zone, scene.view.solidWalls),
+      scene.physics.add.collider(zone, scene.view.obstacleBodies),
+    ];
+    this.active = { kind: 'cat', until, zone, sprite, shadow, colliders, nextScratchAt: 0, objects: [sprite, shadow, zone] };
+
+    scene.burst(spot.x, spot.y - 6, 'spark', 8, { distance: 12 });
+    scene.burst(spot.x, spot.y - 4, 'smoke', 6, { distance: 10 });
+    Audio.play('meow');
+    this.updateCat(scene.time.now);
   }
 
-  updateShield(time) {
-    const { x, y } = this.player.hitbox;
-    const cy = y - 3;
-    const { glow, petals, until } = this.active;
-    // Flicker in the last half second so the player knows it's ending.
-    const ending = until - time < 500 && Math.floor(time / 80) % 2 === 0;
-    glow.setPosition(x, cy).setDepth(DEPTH.actors + y - 1).setAlpha(ending ? 0.3 : 0.8);
-    petals.forEach((petal, i) => {
-      const angle = time * SHIELD.spin + (i / petals.length) * Math.PI * 2;
-      const px = x + Math.cos(angle) * SHIELD.radius;
-      const py = cy + Math.sin(angle) * SHIELD.radius * 0.8;
-      petal.setPosition(px, py).setDepth(DEPTH.actors + py + 6).setAlpha(ending ? 0.4 : 1);
-    });
+  // Run to the nearest enemy and scratch it; with none left, follow Lilo.
+  updateCat(time) {
+    const scene = this.scene;
+    const cat = this.active;
+    const { zone, sprite, shadow } = cat;
+    const body = zone.body;
+    const distance = Phaser.Math.Distance.Between;
 
-    // Bullets that reach the petal ring are knocked away.
-    for (const bullet of this.scene.enemyShots.getChildren().slice()) {
-      if (Phaser.Math.Distance.Between(bullet.x, bullet.y, x, cy) <= SHIELD.radius + 3) {
-        this.scene.burst(bullet.x, bullet.y, 'shield_petal', 2, { distance: 5, duration: 200 });
-        bullet.pop();
+    let target = null;
+    let best = Infinity;
+    for (const enemy of scene.enemies) {
+      if (enemy.state !== 'active' || !enemy.hitbox.body.enable) continue;
+      const d = distance(zone.x, zone.y, enemy.x, enemy.y);
+      if (d < best) {
+        best = d;
+        target = enemy;
       }
     }
+
+    let moving = false;
+    if (target) {
+      const reach = target.def.hitbox.w / 2 + CAT.reach;
+      if (best > reach) {
+        body.velocity.setToPolar(scene.pathAngle(zone.x, zone.y, target.x, target.y, 4), CAT.speed);
+        moving = true;
+      } else {
+        body.setVelocity(0, 0);
+        if (time >= cat.nextScratchAt) this.scratch(target, time);
+      }
+      sprite.setFlipX(target.x < zone.x);
+    } else {
+      const lilo = this.player.hitbox;
+      if (distance(zone.x, zone.y, lilo.x, lilo.y) > CAT.followDistance) {
+        body.velocity.setToPolar(scene.pathAngle(zone.x, zone.y, lilo.x, lilo.y, 4), CAT.speed * 0.8);
+        moving = true;
+      } else {
+        body.setVelocity(0, 0);
+      }
+      if (Math.abs(body.velocity.x) > 1) sprite.setFlipX(body.velocity.x < 0);
+    }
+
+    // Little hops while running; blinks in the last second before she leaves.
+    const hop = moving ? Math.round(Math.abs(Math.sin(time * 0.025)) * 2) : 0;
+    const feetY = zone.y + CAT.footOffset;
+    sprite.setPosition(zone.x, feetY - hop).setDepth(DEPTH.actors + feetY);
+    sprite.setVisible(cat.until - time > 1000 || Math.floor(time / 100) % 2 === 0);
+    shadow.setPosition(zone.x, feetY - 1);
+  }
+
+  scratch(target, time) {
+    const scene = this.scene;
+    const cat = this.active;
+    cat.nextScratchAt = time + CAT.scratchMs;
+    const angle = Math.atan2(target.y - cat.zone.y, target.x - cat.zone.x);
+    target.hit(this.player.stats.damage * CAT.damage, { x: Math.cos(angle), y: Math.sin(angle) }, time);
+    Audio.play('scratch');
+
+    // Pounce squish and claw marks on the target.
+    cat.sprite.setScale(1.25, 0.8);
+    scene.tweens.add({ targets: cat.sprite, scaleX: 1, scaleY: 1, duration: 180, ease: 'Back.easeOut' });
+    const marks = scene.add.image(target.x, target.y - 6, 'scratch').setFlipX(target.x < cat.zone.x).setDepth(DEPTH.ui - 1);
+    scene.tweens.add({ targets: marks, alpha: 0, duration: 250, delay: 80, onComplete: () => marks.destroy() });
   }
 }

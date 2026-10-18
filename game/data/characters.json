@@ -21,12 +21,12 @@
     "texture": "lilo",
     "modifiers": { "speed": { "add": 8 } },
     "skill": {
-      "id": "petal_shield",
-      "name": "Petal Shield",
-      "description": "Shield every 30 shots",
-      "icon": "icon_flower",
+      "id": "chinggu",
+      "name": "Spawn Chinggu",
+      "description": "Cat ally every 30 shots",
+      "icon": "icon_cat",
       "every": 30,
-      "durationMs": 2000
+      "durationMs": 8000
     }
   }
 ]

@@ -39,7 +39,8 @@ const SOUNDS = {
   descend: [['triangle', 600, 120, 700, 0.2]],
   select: [['square', 660, 660, 40, 0.08]],
   beam: [['sawtooth', 180, 90, 1900, 0.1], ['square', 360, 300, 1900, 0.05]],
-  shield: [['triangle', 880, 880, 80, 0.15], ['triangle', 1175, 1175, 80, 0.15, 80], ['sine', 1568, 1568, 300, 0.12, 160]],
+  meow: [['triangle', 620, 940, 140, 0.16], ['triangle', 940, 520, 260, 0.16, 140]],
+  scratch: [['sawtooth', 2200, 700, 60, 0.07], ['sawtooth', 2000, 650, 60, 0.07, 70]],
   bomb: 'noise',
 };
 

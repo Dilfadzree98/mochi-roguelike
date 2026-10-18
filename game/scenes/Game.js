@@ -195,7 +195,7 @@ export class Game extends Phaser.Scene {
       this.physics.add.overlap(this.shots, this.view.obstacleBodies, (shot) => shot.impact()),
       this.physics.add.overlap(this.enemyShots, this.view.obstacleBodies, (bullet) => bullet.pop()),
     ];
-    this.flow = null;
+    this.flowCache = new Map();
 
     const entry = fromDir ? ENTRY_POINTS[fromDir] : CENTER;
     this.player.placeAt(entry.x, entry.y);
@@ -296,19 +296,28 @@ export class Game extends Phaser.Scene {
 
   // ---------- Pathfinding (used by enemy behaviours) ----------
 
-  // Direction for an enemy to walk toward Mochi: straight at Mochi when nothing is in
-  // the way, otherwise toward the next tile of a path around the obstacles.
+  // Direction for an enemy to walk toward Mochi.
   chaseAngle(enemy) {
     const target = this.player.hitbox;
-    const direct = Math.atan2(target.y - enemy.y, target.x - enemy.x);
-    const blocked = this.view.blocked;
-    if (blocked.size === 0 || lineClear(blocked, enemy.x, enemy.y, target.x, target.y, enemy.def.hitbox.w / 2)) return direct;
+    return this.pathAngle(enemy.x, enemy.y, target.x, target.y, enemy.def.hitbox.w / 2);
+  }
 
-    const playerTile = tileOf(target.x, target.y);
-    const flowKey = `${playerTile.col},${playerTile.row},${blocked.size}`;
-    if (this.flow?.key !== flowKey) this.flow = { key: flowKey, field: flowField(blocked, playerTile) };
-    const step = nextStep(this.flow.field, tileOf(enemy.x, enemy.y));
-    return step ? Math.atan2(step.y - enemy.y, step.x - enemy.x) : direct;
+  // Direction to walk from one point to another: straight when nothing is in the way,
+  // otherwise toward the next tile of a path around the obstacles.
+  pathAngle(fromX, fromY, toX, toY, halfWidth) {
+    const direct = Math.atan2(toY - fromY, toX - fromX);
+    const blocked = this.view.blocked;
+    if (blocked.size === 0 || lineClear(blocked, fromX, fromY, toX, toY, halfWidth)) return direct;
+
+    // Flow fields are cached per target tile (Mochi, Chinggu's target...) until obstacles change.
+    const targetTile = tileOf(toX, toY);
+    const key = `${targetTile.col},${targetTile.row},${blocked.size}`;
+    if (!this.flowCache.has(key)) {
+      if (this.flowCache.size > 30) this.flowCache.clear();
+      this.flowCache.set(key, flowField(blocked, targetTile));
+    }
+    const step = nextStep(this.flowCache.get(key), tileOf(fromX, fromY));
+    return step ? Math.atan2(step.y - fromY, step.x - fromX) : direct;
   }
 
   // Free floor point near (x, y): not inside an obstacle.

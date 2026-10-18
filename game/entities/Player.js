@@ -60,7 +60,6 @@ export class Player {
     this.moving = false;
     this.facing = FIRE_DIRS.DOWN; // last shooting direction (the Burger Beam follows it)
     this.beamUntil = 0;           // no seeds while the beam is firing
-    this.shieldUntil = 0;         // Petal Shield: can't be hurt
 
     this.hitbox = scene.add.zone(x, y, HITBOX.w, HITBOX.h);
     scene.physics.add.existing(this.hitbox);
@@ -141,9 +140,8 @@ export class Player {
     const base = this.hp <= WILT_AT_HP ? `${this.skin}_wilt` : this.skin;
     this.sprite.setTexture(time < this.hurtUntil ? `${base}_hurt` : base);
 
-    // Blink while invulnerable after a hit (but not under the Petal Shield).
-    const blinking = time < this.invulnUntil && time >= this.shieldUntil;
-    this.sprite.setVisible(!blinking || Math.floor(time / 80) % 2 === 0);
+    // Blink while invulnerable.
+    this.sprite.setVisible(time >= this.invulnUntil || Math.floor(time / 80) % 2 === 0);
 
     this.syncVisuals(hop);
   }
@@ -183,7 +181,7 @@ export class Player {
 
   // Returns true if the hit landed (not blocked by invulnerability).
   takeDamage(amount, time) {
-    if (!this.alive || time < this.invulnUntil || time < this.shieldUntil) return false;
+    if (!this.alive || time < this.invulnUntil) return false;
     this.hp = Math.max(0, this.hp - amount);
     this.invulnUntil = time + INVULN_MS;
     this.hurtUntil = time + HURT_FACE_MS;
