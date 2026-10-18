@@ -1,0 +1,13 @@
+{
+  "gloom_slug": {
+    "name": "Gloom Slug",
+    "texture": "gloom_slug",
+    "hp": 4,
+    "speed": 20,
+    "contactDamage": 1,
+    "behaviour": "chase",
+    "hitbox": { "w": 12, "h": 6 },
+    "trail": { "interval": 220, "lifetime": 3000, "slow": 0.5 },
+    "deathParticle": "slime_bit"
+  }
+}

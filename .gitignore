@@ -1,0 +1,7 @@
+# Design documents stay local
+*.pdf
+*.docx
+
+node_modules/
+.DS_Store
+Thumbs.db
