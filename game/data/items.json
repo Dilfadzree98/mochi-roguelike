@@ -1,0 +1,90 @@
+{
+  "fire_seed": {
+    "name": "Fire Seed",
+    "description": "Shots set enemies alight",
+    "icon": "seed_fire",
+    "modifiers": {
+      "shotTexture": { "set": "seed_fire" },
+      "burn": { "set": { "ticks": 3, "damage": 0.5, "interval": 500 } }
+    }
+  },
+  "frost_seed": {
+    "name": "Frost Seed",
+    "description": "Shots slow enemies",
+    "icon": "seed_frost",
+    "modifiers": {
+      "shotTexture": { "set": "seed_frost" },
+      "slow": { "set": { "multiplier": 0.5, "ms": 2000 } }
+    }
+  },
+  "bouncing_pollen": {
+    "name": "Bouncing Pollen",
+    "description": "Shots bounce off walls",
+    "icon": "pollen",
+    "modifiers": {
+      "shotTexture": { "set": "pollen" },
+      "bounces": { "add": 3 }
+    }
+  },
+  "dewdrop": {
+    "name": "Dewdrop",
+    "description": "Shots pierce enemies",
+    "icon": "dewdrop",
+    "modifiers": {
+      "shotTexture": { "set": "dewdrop" },
+      "pierce": { "set": true }
+    }
+  },
+  "thorn_seed": {
+    "name": "Thorn Seed",
+    "description": "Shots split in 3 on hit",
+    "icon": "seed_thorn",
+    "modifiers": {
+      "shotTexture": { "set": "seed_thorn" },
+      "split": { "set": 3 }
+    }
+  },
+  "bone_meal": {
+    "name": "Bone Meal",
+    "description": "Damage up",
+    "icon": "icon_bone_meal",
+    "modifiers": { "damage": { "add": 0.5 } }
+  },
+  "sun_drop": {
+    "name": "Sun Drop",
+    "description": "Fire rate up",
+    "icon": "icon_sun_drop",
+    "modifiers": { "fireDelay": { "mul": 0.75 } }
+  },
+  "watering_can": {
+    "name": "Watering Can",
+    "description": "Range and shot speed up",
+    "icon": "icon_watering_can",
+    "modifiers": { "range": { "add": 50 }, "shotSpeed": { "add": 40 } }
+  },
+  "bee_wings": {
+    "name": "Bee Wings",
+    "description": "Speed up",
+    "icon": "icon_bee_wings",
+    "modifiers": { "speed": { "add": 14 } }
+  },
+  "big_leaf": {
+    "name": "Big Leaf",
+    "description": "Extra heart",
+    "icon": "icon_big_leaf",
+    "modifiers": { "maxHp": { "add": 2 } },
+    "onPickup": { "heal": 2 }
+  },
+  "twin_sprout": {
+    "name": "Twin Sprout",
+    "description": "Fire two seeds",
+    "icon": "icon_twin_sprout",
+    "modifiers": { "multishot": { "add": 1 } }
+  },
+  "lucky_clover": {
+    "name": "Lucky Clover",
+    "description": "More drops",
+    "icon": "icon_lucky_clover",
+    "modifiers": { "luck": { "add": 1 } }
+  }
+}

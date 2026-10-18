@@ -2,6 +2,7 @@ import { GAME_WIDTH, UI } from '../constants.js';
 import { addText } from '../art/PixelFont.js';
 import { newSeed } from '../systems/Rng.js';
 import { Save } from '../systems/Save.js';
+import { drawItemRow } from './Pause.js';
 
 // End of a run, won (boss room cleared) or lost.
 export class GameOver extends Phaser.Scene {
@@ -9,7 +10,7 @@ export class GameOver extends Phaser.Scene {
     super('GameOver');
   }
 
-  create({ won, roomsCleared, totalRooms, seed, newBest }) {
+  create({ won, roomsCleared, totalRooms, seed, newBest, items = [] }) {
     const cx = GAME_WIDTH / 2;
 
     addText(this, cx, 28, won ? 'Garden cleared!' : 'Mochi wilted...', { scale: 2, tint: won ? UI.gold : UI.peach });
@@ -19,6 +20,7 @@ export class GameOver extends Phaser.Scene {
     if (newBest) addText(this, cx, 104, 'New best!', { tint: UI.gold });
     else addText(this, cx, 104, `Best ${Save.bestRooms()} rooms`, { tint: UI.dim });
     addText(this, cx, 116, `Seed ${seed}`, { tint: UI.dim });
+    drawItemRow(this, cx, 128, items);
 
     addText(this, cx, 140, 'Space new run   R same seed   Esc menu', { tint: UI.muted });
 

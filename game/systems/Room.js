@@ -15,6 +15,7 @@ function closedDoorTexture(room, neighbor) {
   const types = [room.type, neighbor.type];
   if (types.includes('boss')) return 'door_boss';
   if (types.includes('treasure')) return 'door_treasure';
+  if (types.includes('shop')) return 'door_shop';
   return 'door';
 }
 
@@ -85,12 +86,20 @@ export function buildRoom(scene, room, dungeon) {
       const slot = DOOR_SLOTS[dir];
       const x = ROOM_X + slot.col * TILE + TILE / 2;
       const y = ROOM_Y + slot.row * TILE + TILE / 2;
-      const closedTexture = closedDoorTexture(room, dungeon.neighbor(room, dir));
+      const neighbor = dungeon.neighbor(room, dir);
+      const closedTexture = closedDoorTexture(room, neighbor);
       const image = add(scene.add.image(x, y, closedTexture).setAngle(slot.angle).setDepth(DEPTH.wall));
       const blocker = scene.add.zone(x, y, TILE, TILE);
       doorBlockers.add(blocker);
-      return { dir, x, y, image, blocker, closedTexture };
+      const door = { dir, x, y, image, blocker, closedTexture, neighbor };
+      blocker.door = door;
+      return door;
     });
+
+  const setDoorOpen = (door, open) => {
+    door.image.setTexture(open ? 'door_open' : door.closedTexture);
+    door.blocker.body.enable = !open;
+  };
 
   return {
     solidWalls,
@@ -98,11 +107,13 @@ export function buildRoom(scene, room, dungeon) {
     doorBlockers,
     doors,
 
+    // Doors into a locked room stay shut until unlocked with a key.
     setOpen(open) {
-      for (const door of doors) {
-        door.image.setTexture(open ? 'door_open' : door.closedTexture);
-        door.blocker.body.enable = !open;
-      }
+      for (const door of doors) setDoorOpen(door, open && !door.neighbor.locked);
+    },
+
+    unlock(door) {
+      setDoorOpen(door, true);
     },
 
     destroy() {

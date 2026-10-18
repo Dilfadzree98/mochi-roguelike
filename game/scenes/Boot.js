@@ -9,6 +9,7 @@ export class Boot extends Phaser.Scene {
 
   preload() {
     this.load.json('enemies', 'data/enemies.json');
+    this.load.json('items', 'data/items.json');
   }
 
   create() {

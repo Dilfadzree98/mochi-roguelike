@@ -17,7 +17,7 @@ export class Menu extends Phaser.Scene {
     const mochi = this.add.image(cx, 96, 'mochi').setOrigin(0.5, 1).setScale(3);
     this.tweens.add({ targets: mochi, y: 92, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
-    addText(this, cx, 110, 'WASD move   Arrows shoot   Esc pause', { tint: UI.muted });
+    addText(this, cx, 110, 'WASD move  Arrows shoot  E bomb  Esc pause', { tint: UI.muted });
     const prompt = addText(this, cx, 126, 'Press space', { scale: 2, tint: UI.gold });
     this.tweens.add({ targets: prompt, alpha: 0.2, duration: 600, yoyo: true, repeat: -1 });
 

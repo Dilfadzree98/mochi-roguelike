@@ -158,7 +158,94 @@ const SMALL = {
   },
 };
 
-const HEART_PALETTE = { o: '#5A1E2A', r: '#E25C4B', h: '#FFB3A3', e: '#3B2B33' };
+// ---------- Shots (player seeds; one per shot item) ----------
+
+const SEED_ROWS = ['..oo..', '.ogwo.', 'oggggo', 'oggggo', '.oggo.', '..oo..'];
+const SHOTS = {
+  seed_fire: { rows: SEED_ROWS, palette: { o: '#B5501F', g: '#FF8A3D', w: '#FFD23F' } },
+  seed_frost: { rows: SEED_ROWS, palette: { o: '#4A90C2', g: '#A8E0FF', w: '#FFFFFF' } },
+  pollen: {
+    rows: ['.d..d.', '..yy..', 'dyyyyd', '.yyyy.', '..yy..', '.d..d.'],
+    palette: { y: '#FFE45C', d: '#FFF4B8' },
+  },
+  dewdrop: {
+    rows: ['..o...', '..oo..', '.owdo.', 'oddddo', 'oddddo', '.oooo.'],
+    palette: { o: '#2E7FA8', d: '#5EC8F2', w: '#FFFFFF' },
+  },
+  seed_thorn: {
+    rows: ['s.oo.s', '.oggo.', 'oggggo', 'oggggo', '.oggo.', 's.oo.s'],
+    palette: { o: '#1F3D1C', g: '#2E5A2A', s: '#C9C3A1' },
+  },
+};
+
+// ---------- Item icons (8x8) ----------
+
+const ICONS = {
+  icon_bone_meal: {
+    palette: { o: '#5C4B34', b: '#A88A5E', w: '#F3E9DC' },
+    rows: ['...oo...', '..obbo..', '.obbbbo.', 'obbwwbbo', 'obwwwwbo', 'obbwwbbo', '.obbbbo.', '..oooo..'],
+  },
+  icon_sun_drop: {
+    palette: { y: '#F2C94C', o: '#C98A2E', Y: '#FFF4B8' },
+    rows: ['y..yy..y', '.y.yy.y.', '..oooo..', 'yyoYYoyy', 'yyoYYoyy', '..oooo..', '.y.yy.y.', 'y..yy..y'],
+  },
+  icon_watering_can: {
+    palette: { o: '#2E5E7A', b: '#5EA8C8' },
+    rows: ['........', '..ooo...', '.o...o..', 'oooooooo', 'obbbbboo', 'obbbbbo.', 'obbbbbo.', '.ooooo..'],
+  },
+  icon_bee_wings: {
+    palette: { w: '#D6F2EA', y: '#FFE45C', k: '#2C2C2A' },
+    rows: ['.ww..ww.', 'wwww.www', '.wwyyww.', '..ykky..', '..yyyy..', '..kkkk..', '..yyyy..', '...kk...'],
+  },
+  icon_big_leaf: {
+    palette: { g: '#8BC86A', G: '#A6D987', s: '#5E9C3A' },
+    rows: ['......gg', '....gggs', '..ggggsg', '.gggGsgg', '.ggGsggg', '.gGsgggg', 'gGsgggg.', 's.gggg..'],
+  },
+  icon_twin_sprout: {
+    palette: { g: '#8BC86A', G: '#A6D987', s: '#5E9C3A', o: '#8A4B3C', b: '#C2734F' },
+    rows: ['.g....G.', 'ggs..sGG', '..s..s..', '..s..s..', '.oooooo.', 'obbbbbbo', 'obbbbbbo', '.oooooo.'],
+  },
+  icon_lucky_clover: {
+    palette: { g: '#5FAF4A', G: '#8BD86A', s: '#3F7A2A' },
+    rows: ['.gg..gg.', 'gGggggGg', '.gggggg.', '...ss...', '.gggggg.', 'gGggggGg', '.gg..gg.', '...s....'],
+  },
+};
+
+// ---------- Pickups, bombs, shop ----------
+
+const PICKUPS = {
+  coin: {
+    palette: { o: '#C98A2E', y: '#F2C94C', Y: '#FFF4B8' },
+    rows: ['.ooo.', 'oyYyo', 'oyyyo', 'oyyyo', '.ooo.'],
+  },
+  bomb: {
+    palette: { o: '#1A1418', k: '#3B3340', b: '#7A6A8F', f: '#FFD23F', s: '#FF8A3D' },
+    rows: ['....fs.', '...o...', '.ooooo.', 'oobkkko', 'okkkkko', 'okkkkko', '.ooooo.'],
+  },
+  key: {
+    palette: { y: '#F2C94C', o: '#C98A2E' },
+    rows: ['.yy....', 'y..yyyy', '.yy.o.o'],
+  },
+  spark: { palette: { y: '#FFD23F' }, rows: ['yy', 'yy'] },
+  smoke: { palette: { s: '#5A5060' }, rows: ['ss', 'ss'] },
+  worm: {
+    palette: { o: '#8A4B5A', p: '#F2A0A8', k: '#2C2C2A', B: '#E07A8A', m: '#8A3B4A', h: '#2A2219', H: '#1A140F' },
+    rows: [
+      '...oooooo...',
+      '..oppppppo..',
+      '.opkpppkppo.',
+      '.oppppppppo.',
+      '.opBppppBpo.',
+      '.oppmmmmppo.',
+      '..oppppppo..',
+      '..oppppppo..',
+      '.hhhhhhhhhh.',
+      'hHHHHHHHHHHh',
+    ],
+  },
+};
+
+const HEART_PALETTE ={ o: '#5A1E2A', r: '#E25C4B', h: '#FFB3A3', e: '#3B2B33' };
 const HEARTS = {
   heart_full: ['.oo.oo.', 'orrorro', 'ohrrrro', '.orrro.', '..oro..', '...o...'],
   heart_half: ['.oo.oo.', 'orroeeo', 'ohrreeo', '.orreo.', '..oro..', '...o...'],
@@ -198,6 +285,7 @@ const GATES = {
   door: { frame: '#2A2219', wood: '#7A5C3A', dark: '#5E4630', lock: '#F2C94C' },
   door_boss: { frame: '#1F1A24', wood: '#4E3A5E', dark: '#2E2238', lock: '#B57BFF' },
   door_treasure: { frame: '#5C4520', wood: '#8A6A3A', dark: '#6E5234', lock: '#FFE45C' },
+  door_shop: { frame: '#2A2219', wood: '#5E7A3A', dark: '#3E5A2A', lock: '#F2A0A8' },
 };
 
 function makeTiles(scene) {
@@ -293,7 +381,9 @@ export function makeTextures(scene) {
 
   fromMap(scene, 'gloom_slug', GLOOM_SLUG.rows, GLOOM_SLUG.palette);
 
-  for (const [key, sprite] of Object.entries(SMALL)) fromMap(scene, key, sprite.rows, sprite.palette);
+  for (const group of [SMALL, SHOTS, ICONS, PICKUPS]) {
+    for (const [key, sprite] of Object.entries(group)) fromMap(scene, key, sprite.rows, sprite.palette);
+  }
   for (const [key, rows] of Object.entries(HEARTS)) fromMap(scene, key, rows, HEART_PALETTE);
 
   makeTiles(scene);

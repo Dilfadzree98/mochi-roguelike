@@ -60,20 +60,22 @@ game/
 │   ├── Pause.js         Esc/P overlay: resume, restart, quit (Game also pauses on window blur)
 │   └── GameOver.js
 ├── entities/
-│   ├── Player.js        Mochi; stats object that items will modify
-│   ├── Enemy.js         base enemy + BEHAVIOURS registry (named in enemies.json)
-│   ├── Projectile.js
-│   └── Item.js          (later)
+│   ├── Player.js        Mochi; stats rebuilt from BASE_STATS + held items; coins/bombs/keys
+│   ├── Enemy.js         base enemy + BEHAVIOURS registry; burn/slow status effects
+│   └── Projectile.js    seeds: pierce, bounce, split, carries burn/slow
 ├── systems/
 │   ├── Rng.js           seeded RNG, newSeed(), seedFromUrl()
 │   ├── DungeonGen.js    random floor: tree of 8-12 rooms on a 7x5 grid, room types, waves
+│   ├── Items.js         computeStats() (add/mul/set modifiers) and the per-run item pool
 │   ├── Room.js          draws one room, its walls, door gaps and door blockers
 │   ├── Fx.js            hit flash
 │   └── Save.js          localStorage (best rooms cleared, wins)
 └── data/
     ├── enemies.json
-    └── items.json       (later)
+    └── items.json       12 items; each is a list of stat modifiers
 ```
+
+Adding an item: add an entry to `data/items.json` with `modifiers` like `{ "damage": { "add": 0.5 } }`, `{ "fireDelay": { "mul": 0.75 } }` or `{ "pierce": { "set": true } }`, and an `icon` texture key (draw it in `art/Sprites.js` ICONS). A brand-new stat also needs a default in `BASE_STATS` (Player.js) and code that reads it.
 
 Implementation patterns to keep:
 - **Hitbox + sprite split:** Player and Enemy own an invisible physics `zone` (the hitbox) and a separate image that follows it. Squash/stretch scales only the image, so collisions stay stable. `hitbox.owner` points back to the entity.
@@ -94,7 +96,7 @@ Implementation patterns to keep:
 
 ## Gameplay basics
 
-- Controls: WASD to move, arrow keys to shoot in four directions. Gamepad and mobile touch are undecided / later.
+- Controls: WASD to move, arrow keys to shoot in four directions, E to drop a bomb, Esc/P to pause. Gamepad and mobile touch are undecided / later.
 - Room: one screen, 13×7 floor tiles of 16×16 px inside a 1-tile wall border. One door slot centred on each wall; doors lock until the room is cleared.
 - Floor: grid of 8–12 rooms with boss room, treasure room and (later) shop.
 - Pick-ups: hearts, coins, keys, bombs.
@@ -106,9 +108,8 @@ Work in this order; don't start a stage until the previous one is playable.
 
 1. **One room:** Mochi moves and shoots, one chasing enemy (Gloom Slug), health, damage, death. *Done (2026-10-18): endless waves in one Sunny Garden room, slime trails slow Mochi, leaf wilts at 1 heart, best wave saved.*
 2. **Dungeon:** random floor generator, locking doors, minimap, boss and treasure rooms. *Done (2026-10-18): 8-12 rooms; every fight room has 2 waves (size grows with distance from start) and stays locked until both are cleared; treasure room has an empty pedestal; boss room's 2nd wave has a placeholder boss (Mother Gloom Slug, a 2x slug) and clearing it wins the run. Cleared rooms have a 40% chance to drop a heart.*
-3. **Items:** *Next.* Fill the treasure pedestal first.
-   10–15 stat/shot items; hearts, coins, keys, bombs.
-4. **Variety and polish:** more enemies, 2–3 bosses, multiple floors, sound, music, screen shake, title screen, unlockable characters.
+3. **Items:** 10–15 stat/shot items; hearts, coins, keys, bombs. *Done (2026-10-18): 12 items (5 seed types + 7 stat items), treasure room locked with a key and holds an item, new shop room (worm shopkeeper: item 5, heart/bomb/key 3 coins), bombs on E (5 damage, also hurt Mochi), coins drop from enemies, room-clear drops weighted by luck. Mochi starts with 1 bomb and 1 key.*
+4. **Variety and polish:** *Next.* More enemies, 2–3 bosses, multiple floors, sound, music, screen shake, title screen, unlockable characters.
 5. **Extras (optional):** seeded runs, daily challenge, online leaderboard, mobile touch controls.
 
 Suggested v1.0 scope: 1 character, 3 floors, 20 items, 3 bosses (not final).

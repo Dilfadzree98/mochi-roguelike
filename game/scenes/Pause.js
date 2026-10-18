@@ -2,6 +2,13 @@ import { GAME_WIDTH, GAME_HEIGHT, UI } from '../constants.js';
 import { addText } from '../art/PixelFont.js';
 import { newSeed } from '../systems/Rng.js';
 
+// A centred row of item icons (used on the pause and game over screens).
+export function drawItemRow(scene, cx, y, icons) {
+  const spacing = 10;
+  const startX = cx - ((icons.length - 1) * spacing) / 2;
+  icons.forEach((icon, i) => scene.add.image(Math.round(startX + i * spacing), y, icon));
+}
+
 const OPTIONS = [
   { label: 'Resume', action: (scene) => scene.resumeGame() },
   { label: 'Restart', action: (scene) => scene.restart() },
@@ -26,9 +33,10 @@ export class Pause extends Phaser.Scene {
     this.cursor = addText(this, 0, 0, '>', { scale: 2, tint: UI.gold });
     this.refresh();
 
-    addText(this, cx, 120, `Rooms cleared ${game.roomsCleared}/${game.dungeon.combatRoomCount}`, { tint: UI.muted });
-    addText(this, cx, 130, `Seed ${game.seed}`, { tint: UI.dim });
-    addText(this, cx, 148, 'WASD move   Arrows shoot   Esc resume', { tint: UI.dim });
+    drawItemRow(this, cx, 114, game.player.items.map((item) => item.icon));
+    addText(this, cx, 126, `Rooms cleared ${game.roomsCleared}/${game.dungeon.combatRoomCount}`, { tint: UI.muted });
+    addText(this, cx, 136, `Seed ${game.seed}`, { tint: UI.dim });
+    addText(this, cx, 150, 'WASD move  Arrows shoot  E bomb  Esc resume', { tint: UI.dim });
 
     const keyboard = this.input.keyboard;
     const move = (step) => {

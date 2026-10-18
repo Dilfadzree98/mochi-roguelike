@@ -13,8 +13,10 @@ const MAP_COLORS = {
   current: 0xffffff,
   visited: 0x9a8fb0,
   seen: 0x4a4058, // next to a visited room, not entered yet
+  // Room-type marks
   boss: 0xb57bff,
   treasure: 0xf2c94c,
+  shop: 0xf2a0a8,
 };
 
 // Top bar (hearts, wave) and minimap. Runs on top of the Game scene and listens to its events.
@@ -30,21 +32,33 @@ export class HUD extends Phaser.Scene {
     this.waveText = addText(this, GAME_WIDTH - 5, HUD_HEIGHT / 2, '', { originX: 1, tint: UI.muted });
     this.map = this.add.graphics();
 
-    const onHp = (hp, maxHp) => this.drawHearts(hp, maxHp);
-    const onWave = (wave, total) => this.waveText.setText(wave > 0 ? `WAVE ${wave}/${total}` : '');
-    const onRoom = (dungeon, room) => this.drawMap(dungeon, room);
-    game.events.on('hp', onHp);
-    game.events.on('wave', onWave);
-    game.events.on('room', onRoom);
-    this.events.once('shutdown', () => {
-      game.events.off('hp', onHp);
-      game.events.off('wave', onWave);
-      game.events.off('room', onRoom);
+    // Coin, bomb and key counters after the hearts (room for 6 hearts).
+    this.counters = {};
+    ['coins', 'bombs', 'keys'].forEach((kind, i) => {
+      const x = 66 + i * 24;
+      this.add.image(x, HUD_HEIGHT / 2, kind.slice(0, -1));
+      this.counters[kind] = addText(this, x + 6, HUD_HEIGHT / 2, '', { originX: 0, tint: UI.muted });
     });
 
-    onHp(game.player.hp, game.player.stats.maxHp);
-    onWave(game.waveActive ? game.waveIndex : 0, game.room.waves.length);
-    onRoom(game.dungeon, game.room);
+    const listeners = {
+      hp: (hp, maxHp) => this.drawHearts(hp, maxHp),
+      wave: (wave, total) => this.waveText.setText(wave > 0 ? `WAVE ${wave}/${total}` : ''),
+      room: (dungeon, room) => this.drawMap(dungeon, room),
+      inventory: (inventory) => this.drawCounters(inventory),
+    };
+    for (const [event, fn] of Object.entries(listeners)) game.events.on(event, fn);
+    this.events.once('shutdown', () => {
+      for (const [event, fn] of Object.entries(listeners)) game.events.off(event, fn);
+    });
+
+    listeners.hp(game.player.hp, game.player.stats.maxHp);
+    listeners.wave(game.waveActive ? game.waveIndex : 0, game.room.waves.length);
+    listeners.room(game.dungeon, game.room);
+    listeners.inventory(game.player.inventory);
+  }
+
+  drawCounters(inventory) {
+    for (const [kind, text] of Object.entries(this.counters)) text.setText(String(inventory[kind]).padStart(2, '0'));
   }
 
   drawHearts(hp, maxHp) {
@@ -76,7 +90,7 @@ export class HUD extends Phaser.Scene {
       g.fillStyle(color, 1).fillRect(x, y, CELL.w, CELL.h);
 
       const icon = MAP_COLORS[room.type];
-      if (room.type === 'boss' || room.type === 'treasure') g.fillStyle(icon, 1).fillRect(x + 2, y + 1, 2, 2);
+      if (icon) g.fillStyle(icon, 1).fillRect(x + 2, y + 1, 2, 2);
     }
   }
 }

@@ -1,7 +1,8 @@
 import { DEPTH } from '../constants.js';
 import { flashWhite } from '../systems/Fx.js';
+import { computeStats } from '../systems/Items.js';
 
-// Starting stats. Items will change a copy of these (player.stats), never this object.
+// Starting stats. player.stats is rebuilt from these plus every held item.
 const BASE_STATS = {
   maxHp: 6,        // half-hearts
   speed: 72,       // px per second
@@ -9,7 +10,18 @@ const BASE_STATS = {
   shotSpeed: 150,  // px per second
   range: 120,      // px a shot travels
   damage: 1,
+  multishot: 1,    // seeds per shot
+  pierce: false,
+  bounces: 0,
+  split: 0,        // seeds a shot splits into on hit
+  burn: null,      // { ticks, damage, interval }
+  slow: null,      // { multiplier, ms }
+  luck: 0,
+  shotTexture: 'seed',
 };
+
+const START_INVENTORY = { coins: 0, bombs: 1, keys: 1 };
+const MAX_COUNT = 99;
 
 const FIRE_DIRS = {
   UP: { x: 0, y: -1 },
@@ -31,8 +43,10 @@ const KNOCKBACK_SPEED = 140;
 export class Player {
   constructor(scene, x, y) {
     this.scene = scene;
-    this.stats = { ...BASE_STATS };
+    this.items = [];
+    this.stats = computeStats(BASE_STATS, this.items);
     this.hp = this.stats.maxHp;
+    this.inventory = { ...START_INVENTORY };
     this.alive = true;
     this.speedMultiplier = 1; // set each frame by slowing hazards
     this.nextFireAt = 0;
@@ -47,7 +61,7 @@ export class Player {
 
     this.shadow = scene.add.image(x, y, 'shadow').setAlpha(0.3).setDepth(DEPTH.shadow);
     this.sprite = scene.add.image(x, y, 'mochi').setOrigin(0.5, 1);
-    this.keys = scene.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT');
+    this.keys = scene.input.keyboard.addKeys('W,A,S,D,E,UP,DOWN,LEFT,RIGHT');
 
     this.syncVisuals(0);
   }
@@ -60,6 +74,7 @@ export class Player {
     if (!this.alive) return;
     this.move(delta);
     this.tryFire(time);
+    if (Phaser.Input.Keyboard.JustDown(this.keys.E)) this.scene.placeBomb();
     this.animate(time, delta);
   }
 
@@ -129,6 +144,33 @@ export class Player {
     this.shadow.setPosition(x, y - 1);
   }
 
+  // ---------- Items and inventory ----------
+
+  addItem(item) {
+    this.items.push(item);
+    this.stats = computeStats(BASE_STATS, this.items);
+    if (item.onPickup?.heal) this.hp += item.onPickup.heal;
+    this.hp = Math.min(this.hp, this.stats.maxHp);
+    this.emitHp();
+  }
+
+  // kind is 'coins', 'bombs' or 'keys'; amount may be negative.
+  addToInventory(kind, amount) {
+    this.inventory[kind] = Phaser.Math.Clamp(this.inventory[kind] + amount, 0, MAX_COUNT);
+    this.scene.events.emit('inventory', this.inventory);
+  }
+
+  // ---------- Health ----------
+
+  emitHp() {
+    this.scene.events.emit('hp', this.hp, this.stats.maxHp);
+  }
+
+  heal(amount) {
+    this.hp = Math.min(this.stats.maxHp, this.hp + amount);
+    this.emitHp();
+  }
+
   // Returns true if the hit landed (not blocked by invulnerability).
   takeDamage(amount, time) {
     if (!this.alive || time < this.invulnUntil) return false;
@@ -136,15 +178,12 @@ export class Player {
     this.invulnUntil = time + INVULN_MS;
     this.hurtUntil = time + HURT_FACE_MS;
     flashWhite(this.scene, this.sprite, 80);
-    this.scene.events.emit('hp', this.hp, this.stats.maxHp);
+    this.emitHp();
     if (this.hp === 0) this.die();
     return true;
   }
 
-  heal(amount) {
-    this.hp = Math.min(this.stats.maxHp, this.hp + amount);
-    this.scene.events.emit('hp', this.hp, this.stats.maxHp);
-  }
+  // ---------- Movement helpers ----------
 
   // Teleport (used when entering a room) and stop moving.
   placeAt(x, y) {

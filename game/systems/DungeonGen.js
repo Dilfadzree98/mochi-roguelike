@@ -1,5 +1,6 @@
 // Builds a random floor: a tree of rooms on a small grid.
-// Room types: start (empty), normal (2 waves), treasure (empty pedestal for now), boss.
+// Room types: start (empty), normal (2 waves), treasure (item pedestal, locked with a key),
+// shop (worm shopkeeper), boss.
 
 export const DIRS = {
   up: { x: 0, y: -1 },
@@ -69,11 +70,13 @@ function tryGenerate(rng, enemyDefs) {
   const deadEnds = [...cells.values()]
     .filter((c) => !(c.x === START.x && c.y === START.y) && neighborCount(c.x, c.y) === 1)
     .sort((a, b) => distance.get(key(b.x, b.y)) - distance.get(key(a.x, a.y)));
-  if (deadEnds.length < 2) return null;
+  if (deadEnds.length < 3) return null;
 
   const boss = deadEnds[0];
   if (distance.get(key(boss.x, boss.y)) < MIN_BOSS_DISTANCE) return null;
-  const treasure = rng.pick(deadEnds.slice(1));
+  const others = deadEnds.slice(1);
+  const treasure = others.splice(Math.floor(rng.next() * others.length), 1)[0];
+  const shop = rng.pick(others);
 
   const normalTypes = Object.keys(enemyDefs).filter((type) => !enemyDefs[type].boss);
   const bossTypes = Object.keys(enemyDefs).filter((type) => enemyDefs[type].boss);
@@ -84,6 +87,7 @@ function tryGenerate(rng, enemyDefs) {
     if (c.x === START.x && c.y === START.y) type = 'start';
     else if (c === boss) type = 'boss';
     else if (c === treasure) type = 'treasure';
+    else if (c === shop) type = 'shop';
 
     let waves = [];
     if (type === 'normal') waves = normalWaves(rng, normalTypes, dist);
@@ -102,7 +106,9 @@ function tryGenerate(rng, enemyDefs) {
       seed: rng.int(0, 2 ** 31 - 1), // decides this room's look
       cleared: waves.length === 0,
       visited: false,
-      pickups: [],
+      locked: type === 'treasure', // its door needs a key
+      pickups: [], // { kind, x, y } left on the floor
+      contents: null, // treasure item / shop wares, filled in on first visit
     };
   });
 

@@ -3,6 +3,7 @@ import { addText } from '../art/PixelFont.js';
 import { Rng, newSeed } from '../systems/Rng.js';
 import { Save } from '../systems/Save.js';
 import { generateDungeon } from '../systems/DungeonGen.js';
+import { makeItemPool } from '../systems/Items.js';
 import { buildRoom } from '../systems/Room.js';
 import { Player } from '../entities/Player.js';
 import { Enemy } from '../entities/Enemy.js';
@@ -12,12 +13,30 @@ const ROOM_START_DELAY_MS = 500;
 const WAVE_BREAK_MS = 900;
 const SPAWN_MIN_PLAYER_DISTANCE = 64;
 const SPAWN_MIN_ENEMY_DISTANCE = 20;
-const HEART_DROP_CHANCE = 0.4;
 const PICKUP_RADIUS = 9;
 const FADE_MS = 150;
 const FADE_COLOR = [18, 14, 22];
 const GAME_OVER_DELAY_MS = 1600;
 const WIN_DELAY_MS = 2500;
+const HINT_COOLDOWN_MS = 1200;
+
+// Drops. Each point of luck raises the chances.
+const ROOM_DROP_CHANCE = 0.5;
+const ROOM_DROP_LUCK_BONUS = 0.15;
+const ROOM_DROP_WEIGHTS = { coin: 40, heart: 30, bomb: 15, key: 15 };
+const COIN_DROP_CHANCE = 0.12;
+const COIN_DROP_LUCK_BONUS = 0.08;
+
+const BOMB_FUSE_MS = 1500;
+const BOMB_RADIUS = 30;
+const BOMB_DAMAGE = 5;
+
+const SPLIT_SPREAD = 0.6;      // radians between split fragments
+const SPLIT_RANGE = 50;
+const MULTISHOT_SPACING = 4;   // px between side-by-side seeds
+
+const SHOP_PRICES = { item: 5, heart: 3, bomb: 3, key: 3 };
+const PICKUP_TEXTURES = { heart: 'heart_full', coin: 'coin', bomb: 'bomb', key: 'key' };
 
 const CENTER = { x: (FLOOR.left + FLOOR.right) / 2, y: (FLOOR.top + FLOOR.bottom) / 2 };
 
@@ -29,7 +48,17 @@ const ENTRY_POINTS = {
   right: { x: FLOOR.left + 10, y: CENTER.y },
 };
 
-// Stage 2: one random floor of rooms. Fight rooms have 2 waves and stay locked until both are cleared.
+function weightedPick(rng, weights) {
+  const total = Object.values(weights).reduce((sum, w) => sum + w, 0);
+  let roll = rng.next() * total;
+  for (const [key, weight] of Object.entries(weights)) {
+    roll -= weight;
+    if (roll < 0) return key;
+  }
+  return Object.keys(weights)[0];
+}
+
+// One random floor of rooms. Fight rooms have 2 waves and stay locked until both are cleared.
 export class Game extends Phaser.Scene {
   constructor() {
     super('Game');
@@ -41,13 +70,16 @@ export class Game extends Phaser.Scene {
     // Cosmetic randomness gets its own stream so visuals never shift gameplay rolls.
     this.fxRng = new Rng(this.seed ^ 0x5eed);
     this.enemyDefs = this.cache.json.get('enemies');
+    this.itemDefs = this.cache.json.get('items');
     this.dungeon = generateDungeon(this.rng, this.enemyDefs);
+    this.itemPool = makeItemPool(this.rng, this.itemDefs);
 
     this.shots = this.physics.add.group();
     this.enemyBodies = this.physics.add.group();
     this.slime = this.add.group();
     this.enemies = [];
-    this.pickups = [];
+    this.pickups = [];     // things on the floor that are taken by walking over them
+    this.bombs = [];
     this.roomObjects = []; // extra objects owned by the current room, destroyed on leaving
     this.roomColliders = [];
 
@@ -62,6 +94,7 @@ export class Game extends Phaser.Scene {
     this.waveActive = false;
     this.over = false;
     this.transitioning = false;
+    this.nextHintAt = 0;
 
     this.scene.launch('HUD');
     this.enterRoom(this.dungeon.start, null);
@@ -121,16 +154,17 @@ export class Game extends Phaser.Scene {
     const hitbox = this.player.hitbox;
     this.roomColliders = [
       this.physics.add.collider(hitbox, this.view.playerWalls),
-      this.physics.add.collider(hitbox, this.view.doorBlockers),
+      this.physics.add.collider(hitbox, this.view.doorBlockers, (_, blocker) => this.onDoorBump(blocker.door)),
       this.physics.add.collider(this.enemyBodies, this.view.solidWalls),
-      this.physics.add.overlap(this.shots, this.view.solidWalls, (shot) => shot.impact()),
+      this.physics.add.overlap(this.shots, this.view.solidWalls, (shot) => shot.hitWall()),
     ];
 
     const entry = fromDir ? ENTRY_POINTS[fromDir] : CENTER;
     this.player.placeAt(entry.x, entry.y);
 
     if (room.type === 'start') this.addStartHint();
-    if (room.type === 'treasure') this.addPedestal();
+    if (room.type === 'treasure') this.setUpTreasure(room);
+    if (room.type === 'shop') this.setUpShop(room);
     room.pickups.forEach((pickup) => this.spawnPickup(pickup));
 
     this.events.emit('room', this.dungeon, room);
@@ -146,6 +180,8 @@ export class Game extends Phaser.Scene {
   // Finish every effect, then remove everything that belongs to the room.
   leaveRoom() {
     this.tweens.getTweens().forEach((tween) => tween.complete());
+    this.bombs.forEach((bomb) => bomb.timer.remove());
+    this.bombs = [];
     this.enemies.forEach((enemy) => enemy.destroy());
     this.enemies = [];
     this.shots.clear(true, true);
@@ -183,19 +219,93 @@ export class Game extends Phaser.Scene {
     });
   }
 
+  // Walking into a locked door uses a key.
+  onDoorBump(door) {
+    if (!this.room.cleared || !door.neighbor.locked) return;
+    if (this.player.inventory.keys <= 0) {
+      this.hint('Needs a key');
+      return;
+    }
+    this.player.addToInventory('keys', -1);
+    door.neighbor.locked = false;
+    this.view.unlock(door);
+    this.burst(door.x, door.y, 'spark', 8, { distance: 12 });
+  }
+
   addStartHint() {
-    const hint = addText(this, CENTER.x, FLOOR.bottom - 14, 'WASD move   Arrows shoot   Esc pause', { tint: UI.muted })
+    const hint = addText(this, CENTER.x, FLOOR.bottom - 14, 'WASD move  Arrows shoot  E bomb  Esc pause', { tint: UI.muted })
       .setDepth(DEPTH.decor)
       .setAlpha(0.7);
     this.roomObjects.push(hint);
   }
 
-  addPedestal() {
+  // ---------- Treasure room and shop ----------
+
+  setUpTreasure(room) {
+    room.contents ??= { itemId: this.itemPool.pop() ?? null };
+
     const glow = this.add.image(CENTER.x, CENTER.y, 'glow').setDepth(DEPTH.decor);
-    const pedestal = this.add.image(CENTER.x, CENTER.y + 4, 'pedestal').setOrigin(0.5, 1).setDepth(DEPTH.actors + CENTER.y + 4);
-    const note = addText(this, CENTER.x, CENTER.y + 16, 'Empty... for now', { tint: UI.gold }).setDepth(DEPTH.decor);
+    const pedestal = this.add
+      .image(CENTER.x, CENTER.y + 4, 'pedestal')
+      .setOrigin(0.5, 1)
+      .setDepth(DEPTH.actors + CENTER.y + 4);
     this.tweens.add({ targets: glow, alpha: 0.5, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.roomObjects.push(glow, pedestal, note);
+    this.roomObjects.push(glow, pedestal);
+
+    const { itemId } = room.contents;
+    if (!itemId) return;
+    const icon = this.floatingImage(CENTER.x, CENTER.y - 10, this.itemDefs[itemId].icon);
+    this.addPickupSpot(CENTER.x, CENTER.y - 4, [icon], () => {
+      room.contents.itemId = null;
+      this.giveItem(itemId);
+      return true;
+    });
+  }
+
+  setUpShop(room) {
+    if (!room.contents) {
+      const kinds = ['heart', 'bomb', 'key'];
+      const itemId = this.itemPool.pop();
+      const wares = itemId ? [{ kind: 'item', itemId }, ...kinds.map((kind) => ({ kind }))] : kinds.map((kind) => ({ kind }));
+      const spacing = 32;
+      const startX = CENTER.x - ((wares.length - 1) * spacing) / 2;
+      wares.forEach((ware, i) => Object.assign(ware, { price: SHOP_PRICES[ware.kind], x: startX + i * spacing, y: CENTER.y + 10 }));
+      room.contents = { wares };
+    }
+
+    const worm = this.add.image(CENTER.x, FLOOR.top + 26, 'worm').setOrigin(0.5, 1).setDepth(DEPTH.actors + FLOOR.top + 26);
+    const greeting = addText(this, CENTER.x, FLOOR.top + 32, 'Coins for goodies!', { tint: UI.muted }).setDepth(DEPTH.shadow);
+    this.tweens.add({ targets: worm, scaleY: 1.08, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.roomObjects.push(worm, greeting);
+
+    for (const ware of room.contents.wares) {
+      const texture = ware.kind === 'item' ? this.itemDefs[ware.itemId].icon : PICKUP_TEXTURES[ware.kind];
+      const image = this.floatingImage(ware.x, ware.y, texture);
+      const coin = this.add.image(ware.x - 4, ware.y + 11, 'coin').setDepth(DEPTH.shadow);
+      const price = addText(this, ware.x + 1, ware.y + 11, ware.price, { originX: 0, tint: UI.gold }).setDepth(DEPTH.shadow);
+      this.roomObjects.push(coin, price);
+
+      this.addPickupSpot(ware.x, ware.y, [image, coin, price], () => {
+        const player = this.player;
+        if (ware.kind === 'heart' && player.hp >= player.stats.maxHp) return false;
+        if (player.inventory.coins < ware.price) {
+          this.hint(`Needs ${ware.price} coins`);
+          return false;
+        }
+        player.addToInventory('coins', -ware.price);
+        room.contents.wares = room.contents.wares.filter((w) => w !== ware);
+        if (ware.kind === 'item') this.giveItem(ware.itemId);
+        else this.takePickup(ware.kind);
+        return true;
+      });
+    }
+  }
+
+  giveItem(itemId) {
+    const def = this.itemDefs[itemId];
+    this.player.addItem({ id: itemId, ...def });
+    this.banner(def.name, UI.gold, def.description);
+    this.burst(this.player.hitbox.x, this.player.hitbox.y - 6, 'spark', 10, { distance: 14 });
   }
 
   // ---------- Waves ----------
@@ -241,11 +351,14 @@ export class Game extends Phaser.Scene {
     }
 
     this.banner('Clear!', UI.leaf);
-    if (this.rng.chance(HEART_DROP_CHANCE)) {
-      const pickup = { kind: 'heart', x: CENTER.x, y: CENTER.y };
-      room.pickups.push(pickup);
-      this.spawnPickup(pickup);
-    }
+    const chance = ROOM_DROP_CHANCE + ROOM_DROP_LUCK_BONUS * this.player.stats.luck;
+    if (this.rng.chance(chance)) this.dropPickup(weightedPick(this.rng, ROOM_DROP_WEIGHTS), CENTER.x, CENTER.y);
+  }
+
+  onEnemyKilled(enemy) {
+    if (this.over || enemy.def.boss) return;
+    const chance = COIN_DROP_CHANCE + COIN_DROP_LUCK_BONUS * this.player.stats.luck;
+    if (this.rng.chance(chance)) this.dropPickup('coin', enemy.x, enemy.y);
   }
 
   // Random floor spot away from the player and other new spawns.
@@ -267,42 +380,144 @@ export class Game extends Phaser.Scene {
 
   // ---------- Pickups ----------
 
-  // `pickup` is the saved record on room.pickups, so uncollected drops stay in the room.
-  spawnPickup(pickup) {
-    const image = this.add.image(pickup.x, pickup.y, 'heart_full').setDepth(DEPTH.actors + pickup.y);
-    this.tweens.add({ targets: image, y: pickup.y - 2, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  floatingImage(x, y, texture) {
+    const image = this.add.image(x, y, texture).setDepth(DEPTH.actors + y + 8);
+    this.tweens.add({ targets: image, y: y - 2, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.roomObjects.push(image);
-    this.pickups.push({ pickup, image });
+    return image;
   }
 
-  // Hearts are only picked up when Mochi is hurt, so they can be saved for later.
-  collectPickups() {
-    const player = this.player;
-    if (!player.alive || player.hp >= player.stats.maxHp) return;
-    for (const entry of this.pickups) {
-      const { pickup, image } = entry;
-      if (Phaser.Math.Distance.Between(pickup.x, pickup.y, player.hitbox.x, player.hitbox.y) > PICKUP_RADIUS) continue;
-      player.heal(2);
-      this.burst(pickup.x, pickup.y, 'husk', 4);
-      image.destroy();
+  // Something taken by walking over it. tryTake returns false to leave it there.
+  addPickupSpot(x, y, objects, tryTake) {
+    this.pickups.push({ x, y, objects, tryTake });
+  }
+
+  // A new drop on the floor, remembered by the room until picked up.
+  dropPickup(kind, x, y) {
+    const pickup = {
+      kind,
+      x: Phaser.Math.Clamp(Math.round(x), FLOOR.left + 6, FLOOR.right - 6),
+      y: Phaser.Math.Clamp(Math.round(y), FLOOR.top + 6, FLOOR.bottom - 6),
+    };
+    this.room.pickups.push(pickup);
+    this.spawnPickup(pickup);
+  }
+
+  spawnPickup(pickup) {
+    const image = this.floatingImage(pickup.x, pickup.y, PICKUP_TEXTURES[pickup.kind]);
+    this.addPickupSpot(pickup.x, pickup.y, [image], () => {
+      if (!this.takePickup(pickup.kind)) return false;
       this.room.pickups = this.room.pickups.filter((p) => p !== pickup);
-      this.pickups = this.pickups.filter((p) => p !== entry);
+      return true;
+    });
+  }
+
+  // Returns false if it can't be used right now (hearts at full health).
+  takePickup(kind) {
+    const player = this.player;
+    if (kind === 'heart') {
+      if (player.hp >= player.stats.maxHp) return false;
+      player.heal(2);
+    } else {
+      player.addToInventory(`${kind}s`, 1);
+    }
+    return true;
+  }
+
+  collectPickups() {
+    if (!this.player.alive) return;
+    const { x, y } = this.player.hitbox;
+    for (const spot of this.pickups) {
+      if (Phaser.Math.Distance.Between(spot.x, spot.y, x, y) > PICKUP_RADIUS) continue;
+      if (!spot.tryTake()) continue;
+      this.burst(spot.x, spot.y, 'spark', 4);
+      spot.objects.forEach((obj) => obj.destroy());
+      this.pickups = this.pickups.filter((p) => p !== spot);
       return;
+    }
+  }
+
+  // ---------- Bombs ----------
+
+  placeBomb() {
+    const player = this.player;
+    if (this.over || player.inventory.bombs <= 0) return;
+    player.addToInventory('bombs', -1);
+
+    const { x, y } = player.feet;
+    const image = this.add.image(x, y - 3, 'bomb').setDepth(DEPTH.actors + y - 1);
+    this.tweens.add({ targets: image, scale: 1.25, duration: 150, yoyo: true, repeat: -1 });
+    const bomb = { x, y: y - 3, image };
+    bomb.timer = this.time.delayedCall(BOMB_FUSE_MS, () => this.explode(bomb));
+    this.bombs.push(bomb);
+    this.roomObjects.push(image);
+  }
+
+  // Hurts every enemy nearby, and Mochi too if too close.
+  explode(bomb) {
+    this.bombs = this.bombs.filter((b) => b !== bomb);
+    bomb.image.destroy();
+    this.burst(bomb.x, bomb.y, 'spark', 12, { distance: BOMB_RADIUS * 0.7, duration: 350 });
+    this.burst(bomb.x, bomb.y, 'smoke', 10, { distance: BOMB_RADIUS * 0.6, duration: 500 });
+    this.cameras.main.shake(200, 0.02);
+
+    const now = this.time.now;
+    const distance = Phaser.Math.Distance.Between;
+    for (const enemy of this.enemies) {
+      if (enemy.state !== 'active' || distance(bomb.x, bomb.y, enemy.x, enemy.y) > BOMB_RADIUS) continue;
+      const angle = Math.atan2(enemy.y - bomb.y, enemy.x - bomb.x);
+      enemy.hit(BOMB_DAMAGE, { x: Math.cos(angle), y: Math.sin(angle) }, now);
+    }
+
+    const player = this.player;
+    if (distance(bomb.x, bomb.y, player.hitbox.x, player.hitbox.y) <= BOMB_RADIUS && player.takeDamage(1, now)) {
+      if (player.alive) player.knockbackFrom(bomb.x, bomb.y);
+      else this.onPlayerDied();
     }
   }
 
   // ---------- Combat ----------
 
   firePlayerShot(x, y, dir, stats) {
-    const shot = new Projectile(this, x, y, 'seed');
+    const count = stats.multishot;
+    const side = { x: -dir.y, y: dir.x };
+    for (let i = 0; i < count; i++) {
+      const offset = (i - (count - 1) / 2) * MULTISHOT_SPACING;
+      this.spawnShot(x + side.x * offset, y + side.y * offset, dir, stats);
+    }
+  }
+
+  spawnShot(x, y, dir, stats, options) {
+    const shot = new Projectile(this, x, y, stats.shotTexture);
     this.shots.add(shot, true);
-    shot.launch(dir, stats);
+    shot.launch(dir, stats, this.time.now, options);
+    return shot;
   }
 
   onShotHitEnemy(shot, enemy) {
-    if (!shot.active || enemy.state !== 'active') return;
-    shot.impact();
-    enemy.hit(shot.damage, shot.dir, this.time.now);
+    if (!shot.active || enemy.state !== 'active' || shot.hitEnemies.has(enemy)) return;
+    shot.hitEnemies.add(enemy);
+    enemy.hit(shot.damage, shot.dir, this.time.now, shot.effects);
+    if (shot.canSplit) this.splitShot(shot, enemy);
+    if (!shot.pierce) shot.impact();
+  }
+
+  // Thorn Seed: smaller seeds fan out from the hit, skipping the enemy that was hit.
+  splitShot(shot, enemy) {
+    const { x, y, stats } = shot;
+    const base = Math.atan2(shot.dir.y, shot.dir.x);
+    const count = stats.split;
+    // Added next frame so the physics step isn't changed while it runs.
+    this.time.delayedCall(0, () => {
+      for (let i = 0; i < count; i++) {
+        const angle = base + (i - (count - 1) / 2) * SPLIT_SPREAD;
+        this.spawnShot(x, y, { x: Math.cos(angle), y: Math.sin(angle) }, { ...stats, range: SPLIT_RANGE }, {
+          damageScale: 0.5,
+          isFragment: true,
+          alreadyHit: [enemy],
+        });
+      }
+    });
   }
 
   onPlayerTouchEnemy(enemy) {
@@ -315,6 +530,7 @@ export class Game extends Phaser.Scene {
   }
 
   onPlayerDied() {
+    if (this.over) return;
     this.over = true;
     this.waveActive = false;
     for (const enemy of this.enemies) enemy.freeze();
@@ -331,6 +547,7 @@ export class Game extends Phaser.Scene {
         totalRooms: this.dungeon.combatRoomCount,
         seed: this.seed,
         newBest,
+        items: this.player.items.map((item) => item.icon),
       });
     });
   }
@@ -373,17 +590,27 @@ export class Game extends Phaser.Scene {
     }
   }
 
-  banner(text, tint) {
-    const label = addText(this, GAME_WIDTH / 2, FLOOR.top + 22, text, { scale: 2, tint })
-      .setDepth(DEPTH.ui)
-      .setAlpha(0);
+  banner(text, tint, subtitle) {
+    const y = FLOOR.top + 22;
+    const labels = [addText(this, GAME_WIDTH / 2, y, text, { scale: 2, tint })];
+    if (subtitle) labels.push(addText(this, GAME_WIDTH / 2, y + 13, subtitle, { tint: UI.muted }));
+    labels.forEach((label) => label.setDepth(DEPTH.ui).setAlpha(0));
     this.tweens.add({
-      targets: label,
+      targets: labels,
       alpha: 1,
       duration: 150,
       yoyo: true,
-      hold: 900,
-      onComplete: () => label.destroy(),
+      hold: subtitle ? 1600 : 900,
+      onComplete: () => labels.forEach((label) => label.destroy()),
     });
+  }
+
+  // Small floating message above Mochi, at most once per cooldown.
+  hint(text) {
+    if (this.time.now < this.nextHintAt) return;
+    this.nextHintAt = this.time.now + HINT_COOLDOWN_MS;
+    const { x, y } = this.player.hitbox;
+    const label = addText(this, x, y - 16, text, { tint: UI.muted }).setDepth(DEPTH.ui);
+    this.tweens.add({ targets: label, y: y - 24, alpha: 0, duration: 1000, delay: 300, onComplete: () => label.destroy() });
   }
 }
