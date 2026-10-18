@@ -3,60 +3,137 @@
     "id": "garden",
     "name": "Sunny Garden",
     "palette": {
-      "floor": "#5F8A4A", "floorDark": "#4C733B", "floorLight": "#6B9653",
-      "patch": "#6E5B3F", "patchDark": "#5C4B34",
-      "wall": "#3A5A2C", "wallDark": "#2E4A23", "wallLight": "#4C733B"
+      "floor": "#5F8A4A",
+      "floorDark": "#4C733B",
+      "floorLight": "#6B9653",
+      "patch": "#6E5B3F",
+      "patchDark": "#5C4B34",
+      "wall": "#3A5A2C",
+      "wallDark": "#2E4A23",
+      "wallLight": "#4C733B"
     },
     "pattern": "grass",
     "face": "fence",
     "vignette": 0.35,
-    "decorations": ["flower", "flower", "clover", "clover", "pebble"],
-    "enemies": { "gloom_slug": 4, "grumpshroom": 1 },
-    "boss": "mother_slug"
+    "decorations": [
+      "flower",
+      "flower",
+      "clover",
+      "clover",
+      "pebble"
+    ],
+    "enemies": {
+      "gloom_slug": 4,
+      "grumpshroom": 1
+    },
+    "boss": "mother_slug",
+    "obstacles": [
+      { "texture": "flower_pot" },
+      { "texture": "stump" }
+    ]
   },
   {
     "id": "greenhouse",
     "name": "Dim Greenhouse",
     "palette": {
-      "floor": "#5C6B5E", "floorDark": "#46534A", "floorLight": "#68786A",
-      "patch": "#4C6A44", "patchDark": "#3E5A38",
-      "wall": "#3B4A45", "wallDark": "#2E3B37", "wallLight": "#4F6059"
+      "floor": "#5C6B5E",
+      "floorDark": "#46534A",
+      "floorLight": "#68786A",
+      "patch": "#4C6A44",
+      "patchDark": "#3E5A38",
+      "wall": "#3B4A45",
+      "wallDark": "#2E3B37",
+      "wallLight": "#4F6059"
     },
     "pattern": "stone",
     "face": "glass",
     "vignette": 0.45,
-    "decorations": ["puddle", "broken_pot", "moss", "moss"],
-    "enemies": { "gloom_slug": 2, "grumpshroom": 2, "click_beetle": 2, "thornvine": 1 },
-    "boss": "grandshroom"
+    "decorations": [
+      "puddle",
+      "broken_pot",
+      "moss",
+      "moss"
+    ],
+    "enemies": {
+      "gloom_slug": 2,
+      "grumpshroom": 2,
+      "click_beetle": 2,
+      "thornvine": 1
+    },
+    "boss": "grandshroom",
+    "obstacles": [
+      { "texture": "planter" },
+      { "texture": "bench" }
+    ]
   },
   {
     "id": "cellar",
     "name": "Mushroom Cellar",
     "palette": {
-      "floor": "#4A3B35", "floorDark": "#382C28", "floorLight": "#56463F",
-      "patch": "#5E4A38", "patchDark": "#46362A",
-      "wall": "#2E2424", "wallDark": "#221A1A", "wallLight": "#3E3232"
+      "floor": "#4A3B35",
+      "floorDark": "#382C28",
+      "floorLight": "#56463F",
+      "patch": "#5E4A38",
+      "patchDark": "#46362A",
+      "wall": "#2E2424",
+      "wallDark": "#221A1A",
+      "wallLight": "#3E3232"
     },
     "pattern": "earth",
     "face": "brick",
     "vignette": 0.55,
-    "decorations": ["glow_mushroom", "glow_mushroom", "jar", "root"],
-    "enemies": { "click_beetle": 2, "thornvine": 2, "grumpshroom": 1, "hexed_gnome": 1 },
-    "boss": "gnome_king"
+    "decorations": [
+      "glow_mushroom",
+      "glow_mushroom",
+      "jar",
+      "root"
+    ],
+    "enemies": {
+      "click_beetle": 2,
+      "thornvine": 2,
+      "grumpshroom": 1,
+      "hexed_gnome": 1
+    },
+    "boss": "gnome_king",
+    "obstacles": [
+      { "texture": "barrel" },
+      { "texture": "crate" },
+      { "texture": "big_mushroom" }
+    ]
   },
   {
     "id": "compost",
     "name": "Compost Depths",
     "palette": {
-      "floor": "#3A2E3F", "floorDark": "#2A2030", "floorLight": "#463A4C",
-      "patch": "#2E3A24", "patchDark": "#24301C",
-      "wall": "#1F1A24", "wallDark": "#16121A", "wallLight": "#2E2636"
+      "floor": "#3A2E3F",
+      "floorDark": "#2A2030",
+      "floorLight": "#463A4C",
+      "patch": "#2E3A24",
+      "patchDark": "#24301C",
+      "wall": "#1F1A24",
+      "wallDark": "#16121A",
+      "wallLight": "#2E2636"
     },
     "pattern": "soil",
     "face": "roots",
     "vignette": 0.65,
-    "decorations": ["rot_leaf", "rot_leaf", "purple_sprout", "murky_puddle"],
-    "enemies": { "gloom_slug": 1, "grumpshroom": 1, "click_beetle": 2, "thornvine": 2, "hexed_gnome": 2 },
-    "boss": "weed_queen"
+    "decorations": [
+      "rot_leaf",
+      "rot_leaf",
+      "purple_sprout",
+      "murky_puddle"
+    ],
+    "enemies": {
+      "gloom_slug": 1,
+      "grumpshroom": 1,
+      "click_beetle": 2,
+      "thornvine": 2,
+      "hexed_gnome": 2
+    },
+    "boss": "weed_queen",
+    "obstacles": [
+      { "texture": "root_knot" },
+      { "texture": "thorn_cluster", "hurts": true }
+    ]
   }
 ]

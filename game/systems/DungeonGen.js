@@ -2,6 +2,8 @@
 // Room types: start (empty), normal (2 waves), treasure (item pedestal, locked with a key),
 // shop (worm shopkeeper), boss.
 
+import { makeLayout } from './Pathing.js';
+
 export const DIRS = {
   up: { x: 0, y: -1 },
   down: { x: 0, y: 1 },
@@ -17,7 +19,11 @@ const ROOM_COUNT = { min: 8, max: 12 };
 const MIN_BOSS_DISTANCE = 3;
 const MAX_ATTEMPTS = 200;
 const WAVES_PER_ROOM = 2;
-const MAX_WAVE_SIZE = 6;
+
+// Wave rules: 1-6 enemies made of 1, 2 or 3 different types.
+const WAVE_SIZE = { min: 1, max: 6 };
+const TYPES_PER_WAVE = { 1: 5, 2: 4, 3: 2 }; // weights: one type is most common
+const EMPTY_ROOM_CHANCE = 0.2;              // fight rooms with no obstacles
 
 const key = (x, y) => `${x},${y}`;
 
@@ -43,15 +49,15 @@ export class Dungeon {
 }
 
 // Deeper floors (floorIndex 0-3) have one more room and bigger waves.
-export function generateDungeon(rng, floor, floorIndex) {
+export function generateDungeon(rng, floor, floorIndex, enemyDefs) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const dungeon = tryGenerate(rng, floor, floorIndex);
+    const dungeon = tryGenerate(rng, floor, floorIndex, enemyDefs);
     if (dungeon) return dungeon;
   }
   throw new Error('Could not generate a dungeon');
 }
 
-function tryGenerate(rng, floor, floorIndex) {
+function tryGenerate(rng, floor, floorIndex, enemyDefs) {
   const target = rng.int(ROOM_COUNT.min + floorIndex, ROOM_COUNT.max + floorIndex);
   const cells = new Map([[key(START.x, START.y), { ...START }]]);
   const neighborCount = (x, y) => Object.values(DIRS).filter((d) => cells.has(key(x + d.x, y + d.y))).length;
@@ -90,8 +96,8 @@ function tryGenerate(rng, floor, floorIndex) {
     else if (c === shop) type = 'shop';
 
     let waves = [];
-    if (type === 'normal') waves = normalWaves(rng, floor.enemies, dist + floorIndex);
-    if (type === 'boss') waves = bossWaves(rng, floor, floorIndex);
+    if (type === 'normal') waves = normalWaves(rng, floor.enemies, enemyDefs, dist + floorIndex);
+    if (type === 'boss') waves = bossWaves(rng, floor, floorIndex, enemyDefs);
 
     const doors = {};
     for (const [dir, d] of Object.entries(DIRS)) doors[dir] = cells.has(key(c.x + d.x, c.y + d.y));
@@ -109,26 +115,64 @@ function tryGenerate(rng, floor, floorIndex) {
       locked: type === 'treasure', // its door needs a key
       pickups: [], // { kind, x, y } left on the floor
       contents: null, // treasure item / shop wares, filled in on first visit
+      obstacles: makeObstacles(rng, floor, type), // { col, row, texture, hurts, broken }
     };
   });
 
   return new Dungeon(rooms, rooms.find((room) => room.type === 'start'), floor, floorIndex);
 }
 
-// Rooms further from the start (and on deeper floors) get bigger waves; the second wave is one bigger.
-// `weights` is the floor's enemy mix, e.g. { "gloom_slug": 4, "grumpshroom": 1 }.
-function normalWaves(rng, weights, difficulty) {
-  const first = Math.min(2 + Math.floor(difficulty / 2), MAX_WAVE_SIZE - 1);
-  return Array.from({ length: WAVES_PER_ROOM }, (_, i) =>
-    Array.from({ length: first + i }, () => rng.weighted(weights)),
-  );
+// Fight rooms usually get a layout of the floor's obstacles; boss rooms just the corners
+// (to hide behind); start, treasure and shop rooms stay open.
+function makeObstacles(rng, floor, type) {
+  if (type === 'boss') return withKinds(rng, floor, makeLayout(rng, 'boss'));
+  if (type !== 'normal' || rng.chance(EMPTY_ROOM_CHANCE)) return [];
+  return withKinds(rng, floor, makeLayout(rng));
+}
+
+// Each room uses one or two of its floor's obstacle kinds.
+function withKinds(rng, floor, tiles) {
+  const kinds = [rng.pick(floor.obstacles), rng.pick(floor.obstacles)];
+  return tiles.map(({ col, row }) => {
+    const kind = rng.pick(kinds);
+    return { col, row, texture: kind.texture, hurts: !!kind.hurts, broken: false };
+  });
+}
+
+// Two independent waves. Rooms further from the start (and on deeper floors)
+// lean toward bigger waves. `weights` is the floor's enemy mix.
+function normalWaves(rng, weights, enemyDefs, difficulty) {
+  return Array.from({ length: WAVES_PER_ROOM }, () => makeWave(rng, weights, enemyDefs, difficulty));
+}
+
+// 1-6 enemies of 1-3 different types. Strong enemies have a per-wave cap (maxPerWave).
+function makeWave(rng, weights, enemyDefs, difficulty) {
+  const min = Math.min(WAVE_SIZE.min + Math.floor(difficulty / 3), 4);
+  const size = rng.int(min, WAVE_SIZE.max);
+  const typeCount = Math.min(Number(rng.weighted(TYPES_PER_WAVE)), size, Object.keys(weights).length);
+
+  // Choose the types (no repeats), weighted by the floor's mix.
+  const remaining = { ...weights };
+  const types = [];
+  while (types.length < typeCount) {
+    const type = rng.weighted(remaining);
+    types.push(type);
+    delete remaining[type];
+  }
+
+  // One of each, then fill up to the size without breaking any cap.
+  const wave = [...types];
+  const count = (type) => wave.filter((t) => t === type).length;
+  const open = () => types.filter((t) => count(t) < (enemyDefs[t].maxPerWave ?? WAVE_SIZE.max));
+  while (wave.length < size && open().length > 0) wave.push(rng.pick(open()));
+  return wave;
 }
 
 // Wave 1: the floor's regular enemies. Wave 2: the boss (the Weed Queen summons her own help).
-function bossWaves(rng, floor, floorIndex) {
-  const minions = (n) => Array.from({ length: n }, () => rng.weighted(floor.enemies));
-  const helpers = floor.boss === 'weed_queen' ? 0 : 2;
-  return [minions(3 + floorIndex), [floor.boss, ...minions(helpers)]];
+function bossWaves(rng, floor, floorIndex, enemyDefs) {
+  const minions = makeWave(rng, floor.enemies, enemyDefs, 6 + floorIndex * 3);
+  const helpers = floor.boss === 'weed_queen' ? [] : makeWave(rng, floor.enemies, enemyDefs, 0).slice(0, 2);
+  return [minions, [floor.boss, ...helpers]];
 }
 
 function distancesFrom(start, cells) {

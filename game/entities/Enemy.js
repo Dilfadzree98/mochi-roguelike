@@ -16,9 +16,9 @@ function againstWall(enemy) {
 // Each runs every frame with (enemy, player, time); per-enemy state lives in enemy.ai,
 // tuning numbers in enemy.def.params.
 const BEHAVIOURS = {
-  // Crawls straight at the player.
-  chase(e, player) {
-    e.hitbox.body.velocity.setToPolar(angleTo(e, player), e.speed);
+  // Crawls toward the player, finding a way around obstacles.
+  chase(e) {
+    e.hitbox.body.velocity.setToPolar(e.scene.chaseAngle(e), e.speed);
   },
 
   // Stays put and puffs a ring of bullets.
@@ -34,20 +34,29 @@ const BEHAVIOURS = {
   },
 
   // Wanders, wiggles as a warning, then charges in a straight line until it hits a wall.
-  charger(e, player, time) {
+  charger(e, player, time, delta) {
     const p = e.def.params;
     const ai = e.ai;
     const body = e.hitbox.body;
     ai.state ??= 'wander';
     ai.until ??= time + p.wanderMs;
 
+    // Moved much less than its speed allows since last frame: something is in the way.
+    const moved = Math.hypot(e.x - (ai.lastX ?? e.x), e.y - (ai.lastY ?? e.y));
+    const expected = ((ai.lastSpeed ?? 0) * delta) / 1000;
+    const stuck = expected > 0.2 && moved < expected * 0.3;
+    ai.lastX = e.x;
+    ai.lastY = e.y;
+    ai.lastSpeed = 0;
+
     if (ai.state === 'wander') {
-      if (!ai.dir || time >= ai.turnAt) {
+      if (!ai.dir || time >= ai.turnAt || stuck) {
         const a = e.scene.rng.range(0, Math.PI * 2);
         ai.dir = { x: Math.cos(a), y: Math.sin(a) };
         ai.turnAt = time + 600;
       }
       body.velocity.set(ai.dir.x * e.speed, ai.dir.y * e.speed);
+      ai.lastSpeed = e.speed;
       if (time >= ai.until) Object.assign(ai, { state: 'windup', until: time + p.windupMs });
     } else if (ai.state === 'windup') {
       e.stop();
@@ -59,7 +68,8 @@ const BEHAVIOURS = {
     } else if (ai.state === 'charge') {
       const speed = p.chargeSpeed * (e.slow ? e.slow.multiplier : 1);
       body.velocity.set(ai.charge.x * speed, ai.charge.y * speed);
-      if ((time - ai.started > 120 && againstWall(e)) || time >= ai.until) {
+      ai.lastSpeed = speed;
+      if ((time - ai.started > 120 && (againstWall(e) || stuck)) || time >= ai.until) {
         e.stop();
         Object.assign(ai, { state: 'stunned', until: time + p.stunMs });
       }
@@ -272,6 +282,7 @@ export class Enemy {
     const body = this.hitbox.body;
     if (this.def.stationary) this.stop();
     if (time >= this.knockbackUntil) BEHAVIOURS[this.def.behaviour](this, player, time, delta);
+    else this.ai.lastSpeed = 0; // knocked back: not trying to move by itself
     if (this.state !== 'active') return;
     if (Math.abs(body.velocity.x) > 1) this.sprite.setFlipX(body.velocity.x < 0);
 

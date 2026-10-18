@@ -66,13 +66,14 @@ game/
 │   ├── Rng.js           seeded RNG, newSeed(), seedFromUrl()
 │   ├── DungeonGen.js    random floor: tree of 8-12 (+1 per floor) rooms on a 7x5 grid, room types, waves
 │   ├── Audio.js         Web Audio synth: sound effects + one generated tune per floor; M mutes
+│   ├── Pathing.js       13x7 floor grid: flow-field pathfinding, line-of-sight, obstacle layouts
 │   ├── Items.js         computeStats() (add/mul/set modifiers) and the per-run item pool
 │   ├── Room.js          draws one room, its walls, door gaps and door blockers
 │   ├── Fx.js            hit flash
 │   └── Save.js          localStorage (best floor, rooms cleared, wins)
 └── data/
     ├── enemies.json     enemies and bosses: stats, behaviour name + params, death animation
-    ├── floors.json      4 floors: palette, wall face, decorations, enemy weights, boss
+    ├── floors.json      4 floors: palette, wall face, decorations, obstacles, enemy weights, boss
     └── items.json       12 items; each is a list of stat modifiers
 ```
 
@@ -87,6 +88,8 @@ Implementation patterns to keep:
 - Game → HUD communication is through `Game.events` (`hp`, `wave`, `room`, `inventory`, `floor`, `boss`).
 - **Floors:** `startFloor(i)` makes a new dungeon from `floors.json[i]`; the player, items and item pool carry over. Beating a boss on floors 1-3 leaves an item pedestal and a trapdoor (`descend()`); beating the Weed Queen on floor 4 wins.
 - **Tooltips:** any pickup spot created with an `info` ({ name, description }) shows a tooltip when Mochi is within 24 px.
+- **Waves:** `makeWave` in DungeonGen.js: each wave is 1-6 enemies of 1-3 types (weights `TYPES_PER_WAVE`), types drawn from the floor's `enemies` weights without repeats; the minimum size grows with distance from start + floor; `maxPerWave` in enemies.json caps strong enemies (gnome 2, thornvine/grumpshroom 3, beetle 4).
+- **Obstacles:** each fight room gets a mirrored layout (`makeLayout` in Pathing.js) of whole-tile obstacles from the floor's `obstacles` list (20% of fight rooms are open; boss rooms get corner cover; start/treasure/shop stay empty). Layouts never block door entrances and always keep every free tile reachable. Obstacles block Mochi, enemies and all bullets; bombs break them (`room.obstacles[].broken` persists); `"hurts": true` (thorn clusters) damages Mochi on touch. Chasing enemies use `Game.chaseAngle()` (straight line if clear, else flow field). Spawns, teleports and drops use `areaFree` / `freeSpot` to avoid obstacles.
 - **One room on screen at a time:** `enterRoom` builds the room from its data, `leaveRoom` finishes all tweens and destroys everything room-owned (enemies, shots, slime, `roomObjects`, room colliders). Anything that must survive leaving a room is stored on the room record in the dungeon (e.g. `room.cleared`, `room.pickups`).
 - **Walls:** enemies and shots collide with a solid wall ring; the player collides with walls that have gaps at doors plus a blocker per door that is disabled when the room is cleared. Walking past the floor edge (only possible through a door gap) moves to the neighbouring room.
 

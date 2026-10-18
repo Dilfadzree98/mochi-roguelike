@@ -6,6 +6,7 @@ import { Audio } from '../systems/Audio.js';
 import { generateDungeon } from '../systems/DungeonGen.js';
 import { makeItemPool } from '../systems/Items.js';
 import { buildRoom } from '../systems/Room.js';
+import { areaFree, flowField, lineClear, nearestFree, nextStep, tileOf } from '../systems/Pathing.js';
 import { Player } from '../entities/Player.js';
 import { Enemy } from '../entities/Enemy.js';
 import { Projectile } from '../entities/Projectile.js';
@@ -111,7 +112,7 @@ export class Game extends Phaser.Scene {
 
   startFloor(index) {
     this.floorIndex = index;
-    this.dungeon = generateDungeon(this.rng, this.floors[index], index);
+    this.dungeon = generateDungeon(this.rng, this.floors[index], index, this.enemyDefs);
     Audio.startMusic(index);
     this.events.emit('floor', index, this.floors[index]);
   }
@@ -183,7 +184,13 @@ export class Game extends Phaser.Scene {
       this.physics.add.collider(this.enemyBodies, this.view.solidWalls),
       this.physics.add.overlap(this.shots, this.view.solidWalls, (shot) => shot.hitWall()),
       this.physics.add.overlap(this.enemyShots, this.view.solidWalls, (bullet) => bullet.pop()),
+      // Obstacles block everyone and every bullet, so Mochi can hide behind them.
+      this.physics.add.collider(hitbox, this.view.obstacleBodies, (_, zone) => this.onObstacleTouch(zone.obstacle)),
+      this.physics.add.collider(this.enemyBodies, this.view.obstacleBodies),
+      this.physics.add.overlap(this.shots, this.view.obstacleBodies, (shot) => shot.impact()),
+      this.physics.add.overlap(this.enemyShots, this.view.obstacleBodies, (bullet) => bullet.pop()),
     ];
+    this.flow = null;
 
     const entry = fromDir ? ENTRY_POINTS[fromDir] : CENTER;
     this.player.placeAt(entry.x, entry.y);
@@ -274,6 +281,33 @@ export class Game extends Phaser.Scene {
     this.view.unlock(door);
     Audio.play('unlock');
     this.burst(door.x, door.y, 'spark', 8, { distance: 12 });
+  }
+
+  // Thorn clusters hurt on touch.
+  onObstacleTouch(obstacle) {
+    if (obstacle.data.hurts) this.damagePlayer(1, obstacle.x, obstacle.y);
+  }
+
+  // ---------- Pathfinding (used by enemy behaviours) ----------
+
+  // Direction for an enemy to walk toward Mochi: straight at Mochi when nothing is in
+  // the way, otherwise toward the next tile of a path around the obstacles.
+  chaseAngle(enemy) {
+    const target = this.player.hitbox;
+    const direct = Math.atan2(target.y - enemy.y, target.x - enemy.x);
+    const blocked = this.view.blocked;
+    if (blocked.size === 0 || lineClear(blocked, enemy.x, enemy.y, target.x, target.y, enemy.def.hitbox.w / 2)) return direct;
+
+    const playerTile = tileOf(target.x, target.y);
+    const flowKey = `${playerTile.col},${playerTile.row},${blocked.size}`;
+    if (this.flow?.key !== flowKey) this.flow = { key: flowKey, field: flowField(blocked, playerTile) };
+    const step = nextStep(this.flow.field, tileOf(enemy.x, enemy.y));
+    return step ? Math.atan2(step.y - enemy.y, step.x - enemy.x) : direct;
+  }
+
+  // Free floor point near (x, y): not inside an obstacle.
+  freeSpot(x, y, half = 6) {
+    return areaFree(this.view.blocked, x, y, half) ? { x, y } : nearestFree(this.view.blocked, x, y);
   }
 
   addStartHint() {
@@ -401,10 +435,7 @@ export class Game extends Phaser.Scene {
 
   // Extra enemies mid-fight (the Weed Queen's summons).
   spawnEnemyAt(type, x, y) {
-    const pos = {
-      x: Phaser.Math.Clamp(x, FLOOR.left + 12, FLOOR.right - 12),
-      y: Phaser.Math.Clamp(y, FLOOR.top + 12, FLOOR.bottom - 10),
-    };
+    const pos = this.freeSpot(Phaser.Math.Clamp(x, FLOOR.left + 12, FLOOR.right - 12), Phaser.Math.Clamp(y, FLOOR.top + 12, FLOOR.bottom - 10), 8);
     this.enemies.push(new Enemy(this, this.enemyDefs[type], pos.x, pos.y));
   }
 
@@ -476,9 +507,10 @@ export class Game extends Phaser.Scene {
       };
       const nearPlayer = distance(pos.x, pos.y, player.x, player.y) < minPlayerDistance;
       const crowded = taken.some((other) => distance(pos.x, pos.y, other.x, other.y) < SPAWN_MIN_ENEMY_DISTANCE);
-      if (!nearPlayer && !crowded) break;
+      const inObstacle = !areaFree(this.view.blocked, pos.x, pos.y, 9);
+      if (!nearPlayer && !crowded && !inObstacle) return pos;
     }
-    return pos;
+    return this.freeSpot(pos.x, pos.y, 9);
   }
 
   findTeleportSpot() {
@@ -502,11 +534,11 @@ export class Game extends Phaser.Scene {
 
   // A new drop on the floor, remembered by the room until picked up.
   dropPickup(kind, x, y) {
-    const pickup = {
-      kind,
-      x: Phaser.Math.Clamp(Math.round(x), FLOOR.left + 6, FLOOR.right - 6),
-      y: Phaser.Math.Clamp(Math.round(y), FLOOR.top + 6, FLOOR.bottom - 6),
-    };
+    const spot = this.freeSpot(
+      Phaser.Math.Clamp(Math.round(x), FLOOR.left + 6, FLOOR.right - 6),
+      Phaser.Math.Clamp(Math.round(y), FLOOR.top + 6, FLOOR.bottom - 6),
+    );
+    const pickup = { kind, x: spot.x, y: spot.y };
     this.room.pickups.push(pickup);
     this.spawnPickup(pickup);
   }
@@ -615,6 +647,12 @@ export class Game extends Phaser.Scene {
       if (enemy.state !== 'active' || distance(bomb.x, bomb.y, enemy.x, enemy.y) > BOMB_RADIUS) continue;
       const angle = Math.atan2(enemy.y - bomb.y, enemy.x - bomb.x);
       enemy.hit(BOMB_DAMAGE, { x: Math.cos(angle), y: Math.sin(angle) }, now);
+    }
+    for (const obstacle of this.view.obstacles.slice()) {
+      if (distance(bomb.x, bomb.y, obstacle.x, obstacle.y) > BOMB_RADIUS + 6) continue;
+      this.burst(obstacle.x, obstacle.y, 'smoke', 6, { distance: 10 });
+      this.burst(obstacle.x, obstacle.y, 'husk', 6, { distance: 12 });
+      this.view.breakObstacle(obstacle);
     }
     this.hurtPlayerNear(bomb.x, bomb.y, BOMB_RADIUS);
   }

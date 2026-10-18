@@ -1,5 +1,6 @@
 import { TILE, ROOM_COLS, ROOM_ROWS, ROOM_X, ROOM_Y, FLOOR, DEPTH } from '../constants.js';
 import { Rng } from './Rng.js';
+import { tileCenter } from './Pathing.js';
 
 const DOOR_SLOTS = {
   up: { col: 7, row: 0, angle: 0 },
@@ -105,11 +106,40 @@ export function buildRoom(scene, room, dungeon) {
     door.blocker.body.enable = !open;
   };
 
+  // Obstacles: one tile each, solid to everything. Drawn by their bottom edge so
+  // Mochi can stand "behind" them.
+  const obstacleBodies = scene.physics.add.staticGroup();
+  const blocked = new Set(); // "col,row" of every standing obstacle, for pathfinding
+  const obstacles = room.obstacles
+    .filter((ob) => !ob.broken)
+    .map((ob) => {
+      const { x, y } = tileCenter(ob.col, ob.row);
+      const image = scene.add.image(x, y + TILE / 2, ob.texture).setOrigin(0.5, 1).setDepth(DEPTH.actors + y + TILE / 2);
+      const zone = scene.add.zone(x, y, TILE, TILE);
+      obstacleBodies.add(zone);
+      const obstacle = { data: ob, x, y, image, zone };
+      zone.obstacle = obstacle;
+      blocked.add(`${ob.col},${ob.row}`);
+      return obstacle;
+    });
+
   return {
     solidWalls,
     playerWalls,
     doorBlockers,
     doors,
+    obstacleBodies,
+    obstacles,
+    blocked,
+
+    // Bombs break obstacles; the room remembers it.
+    breakObstacle(obstacle) {
+      obstacle.data.broken = true;
+      blocked.delete(`${obstacle.data.col},${obstacle.data.row}`);
+      obstacle.image.destroy();
+      obstacle.zone.destroy();
+      obstacles.splice(obstacles.indexOf(obstacle), 1);
+    },
 
     // Doors into a locked room stay shut until unlocked with a key.
     setOpen(open) {
@@ -122,6 +152,8 @@ export function buildRoom(scene, room, dungeon) {
 
     destroy() {
       objects.forEach((obj) => obj.destroy());
+      obstacles.forEach((obstacle) => obstacle.image.destroy());
+      obstacleBodies.destroy(true);
       solidWalls.destroy(true);
       playerWalls.destroy(true);
       doorBlockers.destroy(true);
