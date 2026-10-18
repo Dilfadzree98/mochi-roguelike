@@ -4,8 +4,16 @@
     "description": "Shots set enemies alight",
     "icon": "seed_fire",
     "modifiers": {
-      "shotTexture": { "set": "seed_fire" },
-      "burn": { "set": { "ticks": 3, "damage": 0.5, "interval": 500 } }
+      "shotTexture": {
+        "set": "seed_fire"
+      },
+      "burn": {
+        "set": {
+          "ticks": 3,
+          "damage": 0.5,
+          "interval": 500
+        }
+      }
     }
   },
   "frost_seed": {
@@ -13,8 +21,15 @@
     "description": "Shots slow enemies",
     "icon": "seed_frost",
     "modifiers": {
-      "shotTexture": { "set": "seed_frost" },
-      "slow": { "set": { "multiplier": 0.5, "ms": 2000 } }
+      "shotTexture": {
+        "set": "seed_frost"
+      },
+      "slow": {
+        "set": {
+          "multiplier": 0.5,
+          "ms": 2000
+        }
+      }
     }
   },
   "bouncing_pollen": {
@@ -22,8 +37,12 @@
     "description": "Shots bounce off walls",
     "icon": "pollen",
     "modifiers": {
-      "shotTexture": { "set": "pollen" },
-      "bounces": { "add": 3 }
+      "shotTexture": {
+        "set": "pollen"
+      },
+      "bounces": {
+        "add": 3
+      }
     }
   },
   "dewdrop": {
@@ -31,8 +50,12 @@
     "description": "Shots pierce enemies",
     "icon": "dewdrop",
     "modifiers": {
-      "shotTexture": { "set": "dewdrop" },
-      "pierce": { "set": true }
+      "shotTexture": {
+        "set": "dewdrop"
+      },
+      "pierce": {
+        "set": true
+      }
     }
   },
   "thorn_seed": {
@@ -40,51 +63,429 @@
     "description": "Shots split in 3 on hit",
     "icon": "seed_thorn",
     "modifiers": {
-      "shotTexture": { "set": "seed_thorn" },
-      "split": { "set": 3 }
+      "shotTexture": {
+        "set": "seed_thorn"
+      },
+      "split": {
+        "set": 3
+      }
     }
   },
   "bone_meal": {
     "name": "Bone Meal",
     "description": "Damage up",
     "icon": "icon_bone_meal",
-    "modifiers": { "damage": { "add": 0.5 } }
+    "modifiers": {
+      "damage": {
+        "add": 0.5
+      }
+    }
   },
   "sun_drop": {
     "name": "Sun Drop",
     "description": "Fire rate up",
     "icon": "icon_sun_drop",
-    "modifiers": { "fireDelay": { "mul": 0.75 } }
+    "modifiers": {
+      "fireDelay": {
+        "mul": 0.75
+      }
+    }
   },
   "watering_can": {
     "name": "Watering Can",
     "description": "Range and shot speed up",
     "icon": "icon_watering_can",
-    "modifiers": { "range": { "add": 50 }, "shotSpeed": { "add": 40 } }
+    "modifiers": {
+      "range": {
+        "add": 50
+      },
+      "shotSpeed": {
+        "add": 40
+      }
+    }
   },
   "bee_wings": {
     "name": "Bee Wings",
     "description": "Speed up",
     "icon": "icon_bee_wings",
-    "modifiers": { "speed": { "add": 14 } }
+    "modifiers": {
+      "speed": {
+        "add": 14
+      }
+    }
   },
   "big_leaf": {
     "name": "Big Leaf",
     "description": "Extra heart",
     "icon": "icon_big_leaf",
-    "modifiers": { "maxHp": { "add": 2 } },
-    "onPickup": { "heal": 2 }
+    "modifiers": {
+      "maxHp": {
+        "add": 2
+      }
+    },
+    "onPickup": {
+      "heal": 2
+    }
   },
   "twin_sprout": {
     "name": "Twin Sprout",
     "description": "Fire two seeds",
     "icon": "icon_twin_sprout",
-    "modifiers": { "multishot": { "add": 1 } }
+    "modifiers": {
+      "multishot": {
+        "add": 1
+      }
+    }
   },
   "lucky_clover": {
     "name": "Lucky Clover",
     "description": "More drops",
     "icon": "icon_lucky_clover",
-    "modifiers": { "luck": { "add": 1 } }
+    "modifiers": {
+      "luck": {
+        "add": 1
+      }
+    }
+  },
+  "homing_spore": {
+    "name": "Homing Spore",
+    "description": "Shots seek out enemies",
+    "icon": "seed_homing",
+    "modifiers": {
+      "shotTexture": {
+        "set": "seed_homing"
+      },
+      "homing": {
+        "add": 4
+      }
+    }
+  },
+  "pumpkin_seed": {
+    "name": "Pumpkin Seed",
+    "description": "Huge shots, damage up",
+    "icon": "seed_pumpkin",
+    "modifiers": {
+      "shotTexture": {
+        "set": "seed_pumpkin"
+      },
+      "shotScale": {
+        "add": 0.6
+      },
+      "damage": {
+        "add": 0.3
+      }
+    }
+  },
+  "wiggle_vine": {
+    "name": "Wiggle Vine",
+    "description": "Shots wiggle as they fly",
+    "icon": "shot_wave",
+    "modifiers": {
+      "shotTexture": {
+        "set": "shot_wave"
+      },
+      "wave": {
+        "add": 5
+      }
+    }
+  },
+  "boomerang_leaf": {
+    "name": "Boomerang Leaf",
+    "description": "Shots fly back to you",
+    "icon": "shot_leaf",
+    "modifiers": {
+      "shotTexture": {
+        "set": "shot_leaf"
+      },
+      "boomerang": {
+        "set": true
+      },
+      "range": {
+        "add": 20
+      }
+    }
+  },
+  "dandelion_puff": {
+    "name": "Dandelion Puff",
+    "description": "Fires a fan of seeds",
+    "icon": "shot_fluff",
+    "modifiers": {
+      "shotTexture": {
+        "set": "shot_fluff"
+      },
+      "spread": {
+        "add": 2
+      },
+      "fireDelay": {
+        "mul": 1.1
+      }
+    }
+  },
+  "hedgehog_seed": {
+    "name": "Hedgehog Seed",
+    "description": "Also shoots backwards",
+    "icon": "shot_spike",
+    "modifiers": {
+      "shotTexture": {
+        "set": "shot_spike"
+      },
+      "backShot": {
+        "add": 1
+      }
+    }
+  },
+  "popcorn_kernel": {
+    "name": "Popcorn Kernel",
+    "description": "Shots pop with splash damage",
+    "icon": "shot_popcorn",
+    "modifiers": {
+      "shotTexture": {
+        "set": "shot_popcorn"
+      },
+      "explode": {
+        "add": 14
+      }
+    }
+  },
+  "nightshade_berry": {
+    "name": "Nightshade Berry",
+    "description": "Shots poison enemies",
+    "icon": "shot_nightshade",
+    "modifiers": {
+      "shotTexture": {
+        "set": "shot_nightshade"
+      },
+      "poison": {
+        "set": {
+          "ticks": 6,
+          "damage": 0.3,
+          "interval": 400
+        }
+      }
+    }
+  },
+  "static_thistle": {
+    "name": "Static Thistle",
+    "description": "Hits zap a nearby enemy",
+    "icon": "shot_thistle",
+    "modifiers": {
+      "shotTexture": {
+        "set": "shot_thistle"
+      },
+      "chain": {
+        "add": 1
+      }
+    }
+  },
+  "acorn": {
+    "name": "Acorn",
+    "description": "Shots knock enemies back",
+    "icon": "shot_acorn",
+    "modifiers": {
+      "shotTexture": {
+        "set": "shot_acorn"
+      },
+      "knockback": {
+        "add": 2
+      },
+      "damage": {
+        "add": 0.2
+      }
+    }
+  },
+  "sprinkler_head": {
+    "name": "Sprinkler Head",
+    "description": "Every 6th shot sprays a ring",
+    "icon": "shot_sprinkler",
+    "modifiers": {
+      "shotTexture": {
+        "set": "shot_sprinkler"
+      },
+      "sprinkler": {
+        "set": 6
+      }
+    }
+  },
+  "rocket_radish": {
+    "name": "Rocket Radish",
+    "description": "Shots speed up as they fly",
+    "icon": "shot_radish",
+    "modifiers": {
+      "shotTexture": {
+        "set": "shot_radish"
+      },
+      "accelerate": {
+        "set": true
+      },
+      "damage": {
+        "add": 0.25
+      }
+    }
+  },
+  "catnip": {
+    "name": "Catnip",
+    "description": "Shots make enemies dizzy",
+    "icon": "shot_catnip",
+    "modifiers": {
+      "shotTexture": {
+        "set": "shot_catnip"
+      },
+      "confuse": {
+        "add": 1500
+      }
+    }
+  },
+  "golden_kernel": {
+    "name": "Golden Kernel",
+    "description": "Chance of triple damage",
+    "icon": "shot_golden",
+    "modifiers": {
+      "shotTexture": {
+        "set": "shot_golden"
+      },
+      "crit": {
+        "add": 0.15
+      }
+    }
+  },
+  "ghost_pepper": {
+    "name": "Ghost Pepper",
+    "description": "Shots pass through obstacles",
+    "icon": "shot_ghost",
+    "modifiers": {
+      "shotTexture": {
+        "set": "shot_ghost"
+      },
+      "phase": {
+        "set": true
+      }
+    }
+  },
+  "honey_pot": {
+    "name": "Honey Pot",
+    "description": "Extra heart and full heal",
+    "icon": "icon_honey_pot",
+    "modifiers": {
+      "maxHp": {
+        "add": 2
+      }
+    },
+    "onPickup": {
+      "healFull": true
+    }
+  },
+  "morning_dew": {
+    "name": "Morning Dew",
+    "description": "Fire rate and shot speed up",
+    "icon": "icon_morning_dew",
+    "modifiers": {
+      "fireDelay": {
+        "mul": 0.85
+      },
+      "shotSpeed": {
+        "add": 20
+      }
+    }
+  },
+  "garden_gloves": {
+    "name": "Garden Gloves",
+    "description": "Damage and range up",
+    "icon": "icon_gloves",
+    "modifiers": {
+      "damage": {
+        "add": 0.3
+      },
+      "range": {
+        "add": 20
+      }
+    }
+  },
+  "snail_shell": {
+    "name": "Snail Shell",
+    "description": "Two extra hearts, but slower",
+    "icon": "icon_snail_shell",
+    "modifiers": {
+      "maxHp": {
+        "add": 4
+      },
+      "speed": {
+        "add": -8
+      }
+    },
+    "onPickup": {
+      "heal": 4
+    }
+  },
+  "grasshopper_legs": {
+    "name": "Grasshopper Legs",
+    "description": "Speed and fire rate up",
+    "icon": "icon_grasshopper",
+    "modifiers": {
+      "speed": {
+        "add": 10
+      },
+      "fireDelay": {
+        "mul": 0.9
+      }
+    }
+  },
+  "fertilizer_bag": {
+    "name": "Fertilizer Bag",
+    "description": "Damage x1.2",
+    "icon": "icon_fertilizer",
+    "modifiers": {
+      "damage": {
+        "mul": 1.2
+      }
+    }
+  },
+  "scarecrow_hat": {
+    "name": "Scarecrow Hat",
+    "description": "Range up a lot",
+    "icon": "icon_scarecrow_hat",
+    "modifiers": {
+      "range": {
+        "add": 60
+      }
+    }
+  },
+  "piggy_bank": {
+    "name": "Piggy Bank",
+    "description": "Luck up and 5 coins",
+    "icon": "icon_piggy_bank",
+    "modifiers": {
+      "luck": {
+        "add": 1
+      }
+    },
+    "onPickup": {
+      "coins": 5
+    }
+  },
+  "sweet_nectar": {
+    "name": "Sweet Nectar",
+    "description": "Full heal, damage up",
+    "icon": "icon_sweet_nectar",
+    "modifiers": {
+      "damage": {
+        "add": 0.2
+      }
+    },
+    "onPickup": {
+      "healFull": true
+    }
+  },
+  "cactus_water": {
+    "name": "Cactus Water",
+    "description": "Much faster fire, less damage",
+    "icon": "icon_cactus_water",
+    "modifiers": {
+      "fireDelay": {
+        "mul": 0.7
+      },
+      "damage": {
+        "mul": 0.8
+      }
+    }
   }
 }

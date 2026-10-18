@@ -6,9 +6,17 @@
 
 const LIMITS = {
   fireDelay: { min: 110 },
-  speed: { max: 130 },
+  speed: { min: 40, max: 130 },
   shotSpeed: { max: 300 },
   multishot: { max: 4 },
+  shotScale: { max: 2.5 },
+  homing: { max: 8 },
+  spread: { max: 6 },
+  backShot: { max: 3 },
+  explode: { max: 40 },
+  chain: { max: 4 },
+  knockback: { max: 7 },
+  crit: { max: 0.75 },
 };
 
 export function computeStats(base, items) {

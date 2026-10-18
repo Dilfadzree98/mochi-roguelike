@@ -527,6 +527,51 @@ const SHOTS = {
     rows: ['s.oo.s', '.oggo.', 'oggggo', 'oggggo', '.oggo.', 's.oo.s'],
     palette: { o: '#1F3D1C', g: '#2E5A2A', s: '#C9C3A1' },
   },
+  seed_homing: { rows: SEED_ROWS, palette: { o: '#4A2E6A', g: '#9B7BD8', w: '#FFFFFF' } },
+  seed_pumpkin: { rows: SEED_ROWS, palette: { o: '#8A4A1C', g: '#E8903C', w: '#FFD9A0' } },
+  shot_wave: { rows: SEED_ROWS, palette: { o: '#2E6A3A', g: '#6CC24A', w: '#C9F2A0' } },
+  shot_golden: { rows: SEED_ROWS, palette: { o: '#8A6A1C', g: '#F2C94C', w: '#FFF4B8' } },
+  shot_nightshade: { rows: SEED_ROWS, palette: { o: '#150A22', g: '#3E2A5E', w: '#9B7BD8' } },
+  shot_sprinkler: {
+    rows: ['..o...', '..oo..', '.owdo.', 'oddddo', 'oddddo', '.oooo.'],
+    palette: { o: '#2E5E7A', d: '#8FD3F2', w: '#FFFFFF' },
+  },
+  shot_leaf: {
+    rows: ['....oo', '..oggo', '.oggo.', 'oggo..', 'ogo...', 'oo....'],
+    palette: { o: '#3F7A2A', g: '#A6D987' },
+  },
+  shot_fluff: {
+    rows: ['.w..w.', '..ww..', 'wwyyww', 'wwyyww', '..ww..', '.w..w.'],
+    palette: { w: '#F5F0E8', y: '#E8D9A0' },
+  },
+  shot_spike: {
+    rows: ['o.oo.o', '.obbo.', 'obbbbo', 'obbbbo', '.obbo.', 'o.oo.o'],
+    palette: { o: '#5A3A22', b: '#A0703C' },
+  },
+  shot_popcorn: {
+    rows: ['.ww.w.', 'wwwwww', 'wwyww.', '.wwwww', 'wwwww.', '.w.ww.'],
+    palette: { w: '#FFF8E8', y: '#FFD23F' },
+  },
+  shot_thistle: {
+    rows: ['.y..y.', 'y.pp.y', '.pPPp.', '.pPPp.', 'y.pp.y', '.y..y.'],
+    palette: { p: '#7A5AB8', P: '#B8A0E8', y: '#FFE45C' },
+  },
+  shot_acorn: {
+    rows: ['.cccc.', 'cCCCCc', '.oaao.', '.aaaa.', '.aaaa.', '..aa..'],
+    palette: { c: '#5A3A22', C: '#7A5232', o: '#5A3A22', a: '#C98A4A' },
+  },
+  shot_radish: {
+    rows: ['.g.g..', '..g...', '.rrrr.', 'rrRrrr', '.rrrr.', '..rr..'],
+    palette: { g: '#5E9C3A', r: '#E05A2A', R: '#FF9A6A' },
+  },
+  shot_catnip: {
+    rows: ['..g...', '.gGg..', 'gGgGg.', '.gGgGg', '..gGg.', '...g..'],
+    palette: { g: '#7FCF5A', G: '#C9F2A0' },
+  },
+  shot_ghost: {
+    rows: ['.wwww.', 'wwwwww', 'wkwwkw', 'wwwwww', 'wwwwww', 'w.ww.w'],
+    palette: { w: '#E8F0FF', k: '#4A4A6A' },
+  },
 };
 
 // ---------- Item icons (8x8) ----------
@@ -559,6 +604,46 @@ const ICONS = {
   icon_lucky_clover: {
     palette: { g: '#5FAF4A', G: '#8BD86A', s: '#3F7A2A' },
     rows: ['.gg..gg.', 'gGggggGg', '.gggggg.', '...ss...', '.gggggg.', 'gGggggGg', '.gg..gg.', '...s....'],
+  },
+  icon_honey_pot: {
+    palette: { o: '#6E4A1E', y: '#FFD23F', b: '#C98A4A', B: '#E0A86A' },
+    rows: ['..oooo..', '.oyyyyo.', 'oyyyyyyo', 'obbbbbbo', 'obBbbbbo', 'obbbbbbo', 'obbbbbbo', '.oooooo.'],
+  },
+  icon_morning_dew: {
+    palette: { d: '#5EC8F2', D: '#C9F2FF' },
+    rows: ['...d....', '..dDd...', '..ddd..d', '......dD', '.d....dd', 'dDd.....', 'ddd.....', '........'],
+  },
+  icon_gloves: {
+    palette: { g: '#6CC24A', c: '#C9C3A1' },
+    rows: ['..g.g...', '.gggg.g.', '.ggggggg', '.gggggg.', '.gggggg.', '..cccc..', '..cccc..', '........'],
+  },
+  icon_snail_shell: {
+    palette: { o: '#5A3A22', s: '#C98A4A' },
+    rows: ['..oooo..', '.osssso.', 'ossoosso', 'osossoso', 'ossoosso', '.osssso.', 'oooooooo', '........'],
+  },
+  icon_grasshopper: {
+    palette: { g: '#6CC24A', G: '#A6D987' },
+    rows: ['......gg', '.....gG.', '.gggggg.', 'gGggggg.', '.g..g...', 'g...g...', 'g..g....', '........'],
+  },
+  icon_fertilizer: {
+    palette: { o: '#4A3A22', b: '#A88A5E', g: '#5E9C3A' },
+    rows: ['.oooooo.', '.obbbbo.', 'obbbbbbo', 'obgbbgbo', 'obbggbbo', 'obbbbbbo', 'obbbbbbo', '.oooooo.'],
+  },
+  icon_scarecrow_hat: {
+    palette: { o: '#5A3A22', b: '#C9A25A', r: '#B8402A' },
+    rows: ['...oo...', '..obbo..', '..obbo..', '..obbo..', '.orrrro.', 'obbbbbbo', 'oooooooo', '........'],
+  },
+  icon_piggy_bank: {
+    palette: { p: '#F2A0A8', P: '#E07A8A', k: '#2C2C2A' },
+    rows: ['........', '.pppppp.', 'ppppppkp', 'pppppppP', 'pppppppp', '.pppppp.', '.p.pp.p.', '........'],
+  },
+  icon_sweet_nectar: {
+    palette: { y: '#FFA040', o: '#FFE45C', g: '#5E9C3A', d: '#FFD23F' },
+    rows: ['..y.y...', '.yyyyy..', '..yoy...', '.yyyyy..', '..y.y...', '...g...d', '...g..dd', '...g...d'],
+  },
+  icon_cactus_water: {
+    palette: { g: '#5E9C3A', b: '#5EC8F2', B: '#C9F2FF' },
+    rows: ['...g....', '.g.g.g..', '.ggggg..', '...g....', '..bbbb..', '.bBbbbb.', '.bbbbbb.', '..bbbb..'],
   },
 };
 

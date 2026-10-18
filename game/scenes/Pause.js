@@ -3,11 +3,17 @@ import { addText } from '../art/PixelFont.js';
 import { newSeed } from '../systems/Rng.js';
 import { Audio } from '../systems/Audio.js';
 
-// A centred row of item icons (used on the pause and game over screens).
-export function drawItemRow(scene, cx, y, icons) {
-  const spacing = 10;
-  const startX = cx - ((icons.length - 1) * spacing) / 2;
-  icons.forEach((icon, i) => scene.add.image(Math.round(startX + i * spacing), y, icon));
+// Centred rows of item icons (used on the pause and game over screens).
+// Long lists wrap onto extra rows, stacked upward from `y`.
+export function drawItemRow(scene, cx, y, icons, perRow = 22) {
+  const spacing = 9;
+  const rows = Math.ceil(icons.length / perRow);
+  for (let r = 0; r < rows; r++) {
+    const rowIcons = icons.slice(r * perRow, (r + 1) * perRow);
+    const startX = cx - ((rowIcons.length - 1) * spacing) / 2;
+    const rowY = y - (rows - 1 - r) * 10;
+    rowIcons.forEach((icon, i) => scene.add.image(Math.round(startX + i * spacing), rowY, icon));
+  }
 }
 
 const OPTIONS = [

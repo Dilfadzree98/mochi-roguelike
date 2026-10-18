@@ -43,6 +43,13 @@ const ROOT_RADIUS = 11;
 const SPLIT_SPREAD = 0.6;      // radians between split fragments
 const SPLIT_RANGE = 50;
 const MULTISHOT_SPACING = 4;   // px between side-by-side seeds
+const SPREAD_ANGLE = 0.26;     // radians between fanned seeds (about 15 degrees)
+const SPRINKLER_SEEDS = 8;
+const SPRINKLER_RANGE = 70;
+const CHAIN_RANGE = 50;        // px a zap can jump
+const CHAIN_DAMAGE = 0.6;      // times the shot's damage
+
+const TREASURE_SPACING = 44;   // px between the three treasure pedestals
 
 const SHOP_PRICES = { item: 5, heart: 3, bomb: 3, key: 3 };
 const PICKUP_TEXTURES = { heart: 'heart_full', coin: 'coin', bomb: 'bomb', key: 'key' };
@@ -161,7 +168,7 @@ export class Game extends Phaser.Scene {
     for (const enemy of this.enemies) enemy.update(time, delta, this.player);
     this.enemies = this.enemies.filter((enemy) => !enemy.destroyed);
 
-    for (const shot of this.shots.getChildren().slice()) shot.update(time);
+    for (const shot of this.shots.getChildren().slice()) shot.update(time, delta);
     for (const bullet of this.enemyShots.getChildren().slice()) bullet.update(time);
 
     this.collectPickups();
@@ -192,7 +199,7 @@ export class Game extends Phaser.Scene {
       // Obstacles block everyone and every bullet, so Mochi can hide behind them.
       this.physics.add.collider(hitbox, this.view.obstacleBodies, (_, zone) => this.onObstacleTouch(zone.obstacle)),
       this.physics.add.collider(this.enemyBodies, this.view.obstacleBodies),
-      this.physics.add.overlap(this.shots, this.view.obstacleBodies, (shot) => shot.impact()),
+      this.physics.add.overlap(this.shots, this.view.obstacleBodies, (shot) => !shot.stats.phase && shot.impact()),
       this.physics.add.overlap(this.enemyShots, this.view.obstacleBodies, (bullet) => bullet.pop()),
     ];
     this.flowCache = new Map();
@@ -343,34 +350,56 @@ export class Game extends Phaser.Scene {
 
   // ---------- Treasure room, shop and boss reward ----------
 
-  // An item on a glowing pedestal. `holder.itemId` is cleared when it's taken.
-  addItemPedestal(x, y, holder) {
+  // A glowing pedestal, with an item on it if `itemId` is set. `onTake` runs when Mochi
+  // takes it. Returns the pickup spot (or null for an empty pedestal).
+  addItemPedestal(x, y, itemId, onTake) {
     const glow = this.add.image(x, y, 'glow').setDepth(DEPTH.decor);
     const pedestal = this.add.image(x, y + 4, 'pedestal').setOrigin(0.5, 1).setDepth(DEPTH.actors + y + 4);
     this.tweens.add({ targets: glow, alpha: 0.5, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.roomObjects.push(glow, pedestal);
+    if (!itemId) return null;
 
-    const { itemId } = holder;
-    if (!itemId) return;
     const def = this.itemDefs[itemId];
     const icon = this.floatingImage(x, y - 10, def.icon);
-    this.addPickupSpot(x, y - 4, [icon], () => {
-      holder.itemId = null;
+    return this.addPickupSpot(x, y - 4, [icon], () => {
+      onTake();
       this.giveItem(itemId);
       return true;
     }, def);
   }
 
+  // Three items on pedestals; taking one makes the others vanish back into the item pool.
   setUpTreasure(room) {
-    room.contents ??= { itemId: this.itemPool.pop() ?? null };
-    this.addItemPedestal(CENTER.x, CENTER.y, room.contents);
+    room.contents ??= { itemIds: [this.itemPool.pop(), this.itemPool.pop(), this.itemPool.pop()].filter(Boolean) };
+    const { itemIds } = room.contents;
+    const xs = [CENTER.x - TREASURE_SPACING, CENTER.x, CENTER.x + TREASURE_SPACING];
+
+    const note = itemIds.length > 1 ? addText(this, CENTER.x, CENTER.y + 16, 'Take one', { tint: UI.muted }).setDepth(DEPTH.shadow) : null;
+    if (note) this.roomObjects.push(note);
+
+    const spots = [];
+    xs.forEach((x, i) => {
+      const itemId = itemIds[i];
+      spots.push(this.addItemPedestal(x, CENTER.y, itemId, () => {
+        const others = itemIds.filter((id) => id !== itemId);
+        room.contents.itemIds = [];
+        this.itemPool.unshift(...others); // back to the bottom of the pool
+        note?.destroy();
+        for (const spot of spots) {
+          if (!spot || spot.itemId === itemId) continue;
+          this.burst(spot.x, spot.y - 6, 'smoke', 6, { distance: 8 });
+          this.removePickupSpot(spot);
+        }
+      }));
+      if (spots[i]) spots[i].itemId = itemId;
+    });
   }
 
   // After a boss: an item, and a trapdoor down (unless this was the last floor).
   setUpBossReward(room) {
     if (this.floorIndex >= this.floors.length - 1) return;
     room.contents ??= { itemId: this.itemPool.pop() ?? null };
-    this.addItemPedestal(CENTER.x - 32, CENTER.y, room.contents);
+    this.addItemPedestal(CENTER.x - 32, CENTER.y, room.contents.itemId, () => (room.contents.itemId = null));
 
     const x = CENTER.x + 32;
     const trapdoor = this.add.image(x, CENTER.y, 'trapdoor').setDepth(DEPTH.decor);
@@ -552,7 +581,15 @@ export class Game extends Phaser.Scene {
   // Something taken by walking over it. tryTake returns false to leave it there.
   // `info` ({ name, description }) shows a tooltip when Mochi is close.
   addPickupSpot(x, y, objects, tryTake, info = null) {
-    this.pickups.push({ x, y, objects, tryTake, info });
+    const spot = { x, y, objects, tryTake, info };
+    this.pickups.push(spot);
+    return spot;
+  }
+
+  removePickupSpot(spot) {
+    spot.objects.forEach((obj) => obj.destroy());
+    this.pickups = this.pickups.filter((p) => p !== spot);
+    if (this.tooltip?.spot === spot) this.hideTooltip();
   }
 
   // A new drop on the floor, remembered by the room until picked up.
@@ -595,9 +632,7 @@ export class Game extends Phaser.Scene {
       if (Phaser.Math.Distance.Between(spot.x, spot.y, x, y) > PICKUP_RADIUS) continue;
       if (!spot.tryTake()) continue;
       this.burst(spot.x, spot.y, 'spark', 4);
-      spot.objects.forEach((obj) => obj.destroy());
-      this.pickups = this.pickups.filter((p) => p !== spot);
-      if (this.tooltip?.spot === spot) this.hideTooltip();
+      this.removePickupSpot(spot);
       return;
     }
   }
@@ -680,11 +715,31 @@ export class Game extends Phaser.Scene {
   // ---------- Player shots ----------
 
   firePlayerShot(x, y, dir, stats) {
+    // Side-by-side seeds (Twin Sprout).
     const count = stats.multishot;
     const side = { x: -dir.y, y: dir.x };
     for (let i = 0; i < count; i++) {
       const offset = (i - (count - 1) / 2) * MULTISHOT_SPACING;
       this.spawnShot(x + side.x * offset, y + side.y * offset, dir, stats);
+    }
+
+    // A fan of angled seeds (Dandelion Puff) and seeds fired backwards (Hedgehog Seed).
+    const angle = Math.atan2(dir.y, dir.x);
+    const fromAngle = (a) => ({ x: Math.cos(a), y: Math.sin(a) });
+    for (let pair = 1; pair <= stats.spread / 2; pair++) {
+      this.spawnShot(x, y, fromAngle(angle + pair * SPREAD_ANGLE), stats);
+      this.spawnShot(x, y, fromAngle(angle - pair * SPREAD_ANGLE), stats);
+    }
+    for (let i = 0; i < stats.backShot; i++) {
+      this.spawnShot(x, y, fromAngle(angle + Math.PI + (i - (stats.backShot - 1) / 2) * SPREAD_ANGLE), stats);
+    }
+
+    // Every Nth shot also sprays a ring (Sprinkler Head).
+    this.shotCount = (this.shotCount ?? 0) + 1;
+    if (stats.sprinkler && this.shotCount % stats.sprinkler === 0) {
+      for (let i = 0; i < SPRINKLER_SEEDS; i++) {
+        this.spawnShot(x, y, fromAngle(angle + (i / SPRINKLER_SEEDS) * Math.PI * 2), { ...stats, range: SPRINKLER_RANGE });
+      }
     }
     Audio.play('shoot');
   }
@@ -704,9 +759,56 @@ export class Game extends Phaser.Scene {
   onShotHitEnemy(shot, enemy) {
     if (!shot.active || enemy.state !== 'active' || shot.hitEnemies.has(enemy)) return;
     shot.hitEnemies.add(enemy);
-    enemy.hit(shot.damage, shot.dir, this.time.now, shot.effects);
+
+    // Golden Kernel: a chance of triple damage.
+    let damage = shot.damage;
+    if (shot.stats.crit > 0 && this.rng.chance(shot.stats.crit)) {
+      damage *= 3;
+      this.burst(enemy.x, enemy.y - 6, 'spark', 6, { distance: 10 });
+      Audio.play('crit');
+    }
+    enemy.hit(damage, shot.dir, this.time.now, shot.effects);
+    if (shot.stats.chain > 0) this.chainZap(enemy, shot.stats.chain, shot.damage * CHAIN_DAMAGE);
     if (shot.canSplit) this.splitShot(shot, enemy);
     if (!shot.pierce) shot.impact();
+  }
+
+  // Static Thistle: lightning jumps from enemy to enemy.
+  chainZap(from, jumps, damage) {
+    const hit = new Set([from]);
+    let source = from;
+    for (let i = 0; i < jumps; i++) {
+      let next = null;
+      let best = CHAIN_RANGE;
+      for (const enemy of this.enemies) {
+        if (hit.has(enemy) || enemy.state !== 'active' || !enemy.hitbox.body.enable) continue;
+        const d = Phaser.Math.Distance.Between(source.x, source.y, enemy.x, enemy.y);
+        if (d < best) {
+          best = d;
+          next = enemy;
+        }
+      }
+      if (!next) return;
+      const zap = this.add.graphics().setDepth(DEPTH.ui - 1);
+      zap.lineStyle(1, 0xffe45c, 1).lineBetween(source.x, source.y - 4, next.x, next.y - 4);
+      this.time.delayedCall(90, () => zap.destroy());
+      this.roomObjects.push(zap);
+      const angle = Math.atan2(next.y - source.y, next.x - source.x);
+      next.hit(damage, { x: Math.cos(angle), y: Math.sin(angle) }, this.time.now);
+      hit.add(next);
+      source = next;
+    }
+  }
+
+  // Popcorn Kernel: shots splash nearby enemies when they pop.
+  shotSplash(x, y, radius, damage) {
+    this.burst(x, y, 'shot_popcorn', 4, { distance: radius * 0.7, duration: 250 });
+    for (const enemy of this.enemies) {
+      if (enemy.state !== 'active' || !enemy.hitbox.body.enable) continue;
+      if (Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y) > radius + enemy.def.hitbox.w / 2) continue;
+      const angle = Math.atan2(enemy.y - y, enemy.x - x);
+      enemy.hit(damage, { x: Math.cos(angle), y: Math.sin(angle) }, this.time.now);
+    }
   }
 
   // Thorn Seed: smaller seeds fan out from the hit, skipping the enemy that was hit.

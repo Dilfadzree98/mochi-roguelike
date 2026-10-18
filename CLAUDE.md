@@ -77,7 +77,7 @@ game/
     ├── characters.json  playable characters: name, description, texture, stat modifiers, skill
     ├── enemies.json     enemies and bosses: stats, behaviour name + params, death animation
     ├── floors.json      4 floors: palette, wall face, decorations, obstacles, enemy weights, boss
-    └── items.json       12 items; each is a list of stat modifiers
+    └── items.json       37 items (20 shot, 17 stat); each is a list of stat modifiers
 ```
 
 Adding an enemy: add an entry to `data/enemies.json` using an existing `behaviour` (`chase`, `ring_shooter`, `charger`, `aimed_shooter`, `teleporter`, `boss_shroom`, `weed_queen`) with its `params`, a `death` from `DEATHS`, and a sprite in `art/Sprites.js` ENEMIES; then give it a weight in a floor's `enemies` in `floors.json`. A new movement pattern goes in `BEHAVIOURS` in Enemy.js. Enemy attacks use Game's `fireRing` / `fireSpread` / `fireSpiral` / `fireSweep` / `rootStrike`.
@@ -111,7 +111,7 @@ Implementation patterns to keep:
 
 - Controls: WASD to move, arrow keys to shoot in four directions, E to drop a bomb, Esc/P to pause, M to mute. Gamepad and mobile touch are undecided / later.
 - Room: one screen, 13×7 floor tiles of 16×16 px inside a 1-tile wall border. One door slot centred on each wall; doors lock until the room is cleared.
-- Run: 4 floors, each a grid of 8–15 rooms with start, treasure (key-locked), shop and boss rooms.
+- Run: 4 floors, each a grid of 8–15 rooms with start, treasure (key-locked; 3 items, take one, the other two go back into the pool), shop and boss rooms.
 - Pick-ups: hearts, coins, keys, bombs.
 - Mochi's leaf shows health: perky when full, wilting when low.
 
@@ -156,9 +156,11 @@ Cute but slightly creepy pixel art. A soft, warm hero in a world that grows dark
 
 Bosses (one per floor): Mother Gloom Slug (2x slug), Grandshroom (2.5x Grumpshroom: rings, hops, spirals below half HP), The Gnome King (2x gnome: 7-way spreads + rings), The Weed Queen (final).
 
-### Shot items
+### Items (37)
 
-Fire Seed (burn DoT), Frost Seed (slow), Bouncing Pollen (bounces 3×), Dewdrop (pierces), Thorn Seed (splits into 3 on hit).
+- **Shot items (20):** Fire Seed (burn), Frost Seed (slow), Bouncing Pollen (bounces 3x), Dewdrop (pierce), Thorn Seed (split in 3), Homing Spore (homing), Pumpkin Seed (big shots), Wiggle Vine (wave), Boomerang Leaf (returns), Dandelion Puff (fan of seeds), Hedgehog Seed (back shot), Popcorn Kernel (splash), Nightshade Berry (poison), Static Thistle (chain zap), Acorn (knockback), Sprinkler Head (ring every 6th shot), Rocket Radish (accelerating shots), Catnip (dizzy enemies; bosses immune), Golden Kernel (15% triple damage), Ghost Pepper (through obstacles).
+- **Stat items (17):** Bone Meal, Sun Drop, Watering Can, Bee Wings, Big Leaf, Twin Sprout, Lucky Clover, Honey Pot, Morning Dew, Garden Gloves, Snail Shell, Grasshopper Legs, Fertilizer Bag, Scarecrow Hat, Piggy Bank, Sweet Nectar, Cactus Water.
+- `onPickup` supports `heal`, `healFull`, `coins`, `bombs`, `keys`. Shot behaviour stats and their defaults are in `BASE_STATS` (Player.js); caps in `LIMITS` (Items.js). Shots steer by angle each frame in `Projectile.steer()` so homing/wave/accelerate/boomerang combine.
 
 ### Floors (getting darker)
 

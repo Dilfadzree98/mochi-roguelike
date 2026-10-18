@@ -215,6 +215,8 @@ const ANIM_FRAME_MS = 250;
 const FLASH_MS = 60;
 const BURN_TINT = 0xff8a3d;
 const SLOW_TINT = 0xa8e0ff;
+const POISON_TINT = 0x9bd86a;
+const DIZZY_TINT = 0xfff0a0;
 const WINDUP_TINT = 0xd9b8ff;
 
 // States: spawning -> active -> dead (or frozen when the run ends).
@@ -233,8 +235,10 @@ export class Enemy {
     this.flashUntil = 0;
     this.windupUntil = 0;
     this.shakeUntil = 0;
-    this.burn = null; // { ticksLeft, damage, interval, nextAt }
-    this.slow = null; // { multiplier, until }
+    this.burn = null;   // { ticksLeft, damage, interval, nextAt }
+    this.poison = null; // same shape as burn
+    this.slow = null;   // { multiplier, until }
+    this.dizzyUntil = 0; // Catnip: wanders around and doesn't attack
     this.animOffset = scene.fxRng.range(0, ANIM_FRAME_MS * 2);
     this.footOffset = def.hitbox.h / 2 + 1;
     this.size = def.scale ?? 1;
@@ -281,8 +285,13 @@ export class Enemy {
 
     const body = this.hitbox.body;
     if (this.def.stationary) this.stop();
-    if (time >= this.knockbackUntil) BEHAVIOURS[this.def.behaviour](this, player, time, delta);
-    else this.ai.lastSpeed = 0; // knocked back: not trying to move by itself
+    if (time < this.knockbackUntil) {
+      this.ai.lastSpeed = 0; // knocked back: not trying to move by itself
+    } else if (time < this.dizzyUntil) {
+      this.stumble(time);
+    } else {
+      BEHAVIOURS[this.def.behaviour](this, player, time, delta);
+    }
     if (this.state !== 'active') return;
     if (Math.abs(body.velocity.x) > 1) this.sprite.setFlipX(body.velocity.x < 0);
 
@@ -300,21 +309,37 @@ export class Enemy {
     this.syncVisuals(time < this.shakeUntil ? (Math.floor(time / 40) % 2 ? 1 : -1) : 0);
   }
 
-  // Burn ticks, slow expiry, and the tint that shows them.
+  // Dizzy: wander in random directions and don't attack.
+  stumble(time) {
+    if (this.def.stationary) return;
+    if (!this.ai.dizzyDir || time >= this.ai.dizzyTurnAt) {
+      const a = this.scene.rng.range(0, Math.PI * 2);
+      this.ai.dizzyDir = { x: Math.cos(a), y: Math.sin(a) };
+      this.ai.dizzyTurnAt = time + 400;
+    }
+    this.hitbox.body.velocity.set(this.ai.dizzyDir.x * this.def.speed * 0.6, this.ai.dizzyDir.y * this.def.speed * 0.6);
+  }
+
+  // Damage-over-time ticks (burn, poison), slow expiry, and the tint that shows them.
   updateStatus(time) {
     if (this.slow && time >= this.slow.until) this.slow = null;
-    if (this.burn && time >= this.burn.nextAt) {
-      this.burn.ticksLeft -= 1;
-      this.burn.nextAt = time + this.burn.interval;
+    for (const kind of ['burn', 'poison']) {
+      const dot = this[kind];
+      if (!dot || time < dot.nextAt) continue;
+      dot.ticksLeft -= 1;
+      dot.nextAt = time + dot.interval;
       this.flashUntil = time + FLASH_MS;
-      this.damage(this.burn.damage);
-      if (this.burn?.ticksLeft <= 0) this.burn = null;
+      if (dot.ticksLeft <= 0) this[kind] = null;
+      this.damage(dot.damage);
+      if (this.state !== 'active') return;
     }
 
     if (time < this.flashUntil) this.sprite.setTintFill(0xffffff);
     else if (time < this.windupUntil) this.sprite.setTint(WINDUP_TINT);
     else if (this.burn) this.sprite.setTint(BURN_TINT);
+    else if (this.poison) this.sprite.setTint(POISON_TINT);
     else if (this.slow) this.sprite.setTint(SLOW_TINT);
+    else if (time < this.dizzyUntil) this.sprite.setTint(DIZZY_TINT);
     else if (this.def.behaviour !== 'weed_queen' || this.ai.phase === 0) this.sprite.clearTint();
     else this.sprite.setTint(this.ai.phase === 1 ? 0xe0c8ff : 0xffb3d0);
   }
@@ -358,11 +383,15 @@ export class Enemy {
     this.flashUntil = time + FLASH_MS;
     this.sprite.setTintFill(0xffffff);
     if (!this.def.stationary && !this.def.boss) {
+      const push = KNOCKBACK_SPEED * (effects.knockback ?? 1);
       this.knockbackUntil = time + KNOCKBACK_MS;
-      this.hitbox.body.velocity.set(dir.x * KNOCKBACK_SPEED, dir.y * KNOCKBACK_SPEED);
+      this.hitbox.body.velocity.set(dir.x * push, dir.y * push);
     }
     if (effects.burn) this.burn = { ...effects.burn, ticksLeft: effects.burn.ticks, nextAt: time + effects.burn.interval };
+    if (effects.poison) this.poison = { ...effects.poison, ticksLeft: effects.poison.ticks, nextAt: time + effects.poison.interval };
     if (effects.slow) this.slow = { multiplier: effects.slow.multiplier, until: time + effects.slow.ms };
+    // Bosses shake off dizziness.
+    if (effects.confuse && !this.def.boss) this.dizzyUntil = Math.max(this.dizzyUntil, time + effects.confuse);
     this.scene.playSfx('enemyHit');
     this.damage(damage);
   }
@@ -377,6 +406,7 @@ export class Enemy {
     if (this.state === 'dead') return;
     this.state = 'dead';
     this.burn = null;
+    this.poison = null;
     this.stop();
     this.hitbox.body.enable = false;
     flashWhite(this.scene, this.sprite);

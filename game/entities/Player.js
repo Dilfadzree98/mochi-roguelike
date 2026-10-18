@@ -18,6 +18,22 @@ export const BASE_STATS = {
   slow: null,      // { multiplier, ms }
   luck: 0,
   shotTexture: 'seed',
+  // Shot behaviours added by items (see data/items.json and Projectile.js).
+  shotScale: 1,
+  homing: 0,         // turn rate toward enemies, radians per second
+  wave: 0,           // side-to-side wiggle, px
+  boomerang: false,
+  spread: 0,         // extra seeds fanned out at angles (pairs)
+  backShot: 0,       // seeds fired backwards
+  explode: 0,        // splash radius on impact, px
+  poison: null,      // { ticks, damage, interval }
+  chain: 0,          // extra enemies zapped on hit
+  knockback: 1,      // knockback multiplier
+  sprinkler: 0,      // every Nth shot also sprays a ring
+  accelerate: false,
+  confuse: 0,        // ms enemies stay dizzy
+  crit: 0,           // chance of triple damage
+  phase: false,      // shots pass through obstacles
 };
 
 const START_INVENTORY = { coins: 0, bombs: 1, keys: 1 };
@@ -157,7 +173,10 @@ export class Player {
   addItem(item) {
     this.items.push(item);
     this.stats = computeStats(BASE_STATS, [this.character, ...this.items]);
-    if (item.onPickup?.heal) this.hp += item.onPickup.heal;
+    const bonus = item.onPickup ?? {};
+    if (bonus.heal) this.hp += bonus.heal;
+    if (bonus.healFull) this.hp = this.stats.maxHp;
+    for (const kind of ['coins', 'bombs', 'keys']) if (bonus[kind]) this.addToInventory(kind, bonus[kind]);
     this.hp = Math.min(this.hp, this.stats.maxHp);
     this.emitHp();
   }
