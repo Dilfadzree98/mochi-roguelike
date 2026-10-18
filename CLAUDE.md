@@ -32,6 +32,13 @@ npx serve .        # or: python -m http.server 8000
 
 URL options: `?seed=12345` replays a run, `?debug` shows hitboxes.
 
+## Repo and deploy
+
+- GitHub: https://github.com/Dilfadzree98/mochi-roguelike (public; branch `main`)
+- Live game: https://dilfadzree98.github.io/mochi-roguelike/
+- `.github/workflows/pages.yml` publishes the `game/` folder to GitHub Pages on every push to `main`. Only files inside `game/` are served, so use paths relative to `game/index.html`.
+- Design PDFs/DOCX are git-ignored and stay local.
+
 ## Code structure
 
 Files marked *(later)* don't exist yet.
