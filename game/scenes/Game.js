@@ -136,6 +136,9 @@ export class Game extends Phaser.Scene {
   setupPause() {
     this.input.keyboard.on('keydown-ESC', () => this.pause());
     this.input.keyboard.on('keydown-P', () => this.pause());
+    this.input.keyboard.on('keydown-SPACE', () => {
+      if (!this.over && !this.transitioning) this.skills.tryCast();
+    });
 
     // Keys released while paused never reached this scene, so forget held keys on resume.
     const onResume = () => {
@@ -346,10 +349,13 @@ export class Game extends Phaser.Scene {
 
   addStartHint() {
     if (this.floorIndex > 0) return;
-    const hint = addText(this, CENTER.x, FLOOR.bottom - 14, 'WASD move  Arrows shoot  E bomb  Esc pause', { tint: UI.muted })
-      .setDepth(DEPTH.shadow)
-      .setAlpha(0.7);
-    this.roomObjects.push(hint);
+    const lines = ['WASD move  Arrows shoot  E bomb', 'Space skill  Esc pause'];
+    lines.forEach((line, i) => {
+      const hint = addText(this, CENTER.x, FLOOR.bottom - 20 + i * 8, line, { tint: UI.muted })
+        .setDepth(DEPTH.shadow)
+        .setAlpha(0.7);
+      this.roomObjects.push(hint);
+    });
   }
 
   // ---------- Treasure room, shop and boss reward ----------

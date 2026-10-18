@@ -8,7 +8,7 @@
     "skill": {
       "id": "burger_beam",
       "name": "Burger Beam",
-      "description": "Beam every 30 shots",
+      "description": "Charge 30 shots, Space",
       "icon": "icon_burger",
       "every": 30,
       "durationMs": 2000
@@ -23,7 +23,7 @@
     "skill": {
       "id": "chinggu",
       "name": "Spawn Chinggu",
-      "description": "Cat ally every 30 shots",
+      "description": "Charge 30 shots, Space",
       "icon": "icon_cat",
       "every": 30,
       "durationMs": 4000

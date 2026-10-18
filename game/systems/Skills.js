@@ -2,8 +2,8 @@ import { FLOOR, DEPTH } from '../constants.js';
 import { Audio } from './Audio.js';
 import { tileOf } from './Pathing.js';
 
-// Character skills. Every `skill.every` shots the character's skill casts by itself
-// for `skill.durationMs`: Burger Beam (Mangkok) or Spawn Chinggu (Lilo).
+// Character skills. Every `skill.every` shots charge the character's skill; once it's ready,
+// Space casts it for `skill.durationMs`: Burger Beam (Mangkok) or Spawn Chinggu (Lilo).
 // The HUD meter listens to the 'skill' event.
 
 const BEAM = {
@@ -29,24 +29,36 @@ export class Skills {
     this.player = player;
     this.skill = player.character.skill;
     this.shots = 0;
+    this.ready = false;  // fully charged, waiting for Space
     this.active = null; // { until, ... } while a skill is running
   }
 
   // Called for every shot Mochi fires (one press, however many seeds).
   onShotFired() {
-    if (this.active) return;
+    if (this.active || this.ready) return;
     this.shots += 1;
     if (this.shots >= this.skill.every) {
-      this.shots = 0;
-      this.cast();
+      this.ready = true;
+      Audio.play('unlock');
+      this.scene.hint(`${this.skill.name} ready - Space`);
     }
     this.emit();
+  }
+
+  // Space: cast the skill if it's charged. Returns true if it cast.
+  tryCast() {
+    if (!this.ready || this.active || !this.player.alive) return false;
+    this.ready = false;
+    this.shots = 0;
+    this.cast();
+    this.emit();
+    return true;
   }
 
   emit() {
     const now = this.scene.time.now;
     const progress = this.active ? (this.active.until - now) / this.skill.durationMs : this.shots / this.skill.every;
-    this.scene.events.emit('skill', { progress: Math.max(0, progress), active: !!this.active, icon: this.skill.icon });
+    this.scene.events.emit('skill', { progress: Math.min(1, Math.max(0, progress)), active: !!this.active, ready: this.ready, icon: this.skill.icon });
   }
 
   cast() {

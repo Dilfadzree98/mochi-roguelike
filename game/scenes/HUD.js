@@ -43,7 +43,7 @@ export class HUD extends Phaser.Scene {
       this.counters[kind] = addText(this, x + 6, HUD_HEIGHT / 2, '', { originX: 0, tint: UI.muted });
     });
 
-    // Skill meter: fills with each shot, then drains while the skill runs.
+    // Skill meter: fills with each shot, blinks when ready (Space), then drains while the skill runs.
     this.add.image(SKILL_METER.x - 5, HUD_HEIGHT / 2, game.character.skill.icon);
     this.skillBar = this.add.graphics();
 
@@ -82,13 +82,26 @@ export class HUD extends Phaser.Scene {
     this.waveText.setText(text);
   }
 
-  drawSkillMeter({ progress, active }) {
+  // Blink the full meter while the skill waits for Space.
+  update(time) {
+    if (!this.skillState?.ready) return;
+    const lit = Math.floor(time / 250) % 2 === 0;
+    if (lit !== this.skillLit) {
+      this.skillLit = lit;
+      this.drawSkillMeter(this.skillState);
+    }
+  }
+
+  drawSkillMeter(skill) {
+    this.skillState = skill;
+    const { progress, active, ready } = skill;
     const { x, w, h } = SKILL_METER;
     const y = HUD_HEIGHT / 2 - 1;
     const g = this.skillBar.clear();
     g.fillStyle(0x120e16, 1).fillRect(x - 1, y - 1, w + 2, h + 2);
     g.fillStyle(0x3b2b33, 1).fillRect(x, y, w, h);
-    g.fillStyle(active ? UI.gold : 0xa6d987, 1).fillRect(x, y, Math.round(w * progress), h);
+    const color = active ? UI.gold : ready ? (this.skillLit ? 0xffffff : UI.gold) : 0xa6d987;
+    g.fillStyle(color, 1).fillRect(x, y, Math.round(w * progress), h);
   }
 
   drawBossBar(boss) {
