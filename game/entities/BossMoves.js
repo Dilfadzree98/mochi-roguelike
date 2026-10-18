@@ -25,6 +25,20 @@ function touchingWall(e) {
   };
 }
 
+// True when something (a wall, an obstacle, another enemy) blocks movement along (vx, vy).
+// Uses the physics engine's contact flags. Comparing positions between frames doesn't work:
+// physics runs at a fixed 60 steps a second, so on faster screens some frames have no movement.
+export function bumped(e, vx, vy) {
+  const body = e.hitbox.body;
+  const wall = touchingWall(e);
+  const hit = (side, edge) => wall[edge] || body.touching[side] || body.blocked[side];
+  // Grazing something while moving mostly the other way doesn't count.
+  const len = Math.hypot(vx, vy) || 1;
+  const x = vx / len;
+  const y = vy / len;
+  return (x < -0.3 && hit('left', 'left')) || (x > 0.3 && hit('right', 'right')) || (y < -0.3 && hit('up', 'top')) || (y > 0.3 && hit('down', 'bottom'));
+}
+
 // Glow, then wait: the warning before most attacks.
 function* windup(e, ms) {
   e.stop();
@@ -42,17 +56,14 @@ function* rumble(e, ms) {
 // Charge in a straight line until a wall or obstacle stops it. `eachFrame` runs every frame.
 function* dash(e, angle, speed, maxMs, eachFrame = () => {}) {
   const started = now(e);
-  let last = { x: e.x, y: e.y };
+  const vx = Math.cos(angle);
+  const vy = Math.sin(angle);
   while (now(e) - started < maxMs) {
     const s = speed * (e.slow ? e.slow.multiplier : 1);
-    e.hitbox.body.velocity.setToPolar(angle, s);
+    e.hitbox.body.velocity.set(vx * s, vy * s);
     eachFrame();
     yield;
-    const moved = Math.hypot(e.x - last.x, e.y - last.y);
-    const expected = (s * e.scene.game.loop.delta) / 1000;
-    last = { x: e.x, y: e.y };
-    const wall = Object.values(touchingWall(e)).some(Boolean);
-    if (now(e) - started > 120 && (wall || moved < expected * 0.3)) break;
+    if (bumped(e, vx, vy)) break;
   }
   e.stop();
 }
@@ -353,12 +364,9 @@ export const BOSS_MOVES = {
     let nextDust = 0;
     const until = now(e) + 2500;
     while (now(e) < until) {
-      // Bounce off the room's edges and off obstacles (the physics engine flags those as touching).
-      const wall = touchingWall(e);
-      const hit = (side) => wall[side] || body.touching[side] || body.blocked[side];
-      if ((hit('left') && vx < 0) || (hit('right') && vx > 0)) vx = -vx;
-      if ((hit('up') || wall.top) && vy < 0) vy = -vy;
-      if ((hit('down') || wall.bottom) && vy > 0) vy = -vy;
+      // Bounce off the room's edges and off obstacles.
+      if (bumped(e, vx, 0)) vx = -vx;
+      if (bumped(e, 0, vy)) vy = -vy;
       body.velocity.set(vx, vy);
       if (now(e) >= nextDust) {
         nextDust = now(e) + 120;

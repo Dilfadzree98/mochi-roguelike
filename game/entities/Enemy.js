@@ -1,14 +1,6 @@
-import { DEPTH, FLOOR } from '../constants.js';
+import { DEPTH } from '../constants.js';
 import { flashWhite } from '../systems/Fx.js';
-import { BOSS_IDLE, BOSS_MOVES, angleTo } from './BossMoves.js';
-
-
-// True when the enemy's hitbox is pressed against a wall.
-function againstWall(enemy) {
-  const { x, y } = enemy;
-  const { w, h } = enemy.def.hitbox;
-  return x - w / 2 <= FLOOR.left + 1 || x + w / 2 >= FLOOR.right - 1 || y - h / 2 <= FLOOR.top + 1 || y + h / 2 >= FLOOR.bottom - 1;
-}
+import { BOSS_IDLE, BOSS_MOVES, angleTo, bumped } from './BossMoves.js';
 
 // Movement and attack patterns, referenced by name from data/enemies.json.
 // Each runs every frame with (enemy, player, time); per-enemy state lives in enemy.ai,
@@ -31,43 +23,33 @@ const BEHAVIOURS = {
     e.scene.fireRing(e.x, e.y - 4 * e.size, p.bullets, p.bulletSpeed, p.bullet, ai.offset);
   },
 
-  // Wanders, wiggles as a warning, then charges in a straight line until it hits a wall.
-  charger(e, player, time, delta) {
+  // Wanders, wiggles as a warning, then charges in a straight line until it hits something.
+  charger(e, player, time) {
     const p = e.def.params;
     const ai = e.ai;
     const body = e.hitbox.body;
     ai.state ??= 'wander';
     ai.until ??= time + p.wanderMs;
 
-    // Moved much less than its speed allows since last frame: something is in the way.
-    const moved = Math.hypot(e.x - (ai.lastX ?? e.x), e.y - (ai.lastY ?? e.y));
-    const expected = ((ai.lastSpeed ?? 0) * delta) / 1000;
-    const stuck = expected > 0.2 && moved < expected * 0.3;
-    ai.lastX = e.x;
-    ai.lastY = e.y;
-    ai.lastSpeed = 0;
-
     if (ai.state === 'wander') {
-      if (!ai.dir || time >= ai.turnAt || stuck) {
+      if (!ai.dir || time >= ai.turnAt || bumped(e, ai.dir.x, ai.dir.y)) {
         const a = e.scene.rng.range(0, Math.PI * 2);
         ai.dir = { x: Math.cos(a), y: Math.sin(a) };
         ai.turnAt = time + 600;
       }
       body.velocity.set(ai.dir.x * e.speed, ai.dir.y * e.speed);
-      ai.lastSpeed = e.speed;
       if (time >= ai.until) Object.assign(ai, { state: 'windup', until: time + p.windupMs });
     } else if (ai.state === 'windup') {
       e.stop();
       e.shakeUntil = ai.until;
       if (time >= ai.until) {
-        const a = angleTo(e, player);
+        const a = e.scene.chaseAngle(e); // straight at Mochi, or around the obstacle Mochi hides behind
         Object.assign(ai, { state: 'charge', until: time + p.maxChargeMs, started: time, charge: { x: Math.cos(a), y: Math.sin(a) } });
       }
     } else if (ai.state === 'charge') {
       const speed = p.chargeSpeed * (e.slow ? e.slow.multiplier : 1);
       body.velocity.set(ai.charge.x * speed, ai.charge.y * speed);
-      ai.lastSpeed = speed;
-      if ((time - ai.started > 120 && (againstWall(e) || stuck)) || time >= ai.until) {
+      if ((time - ai.started > 60 && bumped(e, ai.charge.x, ai.charge.y)) || time >= ai.until) {
         e.stop();
         Object.assign(ai, { state: 'stunned', until: time + p.stunMs });
       }
@@ -242,7 +224,7 @@ export class Enemy {
     const body = this.hitbox.body;
     if (this.def.stationary) this.stop();
     if (time < this.knockbackUntil) {
-      this.ai.lastSpeed = 0; // knocked back: not trying to move by itself
+      // knocked back: not moving by itself
     } else if (time < this.dizzyUntil) {
       this.stumble(time);
     } else {
