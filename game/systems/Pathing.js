@@ -106,11 +106,21 @@ const SHAPES = {
   center: [[5, 2], [5, 4], [6, 2], [6, 4]],
 };
 
+// Boss rooms: open in the middle, with cover around the edges.
+const BOSS_SHAPES = {
+  corners: [[2, 1], [2, 5]],
+  pillars: [[2, 2], [2, 4], [4, 1], [4, 5]],
+  walls: [[2, 2], [2, 3], [2, 4]],
+  ring: [[1, 1], [1, 5], [3, 1], [3, 5]],
+  scatter: [[2, 1], [4, 2], [2, 5], [4, 4]],
+  bunkers: [[3, 2], [3, 4]],
+};
+
 // Picks a layout for a fight room: a named shape or a random mirrored scatter.
 // Returns [{ col, row }], always leaving every free tile reachable.
 export function makeLayout(rng, style = 'any') {
   for (let attempt = 0; attempt < 10; attempt++) {
-    const half = style === 'boss' ? SHAPES.corners : chooseHalf(rng);
+    const half = style === 'boss' ? BOSS_SHAPES[rng.pick(Object.keys(BOSS_SHAPES))] : chooseHalf(rng);
     const tiles = new Map();
     for (const [col, row] of half) {
       for (const [c, r] of [[col, row], [GRID_COLS - 1 - col, row]]) {

@@ -24,6 +24,7 @@ const WAVES_PER_ROOM = 2;
 const WAVE_SIZE = { min: 1, max: 6 };
 const TYPES_PER_WAVE = { 1: 5, 2: 4, 3: 2 }; // weights: one type is most common
 const EMPTY_ROOM_CHANCE = 0.2;              // fight rooms with no obstacles
+const EMPTY_BOSS_ROOM_CHANCE = 0.25;        // boss rooms with no obstacles
 const ROSTER_SIZE = { min: 4, max: 6 };     // enemy types on one floor (floor 1: at most 5)
 
 const key = (x, y) => `${x},${y}`;
@@ -153,10 +154,10 @@ function tryGenerate(rng, floor, floorIndex, enemyDefs, bossId) {
   return new Dungeon(rooms, rooms.find((room) => room.type === 'start'), floor, floorIndex, roster);
 }
 
-// Fight rooms usually get a layout of the floor's obstacles; boss rooms just the corners
-// (to hide behind); start, treasure and shop rooms stay open.
+// Fight rooms usually get a layout of the floor's obstacles; boss rooms one of a few cover
+// patterns (or none); start, treasure and shop rooms stay open.
 function makeObstacles(rng, floor, type) {
-  if (type === 'boss') return withKinds(rng, floor, makeLayout(rng, 'boss'));
+  if (type === 'boss') return rng.chance(EMPTY_BOSS_ROOM_CHANCE) ? [] : withKinds(rng, floor, makeLayout(rng, 'boss'));
   if (type !== 'normal' || rng.chance(EMPTY_ROOM_CHANCE)) return [];
   return withKinds(rng, floor, makeLayout(rng));
 }

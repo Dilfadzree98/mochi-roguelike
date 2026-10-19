@@ -1,4 +1,4 @@
-import { FLOOR } from '../constants.js';
+import { FLOOR, TILE } from '../constants.js';
 
 // Boss attacks. Every boss has three moves (listed in data/enemies.json) and picks
 // a different one from last time whenever its cooldown ends.
@@ -53,18 +53,30 @@ function* rumble(e, ms) {
   yield ms;
 }
 
-// Charge in a straight line until a wall or obstacle stops it. `eachFrame` runs every frame.
+// While a boss charges (dashes, rolls, hops) nothing stops it: it goes straight through
+// obstacles (`smashing` makes the obstacle collider skip it) and breaks every one it touches.
+function smash(e) {
+  const { w, h } = e.def.hitbox;
+  for (const obstacle of e.scene.view.obstacles.slice()) {
+    if (Math.abs(obstacle.x - e.x) < w / 2 + TILE / 2 && Math.abs(obstacle.y - e.y) < h / 2 + TILE / 2) e.scene.breakObstacle(obstacle);
+  }
+}
+
+// Charge in a straight line, smashing obstacles, until a wall stops it. `eachFrame` runs every frame.
 function* dash(e, angle, speed, maxMs, eachFrame = () => {}) {
   const started = now(e);
   const vx = Math.cos(angle);
   const vy = Math.sin(angle);
+  e.ai.smashing = true;
   while (now(e) - started < maxMs) {
     const s = speed * (e.slow ? e.slow.multiplier : 1);
     e.hitbox.body.velocity.set(vx * s, vy * s);
+    smash(e);
     eachFrame();
     yield;
     if (bumped(e, vx, vy)) break;
   }
+  e.ai.smashing = false;
   e.stop();
 }
 
@@ -153,7 +165,13 @@ export const BOSS_MOVES = {
     for (let i = 0; i < rage(e, 2, 3); i++) {
       yield* windup(e, 300);
       e.hitbox.body.velocity.setToPolar(angleTo(e, player), p.hopSpeed);
-      yield p.hopMs;
+      e.ai.smashing = true;
+      const landAt = now(e) + p.hopMs;
+      while (now(e) < landAt) {
+        smash(e);
+        yield;
+      }
+      e.ai.smashing = false;
       e.stop();
       e.squish();
       e.scene.fireRing(e.x, e.y, rage(e, 8, 10), 132, 'spore', i * 0.2);
@@ -363,8 +381,10 @@ export const BOSS_MOVES = {
     const body = e.hitbox.body;
     let nextDust = 0;
     const until = now(e) + 2500;
+    e.ai.smashing = true;
     while (now(e) < until) {
-      // Bounce off the room's edges and off obstacles.
+      // Bounce off the room's edges, smashing through obstacles.
+      smash(e);
       if (bumped(e, vx, 0)) vx = -vx;
       if (bumped(e, 0, vy)) vy = -vy;
       body.velocity.set(vx, vy);
@@ -374,6 +394,7 @@ export const BOSS_MOVES = {
       }
       yield;
     }
+    e.ai.smashing = false;
     e.stop();
     e.squish();
     yield 500;

@@ -415,9 +415,9 @@ export class Enemy {
     return this.def.speed * (this.slow ? this.slow.multiplier : 1);
   }
 
-  // Flying enemies (and burrowers while underground) go over/under obstacles.
+  // Flying enemies (and burrowers while underground) go over/under obstacles; charging bosses go through them.
   get passesObstacles() {
-    return !!this.def.flying || !!this.ai.underground;
+    return !!this.def.flying || !!this.ai.underground || !!this.ai.smashing;
   }
 
   // Underground or faded out: shots pass through and touching it doesn't hurt.
