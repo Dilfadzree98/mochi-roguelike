@@ -39,8 +39,11 @@ const BOMB_FUSE_MS = 2000;
 const BOMB_RADIUS = 60;
 const BOMB_DAMAGE = 5;
 const BOMB_SIZE = 14;          // the bomb's hitbox
-const BOMB_KICK_SPEED = 360;   // px/s when Mochi walks into a bomb
-const BOMB_DRAG = 300;         // how fast a kicked bomb slows down (px/s per second)
+const BOMB_DRAG = 450;         // how fast a moving bomb slows down (px/s per second)
+const BOMB_KICK_DISTANCE = 100; // px a bomb slides when Mochi walks into it
+const BOMB_SHOT_DISTANCE = 50;  // px a bomb slides when Mochi shoots it
+// Starting speed that slides exactly that far before drag stops it: v^2 = 2 * drag * distance.
+const slideSpeed = (distance) => Math.sqrt(2 * BOMB_DRAG * distance);
 const BOMB_BOUNCE = 0.6;       // speed kept after bouncing off a wall or obstacle
 
 const ROOT_WARNING_MS = 700;
@@ -62,7 +65,7 @@ const SHOP_PRICES = { item: 5, heart: 3, bomb: 3, key: 3 };
 const PICKUP_TEXTURES = { heart: 'heart_full', coin: 'coin', bomb: 'bomb', key: 'key' };
 const PICKUP_INFO = {
   heart: { name: 'Heart', description: 'Heals one heart' },
-  bomb: { name: 'Bomb', description: 'E to drop, walk into it to kick' },
+  bomb: { name: 'Bomb', description: 'E to drop, walk into it or shoot it to push' },
   key: { name: 'Key', description: 'Opens locked gates' },
 };
 
@@ -115,6 +118,7 @@ export class Game extends Phaser.Scene {
     this.physics.add.overlap(this.player.hitbox, this.enemyBodies, (_, body) => this.onPlayerTouchEnemy(body.owner));
     this.physics.add.overlap(this.player.hitbox, this.enemyShots, (_, bullet) => this.onPlayerShot(bullet));
     this.physics.add.overlap(this.player.hitbox, this.bombBodies, (_, zone) => this.kickBomb(zone.bomb));
+    this.physics.add.overlap(this.shots, this.bombBodies, (shot, zone) => this.shootBomb(shot, zone.bomb));
     // A kicked bomb stops when it reaches an enemy, so the blast catches it.
     this.physics.add.overlap(this.enemyBodies, this.bombBodies, (_, zone) => zone.body.setVelocity(0, 0));
 
@@ -185,7 +189,7 @@ export class Game extends Phaser.Scene {
 
     for (const shot of this.shots.getChildren().slice()) shot.update(time, delta);
     for (const bullet of this.enemyShots.getChildren().slice()) bullet.update(time);
-    this.updateBombs();
+    this.updateBombs(delta);
 
     this.collectPickups();
     this.updateTooltip();
@@ -690,14 +694,15 @@ export class Game extends Phaser.Scene {
   }
 
   showTooltip(spot) {
-    const top = Math.max(HUD_HEIGHT + 2, spot.y - 64);
+    // Name at the normal text size, description at half size so the box stays small.
+    const top = Math.max(HUD_HEIGHT + 2, spot.y - 56);
     const name = addText(this, 0, top + 9, spot.info.name, { tint: UI.gold });
-    const description = addText(this, 0, top + 23, spot.info.description);
-    const width = Math.max(name.width, description.width) + 16;
+    const description = addText(this, 0, top + 20, spot.info.description, { scale: 1 });
+    const width = Math.max(name.width, description.width) + 12;
     const cx = Math.round(Phaser.Math.Clamp(spot.x, FLOOR.left + width / 2, FLOOR.right - width / 2));
     name.setX(cx);
     description.setX(cx);
-    const box = this.add.rectangle(cx, top + 16, width, 32, 0x120e16, 0.85).setStrokeStyle(2, 0x4a4058).setDepth(DEPTH.ui);
+    const box = this.add.rectangle(cx, top + 13, width, 26, 0x120e16, 0.85).setStrokeStyle(2, 0x4a4058).setDepth(DEPTH.ui);
     name.setDepth(DEPTH.ui + 1);
     description.setDepth(DEPTH.ui + 1);
     this.tooltip = { spot, parts: [box, name, description] };
@@ -719,7 +724,7 @@ export class Game extends Phaser.Scene {
     const { x, y } = player.feet;
     const zone = this.add.zone(x, y - 6, BOMB_SIZE, BOMB_SIZE);
     this.bombBodies.add(zone);
-    zone.body.setDrag(BOMB_DRAG, BOMB_DRAG).setBounce(BOMB_BOUNCE, BOMB_BOUNCE);
+    zone.body.setBounce(BOMB_BOUNCE, BOMB_BOUNCE);
     const image = this.add.image(x, y - 6, 'bomb');
     this.tweens.add({ targets: image, scale: 1.25, duration: 150, yoyo: true, repeat: -1 });
     // Not kickable until Mochi has stepped off it (it's dropped at Mochi's feet).
@@ -728,12 +733,16 @@ export class Game extends Phaser.Scene {
     bomb.timer = this.time.delayedCall(BOMB_FUSE_MS, () => this.explode(bomb));
     this.bombs.push(bomb);
     this.roomObjects.push(image, zone);
-    this.updateBombs();
+    this.updateBombs(0);
   }
 
-  updateBombs() {
+  updateBombs(delta) {
     const mochi = this.player.hitbox;
     for (const bomb of this.bombs) {
+      // Slow down evenly in every direction (Arcade drag works per axis, so diagonal slides came up short).
+      const v = bomb.zone.body.velocity;
+      const speed = v.length();
+      if (speed > 0) v.scale(Math.max(0, speed - (BOMB_DRAG * delta) / 1000) / speed);
       const { x, y } = bomb.zone;
       bomb.image.setPosition(x, y).setDepth(DEPTH.actors + y + 4);
       if (!bomb.kickable && Phaser.Math.Distance.Between(x, y, mochi.x, mochi.y) > BOMB_SIZE + 6) bomb.kickable = true;
@@ -747,8 +756,18 @@ export class Game extends Phaser.Scene {
     const mochi = this.player.hitbox;
     const v = mochi.body.velocity;
     const angle = v.length() > 20 ? Math.atan2(v.y, v.x) : Math.atan2(bomb.zone.y - mochi.y, bomb.zone.x - mochi.x);
-    bomb.zone.body.velocity.setToPolar(angle, BOMB_KICK_SPEED);
+    bomb.zone.body.velocity.setToPolar(angle, slideSpeed(BOMB_KICK_DISTANCE));
     Audio.play('select');
+  }
+
+  // A shot nudges a bomb a short way in the shot's direction (a piercing shot only once).
+  shootBomb(shot, bomb) {
+    if (!shot.active || !bomb) return;
+    shot.pushedBombs ??= new Set();
+    if (shot.pushedBombs.has(bomb)) return;
+    shot.pushedBombs.add(bomb);
+    bomb.zone.body.velocity.setToPolar(Math.atan2(shot.dir.y, shot.dir.x), slideSpeed(BOMB_SHOT_DISTANCE));
+    if (!shot.pierce) shot.impact();
   }
 
   // Hurts every enemy nearby, and Mochi too if too close.
