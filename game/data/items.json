@@ -34,7 +34,7 @@
   },
   "bouncing_pollen": {
     "name": "Bouncing Pollen",
-    "description": "Shots bounce off walls",
+    "description": "Shots bounce off walls and obstacles",
     "icon": "icon_bouncing_pollen",
     "modifiers": {
       "shotTexture": {

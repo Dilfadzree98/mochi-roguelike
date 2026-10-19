@@ -128,6 +128,28 @@ export class Projectile extends Phaser.Physics.Arcade.Image {
     }
   }
 
+  // Bounce off the side of the obstacle it hit (if it has bounces left), or break.
+  hitObstacle(zone) {
+    if (!this.active) return;
+    if (this.bouncesLeft <= 0) {
+      this.impact();
+      return;
+    }
+    this.bouncesLeft -= 1;
+    // Whichever side it's further out on is the side it came in through.
+    const dx = this.x - zone.x;
+    const dy = this.y - zone.y;
+    const half = zone.width / 2 + 5;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      this.angleRad = Math.PI - this.angleRad;
+      this.x = zone.x + Math.sign(dx) * half;
+    } else {
+      this.angleRad = -this.angleRad;
+      this.y = zone.y + Math.sign(dy) * half;
+    }
+    this.steer(this.scene.time.now, 0);
+  }
+
   // Cracks open into tiny husk pieces (and splashes, with Popcorn Kernel).
   impact() {
     if (!this.active) return;

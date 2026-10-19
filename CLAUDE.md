@@ -183,7 +183,7 @@ Bosses (7; one random boss per floor, never the same one twice in a run):
 
 ### Items (37)
 
-- **Shot items (20):** Fire Seed (burn), Frost Seed (slow), Bouncing Pollen (bounces 3x), Dewdrop (pierce), Thorn Seed (split in 3), Homing Spore (homing), Pumpkin Seed (big shots), Wiggle Vine (wave), Boomerang Leaf (returns), Dandelion Puff (fan of seeds), Hedgehog Seed (back shot), Popcorn Kernel (splash), Nightshade Berry (poison), Static Thistle (chain zap), Acorn (knockback), Sprinkler Head (ring every 6th shot), Rocket Radish (accelerating shots), Catnip (dizzy enemies; bosses immune), Golden Kernel (15% triple damage), Ghost Pepper (through obstacles).
+- **Shot items (20):** Fire Seed (burn), Frost Seed (slow), Bouncing Pollen (bounces 3x off walls and obstacles), Dewdrop (pierce), Thorn Seed (split in 3), Homing Spore (homing), Pumpkin Seed (big shots), Wiggle Vine (wave), Boomerang Leaf (returns), Dandelion Puff (fan of seeds), Hedgehog Seed (back shot), Popcorn Kernel (splash), Nightshade Berry (poison), Static Thistle (chain zap), Acorn (knockback), Sprinkler Head (ring every 6th shot), Rocket Radish (accelerating shots), Catnip (dizzy enemies; bosses immune), Golden Kernel (15% triple damage), Ghost Pepper (through obstacles).
 - **Stat items (17):** Bone Meal, Sun Drop, Watering Can, Bee Wings, Big Leaf, Twin Sprout, Lucky Clover, Honey Pot, Morning Dew, Garden Gloves, Snail Shell, Grasshopper Legs, Fertilizer Bag, Scarecrow Hat, Piggy Bank, Sweet Nectar, Cactus Water.
 - `onPickup` supports `heal`, `healFull`, `coins`, `bombs`, `keys`. Shot behaviour stats and their defaults are in `BASE_STATS` (Player.js); caps in `LIMITS` (Items.js). Shots steer by angle each frame in `Projectile.steer()` so homing/wave/accelerate/boomerang combine.
 

@@ -219,7 +219,7 @@ export class Game extends Phaser.Scene {
       // Obstacles block everyone and every bullet, so Mochi can hide behind them.
       this.physics.add.collider(hitbox, this.view.obstacleBodies, (_, zone) => this.onObstacleTouch(zone.obstacle)),
       this.physics.add.collider(this.enemyBodies, this.view.obstacleBodies),
-      this.physics.add.overlap(this.shots, this.view.obstacleBodies, (shot) => !shot.stats.phase && shot.impact()),
+      this.physics.add.overlap(this.shots, this.view.obstacleBodies, (shot, zone) => !shot.stats.phase && shot.hitObstacle(zone)),
       this.physics.add.overlap(this.enemyShots, this.view.obstacleBodies, (bullet) => bullet.pop()),
       this.physics.add.collider(this.bombBodies, this.view.solidWalls),
       this.physics.add.collider(this.bombBodies, this.view.obstacleBodies),
