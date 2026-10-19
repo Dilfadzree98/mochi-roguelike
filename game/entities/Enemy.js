@@ -47,7 +47,7 @@ const BEHAVIOURS = {
         Object.assign(ai, { state: 'charge', until: time + p.maxChargeMs, started: time, charge: { x: Math.cos(a), y: Math.sin(a) } });
       }
     } else if (ai.state === 'charge') {
-      const speed = p.chargeSpeed * (e.slow ? e.slow.multiplier : 1);
+      const speed = p.chargeSpeed * e.speedScale * (e.slow ? e.slow.multiplier : 1);
       body.velocity.set(ai.charge.x * speed, ai.charge.y * speed);
       if ((time - ai.started > 60 && bumped(e, ai.charge.x, ai.charge.y)) || time >= ai.until) {
         e.stop();
@@ -218,7 +218,7 @@ const BEHAVIOURS = {
     } else if (ai.phase === 'crouch') {
       e.stop();
       if (time >= ai.until) {
-        body.velocity.setToPolar(e.scene.chaseAngle(e), p.leapSpeed * (e.slow ? e.slow.multiplier : 1));
+        body.velocity.setToPolar(e.scene.chaseAngle(e), p.leapSpeed * e.speedScale * (e.slow ? e.slow.multiplier : 1));
         Object.assign(ai, { phase: 'leap', until: time + p.leapMs });
       }
     } else if (time >= ai.until || bumped(e, body.velocity.x, body.velocity.y)) {
@@ -264,7 +264,7 @@ const BEHAVIOURS = {
     } else if (ai.phase === 'aim') {
       e.stop();
       if (time >= ai.until) {
-        body.velocity.setToPolar(angleTo(e, player), p.dashSpeed * (e.slow ? e.slow.multiplier : 1));
+        body.velocity.setToPolar(angleTo(e, player), p.dashSpeed * e.speedScale * (e.slow ? e.slow.multiplier : 1));
         Object.assign(ai, { phase: 'dash', until: time + p.dashMs });
       }
     } else if (time >= ai.until || bumped(e, body.velocity.x, body.velocity.y)) {
@@ -356,6 +356,7 @@ const ENRAGE_AT = 0.5;          // bosses get angry below half health
 const ENRAGED_COOLDOWN = 0.65;  // and rest this much less between moves
 const FIRST_MOVE_MS = 1200;
 const SHADOW_WIDTH = 24; // the 'shadow' texture, stretched to each enemy's width
+const SPEED_PER_FLOOR = 0.08; // regular enemies move 8% faster on each floor
 
 // States: spawning -> active -> dead (or frozen when the run ends).
 export class Enemy {
@@ -381,6 +382,7 @@ export class Enemy {
     this.footOffset = def.hitbox.h / 2 + 2;
     this.size = def.scale ?? 1;
     this.squashAmount = def.squash ?? 0.1;
+    this.speedScale = def.boss ? 1 : 1 + SPEED_PER_FLOOR * scene.floorIndex;
 
     this.hitbox = scene.add.zone(x, y, def.hitbox.w, def.hitbox.h);
     scene.enemyBodies.add(this.hitbox);
@@ -412,7 +414,7 @@ export class Enemy {
   }
 
   get speed() {
-    return this.def.speed * (this.slow ? this.slow.multiplier : 1);
+    return this.def.speed * this.speedScale * (this.slow ? this.slow.multiplier : 1);
   }
 
   // Flying enemies (and burrowers while underground) go over/under obstacles; charging bosses go through them.

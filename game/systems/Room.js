@@ -1,13 +1,20 @@
-import { TILE, ROOM_COLS, ROOM_ROWS, ROOM_X, ROOM_Y, FLOOR, DEPTH } from '../constants.js';
+import { TILE, ROOM_X, ROOM_Y, FLOOR, DEPTH } from '../constants.js';
+import { roomVignette } from '../art/World.js';
 import { Rng } from './Rng.js';
 import { tileCenter } from './Pathing.js';
 
-const DOOR_SLOTS = {
-  up: { col: 7, row: 0, angle: 0 },
-  down: { col: 7, row: ROOM_ROWS - 1, angle: 180 },
-  left: { col: 0, row: 4, angle: -90 },
-  right: { col: ROOM_COLS - 1, row: 4, angle: 90 },
-};
+// Door positions in wall tiles, for a room `width` x `height` tiles including its walls.
+// Doors are always in the middle of each wall.
+function doorSlots(width, height) {
+  const midC = (width - 1) / 2;
+  const midR = (height - 1) / 2;
+  return {
+    up: { col: midC, row: 0, angle: 0 },
+    down: { col: midC, row: height - 1, angle: 180 },
+    left: { col: 0, row: midR, angle: -90 },
+    right: { col: width - 1, row: midR, angle: 90 },
+  };
+}
 
 // Decorations that give off a soft light.
 const DECOR_GLOW = { glow_mushroom: 'glow_blue', purple_sprout: 'glow_purple' };
@@ -21,14 +28,16 @@ function closedDoorTexture(room, neighbor) {
   return 'door';
 }
 
-// Wall colliders, leaving a 1-tile gap wherever a door is.
-function wallRects(doors = {}) {
-  const width = ROOM_COLS * TILE;
-  const height = ROOM_ROWS * TILE;
+// Wall colliders for a room `w` x `h` tiles (walls included), leaving a 1-tile gap wherever a door is.
+function wallRects(w, h, doors = {}) {
+  const width = w * TILE;
+  const height = h * TILE;
+  const midC = (w - 1) / 2;
+  const midR = (h - 1) / 2;
   const horizontal = (y, gap) =>
-    gap ? [[ROOM_X, y, 7 * TILE, TILE], [ROOM_X + 8 * TILE, y, 7 * TILE, TILE]] : [[ROOM_X, y, width, TILE]];
+    gap ? [[ROOM_X, y, midC * TILE, TILE], [ROOM_X + (midC + 1) * TILE, y, midC * TILE, TILE]] : [[ROOM_X, y, width, TILE]];
   const vertical = (x, gap) =>
-    gap ? [[x, ROOM_Y, TILE, 4 * TILE], [x, ROOM_Y + 5 * TILE, TILE, 4 * TILE]] : [[x, ROOM_Y, TILE, height]];
+    gap ? [[x, ROOM_Y, TILE, midR * TILE], [x, ROOM_Y + (midR + 1) * TILE, TILE, midR * TILE]] : [[x, ROOM_Y, TILE, height]];
   return [
     ...horizontal(ROOM_Y, doors.up),
     ...horizontal(ROOM_Y + height - TILE, doors.down),
@@ -49,17 +58,20 @@ function staticZones(scene, rects) {
 export function buildRoom(scene, room, dungeon) {
   const rng = new Rng(room.seed);
   const floor = dungeon.floor;
+  const { cols, rows } = room.size;
+  const width = cols + 2; // tiles, walls included
+  const height = rows + 2;
   const objects = [];
   const add = (obj) => {
     objects.push(obj);
     return obj;
   };
 
-  for (let row = 0; row < ROOM_ROWS; row++) {
-    for (let col = 0; col < ROOM_COLS; col++) {
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
       const x = ROOM_X + col * TILE;
       const y = ROOM_Y + row * TILE;
-      const isWall = row === 0 || col === 0 || row === ROOM_ROWS - 1 || col === ROOM_COLS - 1;
+      const isWall = row === 0 || col === 0 || row === height - 1 || col === width - 1;
       if (isWall) {
         const key = row === 0 ? `${floor.id}_wall_top` : `${floor.id}_wall${rng.int(0, 2)}`;
         add(scene.add.image(x, y, key).setOrigin(0).setDepth(DEPTH.wall));
@@ -70,7 +82,7 @@ export function buildRoom(scene, room, dungeon) {
     }
   }
 
-  const decorationCount = rng.int(8, 12);
+  const decorationCount = Math.round((rng.int(8, 12) * cols * rows) / (13 * 7)); // more in bigger rooms
   for (let i = 0; i < decorationCount; i++) {
     const x = rng.int(FLOOR.left + 8, FLOOR.right - 8);
     const y = rng.int(FLOOR.top + 8, FLOOR.bottom - 8);
@@ -79,16 +91,17 @@ export function buildRoom(scene, room, dungeon) {
     add(scene.add.image(x, y, key).setDepth(DEPTH.decor));
   }
 
-  add(scene.add.image(ROOM_X, ROOM_Y, `vignette_${floor.id}`).setOrigin(0).setDepth(DEPTH.overlay));
+  add(scene.add.image(ROOM_X, ROOM_Y, roomVignette(scene, floor, cols, rows)).setOrigin(0).setDepth(DEPTH.overlay));
 
-  const solidWalls = staticZones(scene, wallRects());
-  const playerWalls = staticZones(scene, wallRects(room.doors));
+  const solidWalls = staticZones(scene, wallRects(width, height));
+  const playerWalls = staticZones(scene, wallRects(width, height, room.doors));
+  const slots = doorSlots(width, height);
   const doorBlockers = scene.physics.add.staticGroup();
 
-  const doors = Object.keys(DOOR_SLOTS)
+  const doors = Object.keys(slots)
     .filter((dir) => room.doors[dir])
     .map((dir) => {
-      const slot = DOOR_SLOTS[dir];
+      const slot = slots[dir];
       const x = ROOM_X + slot.col * TILE + TILE / 2;
       const y = ROOM_Y + slot.row * TILE + TILE / 2;
       const neighbor = dungeon.neighbor(room, dir);

@@ -82,12 +82,12 @@ game/
 │   └── Save.js          localStorage (best floor, rooms cleared, wins)
 └── data/
     ├── characters.json  playable characters: name, description, texture, stat modifiers, skill
-    ├── enemies.json     17 enemies and 7 bosses: stats, behaviour + params, floors range + weight, onDeath (bosses: idle + 3 moves)
+    ├── enemies.json     17 enemies and 7 bosses: stats, behaviour + params, difficulty + weight, onDeath (bosses: idle + 3 moves)
     ├── floors.json      4 floors: palette, wall face, decorations, obstacles
     └── items.json       57 items, each with a tier (1-4) and a list of stat modifiers
 ```
 
-Adding an enemy: add an entry to `data/enemies.json` using an existing `behaviour` (`chase`, `ring_shooter`, `charger`, `aimed_shooter`, `teleporter`, `wander`, `kiter`, `flutter`, `burrower`, `hopper`, `shell`, `dasher`, `spinner`, `wisp`) with its `params`, a `death` from `DEATHS`, a `floors` range ([first, last], 1-based) and a `weight`, and a sprite in `art/Critters.js`. Optional: `"flying": true` (passes over obstacles), `onDeath` (`ring` of bullets or `spawn` { type, count }), `maxPerWave`. A new movement pattern goes in `BEHAVIOURS` in Enemy.js. Enemy attacks use Game's `fireRing` / `fireSpread` / `fireSpiral` / `fireSweep` / `rootStrike` / `markStrike`.
+Adding an enemy: add an entry to `data/enemies.json` using an existing `behaviour` (`chase`, `ring_shooter`, `charger`, `aimed_shooter`, `teleporter`, `wander`, `kiter`, `flutter`, `burrower`, `hopper`, `shell`, `dasher`, `spinner`, `wisp`) with its `params`, a `death` from `DEATHS`, a `difficulty` (1-4) and a `weight` (how common), and a sprite in `art/Critters.js`. Optional: `"flying": true` (passes over obstacles), `onDeath` (`ring` of bullets or `spawn` { type, count }), `maxPerWave`. A new movement pattern goes in `BEHAVIOURS` in Enemy.js. Enemy attacks use Game's `fireRing` / `fireSpread` / `fireSpiral` / `fireSweep` / `rootStrike` / `markStrike`.
 
 Adding a boss: an entry in `data/enemies.json` with `"boss": true`, `"behaviour": "boss"`, an `idle` (`still`, `chase`, `wander`), three `moves` and `params.cooldownMs`. Moves are generators in `BOSS_MOVES` (entities/BossMoves.js): `yield ms` waits, a bare `yield` waits one frame. It joins the boss pool automatically.
 
@@ -107,7 +107,8 @@ Implementation patterns to keep:
 - **Characters:** Mangkok Mochi (boy, blue cap with a burger on it) and Lilo Mochi (girl, pink flower on her right ear, eyelashes). Each has stat `modifiers` in characters.json, applied like an item (Mangkok: damage +0.25, speed -6; Lilo: speed +8). The select screen shows hearts plus Damage/Speed/Fire rate as 1-5 pips (3 = base Mochi; `STAT_ROWS` in CharacterSelect.js).
 - **Skills** (systems/Skills.js): every `skill.every` (30) shots charge the character's skill. When it's ready (a sound, a "ready - Space" hint and a blinking meter), **Space** casts it (`Skills.tryCast`) for `skill.durationMs` (2 s). It stays charged until used, even between rooms. Shots don't charge it while it's ready or running. **Burger Beam** (Mangkok): a beam in the facing direction that stops at walls and burns through obstacles (each breaks after 2 ticks / 0.2 s, via `Game.breakObstacle`, same as bombs), damages every enemy it overlaps (0.6 x damage per 100 ms tick), pops enemy bullets, slows Mochi, and replaces normal shots. **Spawn Chinggu** (Lilo, 4 s): Chinggu, a calico cat (white with orange and black patches, pink bow), appears next to Lilo, runs to the nearest enemy using `Game.pathAngle()` and scratches it (1.5 x damage every 450 ms); with no enemies she follows Lilo. Enemies ignore her and she can't be hurt. The HUD meter (icon + bar) fills per shot, blinks when ready and drains while active. Skills stop when leaving a room or dying. Their sprites are base Mochi plus an outfit drawn on top (`OUTFITS` in art/Characters.js; `makeCharacter` builds `<key>`, `_hurt`, `_wilt`, `_wilt_hurt`, `_bare`). The sprout leaf stays visible on both because it shows health. The character id travels Select → Game → GameOver/Pause restart. Adding one: an outfit in `OUTFITS` + an entry in `characters.json` (keep descriptions ≤ 22 characters so the two cards don't overlap).
 - **Tooltips:** any pickup spot created with an `info` ({ name, description }) shows a tooltip when Mochi is within 48 px: a small panel in the bottom-left corner of the room with the name at normal size and the description at half size (font scale 1).
-- **Enemy rosters:** each floor of a run picks a random 4-6 enemy types (4-5 on floor 1) from those whose `floors` range includes it, by `weight` (`pickRoster` in DungeonGen.js, stored as `dungeon.roster`). So any enemy can be missing from a run, and floors look different every time.
+- **Enemy rosters:** each floor of a run picks a random 4-6 enemy types (4-5 on floor 1) (`pickRoster` in DungeonGen.js, stored as `dungeon.roster`). Floor N may use enemies of difficulty N-2 to N, weighted ×3 for difficulty N, ×2 for N-1, ×1 for N-2 (times each enemy's `weight`), and always includes at least 2 types of difficulty N. So deeper floors get harder enemies and drop the easy ones, any enemy can be missing from a run, and floors look different every time. Regular enemies also get +20% health and +8% speed per floor (`speedScale` in Enemy.js).
+- **Room sizes:** `ROOM_SIZES` in constants.js: normal 13x7 floor tiles (one screen), wide 21x7, tall 13x11, big 21x11. 35% of fight rooms are bigger (wide 4 : tall 3 : big 2); start, treasure, shop and boss rooms are always normal. A room stores `shape` and `size`; `enterRoom` calls `setRoomSize`, which updates the shared `ROOM` (tiles) and `FLOOR` (pixel bounds) that walls, doors (always mid-wall), pathing, spawns and shots read. The camera follows Mochi within the room (`setBounds` + `startFollow`; one-screen rooms don't scroll). Banners and the item panel use `setScrollFactor(0)`. Bigger rooms get more obstacles (scatter scaled by area), more decorations and bigger waves (`WAVE_BONUS`: wide/tall up to 8 enemies, big up to 9). Vignettes are made per room size (`roomVignette`).
 - **Enemy states that matter to Game:** `enemy.untouchable` (mole underground, faded wisp: shots pass through, touching doesn't hurt), `enemy.ai.armored` (snail in its shell: hits glance off), `enemy.passesObstacles` (flying, or underground: the obstacle collider skips it). A boss's death sets `Game.clearingMinions` so dying minions don't split or burst.
 - **Waves:** `makeWave` in DungeonGen.js: each wave is 1-6 enemies of 1-3 types (weights `TYPES_PER_WAVE`), types drawn from the floor's roster without repeats; the minimum size grows with distance from start + floor; `maxPerWave` in enemies.json caps strong enemies (gnome 2, thornvine/grumpshroom 3, beetle 4).
 - **Obstacles:** each fight room gets a mirrored layout (`makeLayout` in Pathing.js) of whole-tile obstacles from the floor's `obstacles` list (20% of fight rooms are open; boss rooms get one of 6 cover patterns (`BOSS_SHAPES` in Pathing.js) or, 25% of the time, nothing; start/treasure/shop stay empty). Layouts never block door entrances and always keep every free tile reachable. Obstacles block Mochi, enemies and all bullets; bombs and the Burger Beam break them (`room.obstacles[].broken` persists); `"hurts": true` (thorn clusters) damages Mochi on touch. Chasing enemies use `Game.chaseAngle()` (straight line if clear, else flow field). Spawns, teleports and drops use `areaFree` / `freeSpot` to avoid obstacles.
@@ -166,27 +167,27 @@ Cute but slightly creepy pixel art. A soft, warm hero in a world that grows dark
 
 ### Enemies
 
-17 enemies; each floor uses a random 4–6 of the ones allowed on it.
+17 enemies; each floor uses a random 4–6, harder ones deeper down (difficulty 1 on floor 1; 1–2 on floor 2; 1–3 on floor 3; 2–4 on floor 4).
 
-| Enemy | Floors | HP | Behaviour |
+| Enemy | Difficulty | HP | Behaviour |
 |---|---|---|---|
-| Gloom Slug | 1–3 | 4 | Crawls after Mochi, slime trail slows Mochi |
-| Grumpshroom | 1–4 | 5 | Stationary; ring of 8 spores every 2 s |
-| Click Beetle | 2–4 | 6 | Wanders, wiggles, charges until it hits something |
-| Thornvine | 2–4 | 7 | Stationary; bud opens and fires 3 aimed thorns |
-| Hexed Gnome | 3–4 | 9 | Fires a 3-way spread, fades, teleports |
-| Bramble Mite | 1–4 | 2 | Tiny, fast chaser |
-| Puffball | 1–3 | 5 | Drifts about; bursts into 8 spores when killed |
-| Acorn Weevil | 2–4 | 5 | Keeps its distance, circles, stops to fire a fast single shot |
-| Dusk Moth | 1–4 | 4 | Flies (over obstacles) in a wobbly line, drops a ring of 4 spores |
-| Mole | 2–4 | 7 | Tunnels as a mound (can't be hit), pops up and fires a ring of 6 |
-| Garden Spider | 2–4 | 5 | Crouches, then leaps at Mochi |
-| Shell Snail | 1–3 | 8 | Slow chaser; hides in its shell (shots glance off) |
-| Wasp | 3–4 | 4 | Flies circles around Mochi, then dashes straight at them |
-| Toad | 2–4 | 8 | Hops at Mochi; every landing puffs a ring of 6 |
-| Sunflower Sentry | 3–4 | 10 | Stationary; sprays a turning 2-arm stream, then rests |
-| Wisp | 3–4 | 5 | Floats through obstacles, fades out (can't hurt or be hurt) |
-| Rot Worm | 1–3 | 6 | Chaser; splits into 2 Bramble Mites when killed |
+| Gloom Slug | 1 | 4 | Crawls after Mochi, slime trail slows Mochi |
+| Grumpshroom | 1 | 5 | Stationary; ring of 8 spores every 2 s |
+| Click Beetle | 2 | 6 | Wanders, wiggles, charges until it hits something |
+| Thornvine | 3 | 7 | Stationary; bud opens and fires 3 aimed thorns |
+| Hexed Gnome | 4 | 9 | Fires a 3-way spread, fades, teleports |
+| Bramble Mite | 1 | 2 | Tiny, fast chaser |
+| Puffball | 1 | 5 | Drifts about; bursts into 8 spores when killed |
+| Acorn Weevil | 2 | 5 | Keeps its distance, circles, stops to fire a fast single shot |
+| Dusk Moth | 1 | 4 | Flies (over obstacles) in a wobbly line, drops a ring of 4 spores |
+| Mole | 3 | 7 | Tunnels as a mound (can't be hit), pops up and fires a ring of 6 |
+| Garden Spider | 2 | 5 | Crouches, then leaps at Mochi |
+| Shell Snail | 1 | 8 | Slow chaser; hides in its shell (shots glance off) |
+| Wasp | 3 | 4 | Flies circles around Mochi, then dashes straight at them |
+| Toad | 2 | 8 | Hops at Mochi; every landing puffs a ring of 6 |
+| Sunflower Sentry | 4 | 10 | Stationary; sprays a turning 2-arm stream, then rests |
+| Wisp | 4 | 5 | Floats through obstacles, fades out (can't hurt or be hurt) |
+| Rot Worm | 1 | 6 | Chaser; splits into 2 Bramble Mites when killed |
 
 Bosses (7; one random boss per floor, never the same one twice in a run):
 

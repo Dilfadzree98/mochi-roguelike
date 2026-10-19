@@ -133,7 +133,7 @@ export class Skills {
     let length = 0;
     let blockedBy = null;
     const blocked = this.scene.view.blocked;
-    while (length < 520) {
+    while (length < 1000) {
       const x = startX + dir.x * (length + 4);
       const y = startY + dir.y * (length + 4);
       if (x < FLOOR.left || x > FLOOR.right || y < FLOOR.top || y > FLOOR.bottom) break;

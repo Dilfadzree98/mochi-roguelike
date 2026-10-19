@@ -4,22 +4,36 @@ export const GAME_WIDTH = 480;
 export const GAME_HEIGHT = 272;
 
 export const TILE = 32;
-export const ROOM_COLS = 15; // 13 floor tiles + a 1-tile wall on each side
-export const ROOM_ROWS = 9;  // 7 floor tiles + a 1-tile wall on each side
 
-// The room (480x288) is a little taller than the screen, so the top and bottom walls
-// are cut by 8px each. The HUD sits over the top wall.
-export const ROOM_X = 0;
-export const ROOM_Y = (GAME_HEIGHT - TILE * ROOM_ROWS) / 2; // -8
-export const HUD_HEIGHT = TILE + ROOM_Y;                    // 24: the visible part of the top wall
-
-// Walkable floor area inside the walls, in world pixels.
-export const FLOOR = {
-  left: ROOM_X + TILE,
-  top: ROOM_Y + TILE,
-  right: ROOM_X + TILE * (ROOM_COLS - 1),
-  bottom: ROOM_Y + TILE * (ROOM_ROWS - 1),
+// Room sizes in floor tiles (always odd, so doors sit in the middle of each wall). Most rooms are
+// one screen; some fight rooms are bigger and the camera scrolls to follow Mochi.
+export const ROOM_SIZES = {
+  normal: { cols: 13, rows: 7 },
+  wide: { cols: 21, rows: 7 },
+  tall: { cols: 13, rows: 11 },
+  big: { cols: 21, rows: 11 },
 };
+
+// A one-screen room with its walls (480x288) is a little taller than the screen, so the top and
+// bottom walls are cut by 8px each. The HUD sits over the top wall.
+export const ROOM_X = 0;
+export const ROOM_Y = (GAME_HEIGHT - TILE * (ROOM_SIZES.normal.rows + 2)) / 2; // -8
+export const HUD_HEIGHT = TILE + ROOM_Y;                                       // 24: the visible part of the top wall
+
+// The room Mochi is in now: its floor size in tiles (`ROOM`) and its walkable floor area in
+// world pixels (`FLOOR`). Both change when entering a room (`setRoomSize`).
+export const ROOM = { ...ROOM_SIZES.normal };
+export const FLOOR = { left: 0, top: 0, right: 0, bottom: 0 };
+
+export function setRoomSize({ cols, rows }) {
+  ROOM.cols = cols;
+  ROOM.rows = rows;
+  FLOOR.left = ROOM_X + TILE;
+  FLOOR.top = ROOM_Y + TILE;
+  FLOOR.right = FLOOR.left + cols * TILE;
+  FLOOR.bottom = FLOOR.top + rows * TILE;
+}
+setRoomSize(ROOM_SIZES.normal);
 
 // Draw order. Actors use DEPTH.actors + their y so lower things draw in front.
 export const DEPTH = {

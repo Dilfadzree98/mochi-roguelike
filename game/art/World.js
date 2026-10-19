@@ -1,4 +1,4 @@
-import { TILE, ROOM_COLS, ROOM_ROWS } from '../constants.js';
+import { TILE } from '../constants.js';
 import { paint } from './Pixels.js';
 
 // Floor and wall tiles, doors, obstacles, floor decorations and small effects.
@@ -275,19 +275,24 @@ function makeFloorTiles(scene, floor, rng) {
     FACES[floor.face](c);
   });
 
-  // Soft dark vignette, heavier on deeper floors.
-  const width = TILE * ROOM_COLS;
-  const height = TILE * ROOM_ROWS;
-  if (!scene.textures.exists(`vignette_${floor.id}`)) {
-    const texture = scene.textures.createCanvas(`vignette_${floor.id}`, width, height);
-    const ctx = texture.getContext();
-    const gradient = ctx.createRadialGradient(width / 2, height / 2, height * 0.35, width / 2, height / 2, width * 0.62);
-    gradient.addColorStop(0, 'rgba(10, 6, 14, 0)');
-    gradient.addColorStop(1, `rgba(10, 6, 14, ${floor.vignette})`);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-    texture.refresh();
-  }
+}
+
+// Soft dark vignette over a whole room (walls included), heavier on deeper floors.
+// Made the first time a room of that size is entered on that floor; returns the texture key.
+export function roomVignette(scene, floor, cols, rows) {
+  const key = `vignette_${floor.id}_${cols}x${rows}`;
+  if (scene.textures.exists(key)) return key;
+  const width = TILE * (cols + 2);
+  const height = TILE * (rows + 2);
+  const texture = scene.textures.createCanvas(key, width, height);
+  const ctx = texture.getContext();
+  const gradient = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.35, width / 2, height / 2, Math.max(width, height) * 0.62);
+  gradient.addColorStop(0, 'rgba(10, 6, 14, 0)');
+  gradient.addColorStop(1, `rgba(10, 6, 14, ${floor.vignette})`);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+  texture.refresh();
+  return key;
 }
 
 // ---------- Doors and the trapdoor ----------

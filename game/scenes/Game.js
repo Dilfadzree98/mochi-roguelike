@@ -1,4 +1,4 @@
-import { GAME_WIDTH, HUD_HEIGHT, FLOOR, DEPTH, UI } from '../constants.js';
+import { GAME_WIDTH, GAME_HEIGHT, HUD_HEIGHT, FLOOR, DEPTH, TILE, UI, ROOM_X, ROOM_Y, setRoomSize } from '../constants.js';
 import { addText } from '../art/PixelFont.js';
 import { Rng, newSeed } from '../systems/Rng.js';
 import { Save } from '../systems/Save.js';
@@ -70,15 +70,27 @@ const PICKUP_INFO = {
   key: { name: 'Key', description: 'Opens locked gates' },
 };
 
-const CENTER = { x: (FLOOR.left + FLOOR.right) / 2, y: (FLOOR.top + FLOOR.bottom) / 2 };
+// The middle of the current room's floor (rooms come in several sizes).
+const CENTER = {
+  get x() {
+    return (FLOOR.left + FLOOR.right) / 2;
+  },
+  get y() {
+    return (FLOOR.top + FLOOR.bottom) / 2;
+  },
+};
 
 // Where Mochi appears after walking through a door in direction `dir`.
-const ENTRY_POINTS = {
-  up: { x: CENTER.x, y: FLOOR.bottom - 20 },
-  down: { x: CENTER.x, y: FLOOR.top + 20 },
-  left: { x: FLOOR.right - 20, y: CENTER.y },
-  right: { x: FLOOR.left + 20, y: CENTER.y },
-};
+function entryPoint(dir) {
+  if (dir === 'up') return { x: CENTER.x, y: FLOOR.bottom - 20 };
+  if (dir === 'down') return { x: CENTER.x, y: FLOOR.top + 20 };
+  if (dir === 'left') return { x: FLOOR.right - 20, y: CENTER.y };
+  if (dir === 'right') return { x: FLOOR.left + 20, y: CENTER.y };
+  return { x: CENTER.x, y: CENTER.y };
+}
+
+// The camera scrolls over rooms bigger than the screen (the top and bottom 8px of the walls stay hidden).
+const CAMERA_LERP = 0.15;
 
 // A run: four floors of rooms. Fight rooms have 2 waves and stay locked until both are cleared;
 // each floor's boss opens a trapdoor to the next floor, and the last boss wins the run.
@@ -209,6 +221,7 @@ export class Game extends Phaser.Scene {
   enterRoom(room, fromDir) {
     this.room = room;
     room.visited = true;
+    setRoomSize(room.size);
     this.view = buildRoom(this, room, this.dungeon);
 
     const hitbox = this.player.hitbox;
@@ -229,8 +242,15 @@ export class Game extends Phaser.Scene {
     this.flowCache = new Map();
     this.shieldsLeft = this.player.stats.roomShield;
 
-    const entry = fromDir ? ENTRY_POINTS[fromDir] : CENTER;
+    const entry = entryPoint(fromDir);
     this.player.placeAt(entry.x, entry.y);
+
+    const camera = this.cameras.main;
+    const width = (room.size.cols + 2) * TILE;
+    const height = (room.size.rows + 2) * TILE;
+    camera.setBounds(ROOM_X, ROOM_Y + 8, width, height - 16);
+    camera.startFollow(this.player.hitbox, true, CAMERA_LERP, CAMERA_LERP);
+    camera.centerOn(entry.x, entry.y);
 
     if (room.type === 'start') this.addStartHint();
     if (room.type === 'treasure') this.setUpTreasure(room);
@@ -744,8 +764,8 @@ export class Game extends Phaser.Scene {
 
   // A small panel in the bottom-left corner of the room: name, and the description at half size.
   showTooltip(spot) {
-    const left = FLOOR.left + 4;
-    const top = FLOOR.bottom - 26;
+    const left = TILE + 4;
+    const top = GAME_HEIGHT - HUD_HEIGHT - 26;
     const name = addText(this, left + 5, top + 8, spot.info.name, { tint: UI.gold, originX: 0 });
     const parts = [name];
     const description = addText(this, left + 5, top + 18, spot.info.description, { scale: 1, originX: 0 });
@@ -754,6 +774,7 @@ export class Game extends Phaser.Scene {
     const width = right - left + 5;
     const box = this.add.rectangle(left, top, width, 23, 0x120e16, 0.8).setOrigin(0).setStrokeStyle(2, 0x4a4058).setDepth(DEPTH.ui);
     parts.forEach((part) => part.setDepth(DEPTH.ui + 1));
+    [box, ...parts].forEach((part) => part.setScrollFactor(0)); // fixed on screen
     this.tooltip = { spot, parts: [box, ...parts] };
   }
 
@@ -1141,10 +1162,10 @@ export class Game extends Phaser.Scene {
   }
 
   banner(text, tint, subtitle) {
-    const y = FLOOR.top + 44;
+    const y = HUD_HEIGHT + 44;
     const labels = [addText(this, GAME_WIDTH / 2, y, text, { scale: 4, tint })];
     if (subtitle) labels.push(addText(this, GAME_WIDTH / 2, y + 26, subtitle, { tint: UI.muted }));
-    labels.forEach((label) => label.setDepth(DEPTH.ui).setAlpha(0));
+    labels.forEach((label) => label.setDepth(DEPTH.ui).setAlpha(0).setScrollFactor(0));
     this.tweens.add({
       targets: labels,
       alpha: 1,

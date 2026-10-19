@@ -1,10 +1,8 @@
-import { TILE, FLOOR } from '../constants.js';
+import { TILE, FLOOR, ROOM, ROOM_SIZES } from '../constants.js';
 
-// The floor is a 13x7 grid of tiles. Obstacles fill whole tiles, so enemies can
-// find their way around them with a simple flow field toward the player.
-
-export const GRID_COLS = 13;
-export const GRID_ROWS = 7;
+// The floor is a grid of tiles (13x7 in a one-screen room; bigger rooms have more). Obstacles
+// fill whole tiles, so enemies can find their way around them with a simple flow field toward
+// the player. Functions that work on the current room read its size from ROOM.
 
 const key = (col, row) => `${col},${row}`;
 const NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -17,10 +15,10 @@ export function tileCenter(col, row) {
   return { x: FLOOR.left + col * TILE + TILE / 2, y: FLOOR.top + row * TILE + TILE / 2 };
 }
 
-const inGrid = (col, row) => col >= 0 && row >= 0 && col < GRID_COLS && row < GRID_ROWS;
+const inGrid = (col, row, cols = ROOM.cols, rows = ROOM.rows) => col >= 0 && row >= 0 && col < cols && row < rows;
 
 // Steps from every free tile to the target tile (Map of "col,row" -> steps).
-export function flowField(blocked, target) {
+export function flowField(blocked, target, cols = ROOM.cols, rows = ROOM.rows) {
   const dist = new Map([[key(target.col, target.row), 0]]);
   const queue = [target];
   while (queue.length) {
@@ -29,7 +27,7 @@ export function flowField(blocked, target) {
       const c = col + dc;
       const r = row + dr;
       const k = key(c, r);
-      if (!inGrid(c, r) || blocked.has(k) || dist.has(k)) continue;
+      if (!inGrid(c, r, cols, rows) || blocked.has(k) || dist.has(k)) continue;
       dist.set(k, dist.get(key(col, row)) + 1);
       queue.push({ col: c, row: r });
     }
@@ -93,9 +91,19 @@ export function nearestFree(blocked, x, y) {
 // ---------- Obstacle layouts ----------
 
 // Tiles next to each door (and where Mochi enters) always stay free.
-const KEEP_CLEAR = new Set(['6,0', '6,1', '6,6', '6,5', '0,3', '1,3', '12,3', '11,3', '5,0', '7,0', '5,6', '7,6', '0,2', '0,4', '12,2', '12,4']);
+function doorTiles(cols, rows) {
+  const midC = (cols - 1) / 2;
+  const midR = (rows - 1) / 2;
+  const tiles = [
+    [midC, 0], [midC, 1], [midC - 1, 0], [midC + 1, 0],
+    [midC, rows - 1], [midC, rows - 2], [midC - 1, rows - 1], [midC + 1, rows - 1],
+    [0, midR], [1, midR], [0, midR - 1], [0, midR + 1],
+    [cols - 1, midR], [cols - 2, midR], [cols - 1, midR - 1], [cols - 1, midR + 1],
+  ];
+  return new Set(tiles.map(([c, r]) => key(c, r)));
+}
 
-// Hand-made shapes, written for the left half of the room and mirrored.
+// Hand-made shapes for one-screen rooms, written for the left half and mirrored.
 const SHAPES = {
   corners: [[2, 1], [2, 5]],
   pillars: [[3, 1], [3, 5], [5, 3]],
@@ -116,40 +124,47 @@ const BOSS_SHAPES = {
   bunkers: [[3, 2], [3, 4]],
 };
 
-// Picks a layout for a fight room: a named shape or a random mirrored scatter.
-// Returns [{ col, row }], always leaving every free tile reachable.
-export function makeLayout(rng, style = 'any') {
+// Picks a layout for a fight room of the given size: a named shape (one-screen rooms) or a
+// random mirrored scatter. Returns [{ col, row }], always leaving every free tile reachable.
+export function makeLayout(rng, style = 'any', { cols, rows } = ROOM_SIZES.normal) {
+  const keepClear = doorTiles(cols, rows);
+  const oneScreen = cols === ROOM_SIZES.normal.cols && rows === ROOM_SIZES.normal.rows;
   for (let attempt = 0; attempt < 10; attempt++) {
-    const half = style === 'boss' ? BOSS_SHAPES[rng.pick(Object.keys(BOSS_SHAPES))] : chooseHalf(rng);
+    let half;
+    if (style === 'boss') half = BOSS_SHAPES[rng.pick(Object.keys(BOSS_SHAPES))];
+    else if (oneScreen && rng.chance(0.4)) half = SHAPES[rng.pick(Object.keys(SHAPES))];
+    else half = scatter(rng, cols, rows);
     const tiles = new Map();
     for (const [col, row] of half) {
-      for (const [c, r] of [[col, row], [GRID_COLS - 1 - col, row]]) {
-        if (!KEEP_CLEAR.has(key(c, r))) tiles.set(key(c, r), { col: c, row: r });
+      for (const [c, r] of [[col, row], [cols - 1 - col, row]]) {
+        if (!keepClear.has(key(c, r))) tiles.set(key(c, r), { col: c, row: r });
       }
     }
-    if (allConnected(new Set(tiles.keys()))) return [...tiles.values()];
+    if (allConnected(new Set(tiles.keys()), cols, rows)) return [...tiles.values()];
   }
   return [];
 }
 
-function chooseHalf(rng) {
-  if (rng.chance(0.4)) return SHAPES[rng.pick(Object.keys(SHAPES))];
-  // Random scatter, mirrored left/right and sometimes top/bottom too.
+// Random obstacles on the left half (mirrored left/right later, sometimes top/bottom too).
+// Bigger rooms get more of them.
+function scatter(rng, cols, rows) {
   const half = [];
-  const count = rng.int(2, 4);
+  const area = (cols * rows) / (ROOM_SIZES.normal.cols * ROOM_SIZES.normal.rows);
+  const count = Math.round(rng.int(2, 4) * area);
   const mirrorY = rng.chance(0.5);
+  const lastCol = (cols - 1) / 2 - 1;
   for (let i = 0; i < count; i++) {
-    const col = rng.int(1, 5);
-    const row = rng.int(1, mirrorY ? 2 : 5);
+    const col = rng.int(1, lastCol);
+    const row = rng.int(1, mirrorY ? (rows - 1) / 2 - 1 : rows - 2);
     half.push([col, row]);
-    if (mirrorY) half.push([col, GRID_ROWS - 1 - row]);
+    if (mirrorY) half.push([col, rows - 1 - row]);
   }
   return half;
 }
 
-function allConnected(blocked) {
+function allConnected(blocked, cols, rows) {
   const free = [];
-  for (let c = 0; c < GRID_COLS; c++) for (let r = 0; r < GRID_ROWS; r++) if (!blocked.has(key(c, r))) free.push({ col: c, row: r });
-  const field = flowField(blocked, { col: 6, row: 0 });
+  for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) if (!blocked.has(key(c, r))) free.push({ col: c, row: r });
+  const field = flowField(blocked, { col: (cols - 1) / 2, row: 0 }, cols, rows);
   return free.every((t) => field.has(key(t.col, t.row)));
 }
