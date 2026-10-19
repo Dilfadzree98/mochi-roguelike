@@ -35,9 +35,13 @@ const COIN_DROP_CHANCE = 0.1;        // a regular enemy drops a coin
 const COIN_DROP_LUCK_BONUS = 0.03;
 const BOSS_DOUBLE_HEART_CHANCE = 0.4; // a boss always drops a heart, sometimes two
 
-const BOMB_FUSE_MS = 1500;
+const BOMB_FUSE_MS = 2000;
 const BOMB_RADIUS = 60;
 const BOMB_DAMAGE = 5;
+const BOMB_SIZE = 14;          // the bomb's hitbox
+const BOMB_KICK_SPEED = 360;   // px/s when Mochi walks into a bomb
+const BOMB_DRAG = 300;         // how fast a kicked bomb slows down (px/s per second)
+const BOMB_BOUNCE = 0.6;       // speed kept after bouncing off a wall or obstacle
 
 const ROOT_WARNING_MS = 700;
 const ROOT_RADIUS = 22;
@@ -58,7 +62,7 @@ const SHOP_PRICES = { item: 5, heart: 3, bomb: 3, key: 3 };
 const PICKUP_TEXTURES = { heart: 'heart_full', coin: 'coin', bomb: 'bomb', key: 'key' };
 const PICKUP_INFO = {
   heart: { name: 'Heart', description: 'Heals one heart' },
-  bomb: { name: 'Bomb', description: 'Press E to drop it' },
+  bomb: { name: 'Bomb', description: 'E to drop, walk into it to kick' },
   key: { name: 'Key', description: 'Opens locked gates' },
 };
 
@@ -99,6 +103,7 @@ export class Game extends Phaser.Scene {
     this.enemies = [];
     this.pickups = [];     // things taken by walking over them
     this.bombs = [];
+    this.bombBodies = this.physics.add.group(); // hitboxes of placed bombs, so they can be kicked
     this.roomObjects = []; // extra objects owned by the current room, destroyed on leaving
     this.roomColliders = [];
 
@@ -109,6 +114,9 @@ export class Game extends Phaser.Scene {
     this.physics.add.overlap(this.shots, this.enemyBodies, (shot, body) => this.onShotHitEnemy(shot, body.owner));
     this.physics.add.overlap(this.player.hitbox, this.enemyBodies, (_, body) => this.onPlayerTouchEnemy(body.owner));
     this.physics.add.overlap(this.player.hitbox, this.enemyShots, (_, bullet) => this.onPlayerShot(bullet));
+    this.physics.add.overlap(this.player.hitbox, this.bombBodies, (_, zone) => this.kickBomb(zone.bomb));
+    // A kicked bomb stops when it reaches an enemy, so the blast catches it.
+    this.physics.add.overlap(this.enemyBodies, this.bombBodies, (_, zone) => zone.body.setVelocity(0, 0));
 
     this.roomsCleared = 0;
     this.waveIndex = 0;
@@ -177,6 +185,7 @@ export class Game extends Phaser.Scene {
 
     for (const shot of this.shots.getChildren().slice()) shot.update(time, delta);
     for (const bullet of this.enemyShots.getChildren().slice()) bullet.update(time);
+    this.updateBombs();
 
     this.collectPickups();
     this.updateTooltip();
@@ -208,6 +217,8 @@ export class Game extends Phaser.Scene {
       this.physics.add.collider(this.enemyBodies, this.view.obstacleBodies),
       this.physics.add.overlap(this.shots, this.view.obstacleBodies, (shot) => !shot.stats.phase && shot.impact()),
       this.physics.add.overlap(this.enemyShots, this.view.obstacleBodies, (bullet) => bullet.pop()),
+      this.physics.add.collider(this.bombBodies, this.view.solidWalls),
+      this.physics.add.collider(this.bombBodies, this.view.obstacleBodies),
     ];
     this.flowCache = new Map();
 
@@ -704,35 +715,64 @@ export class Game extends Phaser.Scene {
     if (this.over || player.inventory.bombs <= 0) return;
     player.addToInventory('bombs', -1);
 
+    // Like enemies, a bomb is an invisible hitbox (which slides when kicked) plus an image that follows it.
     const { x, y } = player.feet;
-    const image = this.add.image(x, y - 6, 'bomb').setDepth(DEPTH.actors + y - 2);
+    const zone = this.add.zone(x, y - 6, BOMB_SIZE, BOMB_SIZE);
+    this.bombBodies.add(zone);
+    zone.body.setDrag(BOMB_DRAG, BOMB_DRAG).setBounce(BOMB_BOUNCE, BOMB_BOUNCE);
+    const image = this.add.image(x, y - 6, 'bomb');
     this.tweens.add({ targets: image, scale: 1.25, duration: 150, yoyo: true, repeat: -1 });
-    const bomb = { x, y: y - 6, image };
+    // Not kickable until Mochi has stepped off it (it's dropped at Mochi's feet).
+    const bomb = { zone, image, kickable: false };
+    zone.bomb = bomb;
     bomb.timer = this.time.delayedCall(BOMB_FUSE_MS, () => this.explode(bomb));
     this.bombs.push(bomb);
-    this.roomObjects.push(image);
+    this.roomObjects.push(image, zone);
+    this.updateBombs();
+  }
+
+  updateBombs() {
+    const mochi = this.player.hitbox;
+    for (const bomb of this.bombs) {
+      const { x, y } = bomb.zone;
+      bomb.image.setPosition(x, y).setDepth(DEPTH.actors + y + 4);
+      if (!bomb.kickable && Phaser.Math.Distance.Between(x, y, mochi.x, mochi.y) > BOMB_SIZE + 6) bomb.kickable = true;
+    }
+  }
+
+  // Walking into a bomb kicks it the way Mochi is moving (or straight away from Mochi).
+  kickBomb(bomb) {
+    if (!bomb?.kickable || !this.player.alive) return;
+    bomb.kickable = false;
+    const mochi = this.player.hitbox;
+    const v = mochi.body.velocity;
+    const angle = v.length() > 20 ? Math.atan2(v.y, v.x) : Math.atan2(bomb.zone.y - mochi.y, bomb.zone.x - mochi.x);
+    bomb.zone.body.velocity.setToPolar(angle, BOMB_KICK_SPEED);
+    Audio.play('select');
   }
 
   // Hurts every enemy nearby, and Mochi too if too close.
   explode(bomb) {
     this.bombs = this.bombs.filter((b) => b !== bomb);
+    const { x, y } = bomb.zone;
     bomb.image.destroy();
+    bomb.zone.destroy();
     Audio.play('bomb');
-    this.burst(bomb.x, bomb.y, 'spark', 12, { distance: BOMB_RADIUS * 0.7, duration: 350 });
-    this.burst(bomb.x, bomb.y, 'smoke', 10, { distance: BOMB_RADIUS * 0.6, duration: 500 });
+    this.burst(x, y, 'spark', 12, { distance: BOMB_RADIUS * 0.7, duration: 350 });
+    this.burst(x, y, 'smoke', 10, { distance: BOMB_RADIUS * 0.6, duration: 500 });
     this.cameras.main.shake(200, 0.02);
 
     const now = this.time.now;
     const distance = Phaser.Math.Distance.Between;
     for (const enemy of this.enemies) {
-      if (enemy.state !== 'active' || distance(bomb.x, bomb.y, enemy.x, enemy.y) > BOMB_RADIUS) continue;
-      const angle = Math.atan2(enemy.y - bomb.y, enemy.x - bomb.x);
+      if (enemy.state !== 'active' || distance(x, y, enemy.x, enemy.y) > BOMB_RADIUS) continue;
+      const angle = Math.atan2(enemy.y - y, enemy.x - x);
       enemy.hit(BOMB_DAMAGE, { x: Math.cos(angle), y: Math.sin(angle) }, now);
     }
     for (const obstacle of this.view.obstacles.slice()) {
-      if (distance(bomb.x, bomb.y, obstacle.x, obstacle.y) <= BOMB_RADIUS + 12) this.breakObstacle(obstacle);
+      if (distance(x, y, obstacle.x, obstacle.y) <= BOMB_RADIUS + 12) this.breakObstacle(obstacle);
     }
-    this.hurtPlayerNear(bomb.x, bomb.y, BOMB_RADIUS);
+    this.hurtPlayerNear(x, y, BOMB_RADIUS);
   }
 
   // ---------- Player shots ----------
