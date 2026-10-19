@@ -333,6 +333,7 @@ function makeDoors(scene) {
 export function makeWorldTextures(scene, floors, rng) {
   paintEffects(scene);
   paintGlow(scene, 'glow', '#F2C94C', 80);
+  paintGlow(scene, 'glow_white', '#FFFFFF', 80);
   paintGlow(scene, 'glow_blue', '#6FD3FF', 48);
   paintGlow(scene, 'glow_purple', '#B57BFF', 40);
   for (const [key, draw] of Object.entries(OBSTACLES)) paint(scene, key, TILE, TILE, draw, { outline: OBSTACLE_OUTLINES[key] ?? '#1E1418' });

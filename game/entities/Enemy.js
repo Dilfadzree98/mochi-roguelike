@@ -546,7 +546,7 @@ export class Enemy {
     // Bosses shake off dizziness.
     if (effects.confuse && !this.def.boss) this.dizzyUntil = Math.max(this.dizzyUntil, time + effects.confuse);
     this.scene.playSfx('enemyHit');
-    this.damage(damage);
+    this.damage(this.def.boss ? damage * this.scene.player.stats.bossDamage : damage);
   }
 
   damage(amount) {

@@ -143,6 +143,10 @@ const SHOTS = {
     P.e(5, 2, 1.8, 1.8, '#9BE070');
     P.in(() => P.e(5, 1.6, 0.8, 0.8, '#C9F2A0'));
   },
+  seed_thunder: (P) => {
+    P.blob(5, 5.5, 3.6, 4.4, { base: '#FFE45C', dark: '#B89A2A' });
+    P.p([[5.6, 1.8], [3.4, 5.8], [5, 5.8], [4.2, 9], [6.8, 4.6], [5.2, 4.6]], '#4A3A8A');
+  },
   shot_ghost: (P) => {
     P.o(5, 4.5, 3.6, '#E8F0FF');
     P.p([[1.4, 4.5], [8.6, 4.5], [8.6, 9], [7.2, 8], [5.8, 9], [4.4, 8], [3, 9], [1.4, 8]], '#E8F0FF');
@@ -173,6 +177,7 @@ const SHOT_ITEM_ICONS = {
   catnip: 'shot_catnip',
   golden_kernel: 'shot_golden',
   ghost_pepper: 'shot_ghost',
+  thunder_seed: 'seed_thunder',
 };
 
 // Icons for the stat items, in the same 10x10 unit box.
@@ -298,13 +303,197 @@ const ICONS = {
     P.r(2.6, 1.8, 1.2, 1.8, '#5E9C3A');
     P.r(6.2, 1.4, 1.2, 1.8, '#5E9C3A');
   },
+
+  // ---------- The 20 newer items ----------
+  icon_rusty_trowel: (P) => {
+    P.l(1, 9, 4.2, 5.8, '#7A5232', 1.6);
+    P.p([[3.6, 6.4], [4.6, 2], [9.4, 0.8], [8, 5.4]], '#8A8A84');
+    P.in(() => {
+      P.o(6.4, 3.4, 1, '#A0603C');
+      P.o(7.6, 4.8, 0.7, '#A0603C');
+      P.l(4.4, 5.6, 8.6, 1.4, '#B8B8B0', 0.5);
+    });
+  },
+  icon_wilted_rose: (P) => {
+    P.path([[2, 9.6], [3, 6], [5, 3.6], [7.4, 3.6]], '#4A5A3A', 0.8);
+    P.e(4, 6.8, 1.6, 0.8, '#6A6A40');
+    P.blob(7.4, 4.4, 2.4, 2.2, { base: '#8A3040', dark: '#5A1E2A' });
+    P.in(() => P.path([[6.4, 4.4], [7.4, 3.6], [8.4, 4.6]], '#5A1E2A', 0.5));
+    P.r(6.4, 7.4, 1, 1, '#8A3040');
+  },
+  icon_cursed_seed: (P) => {
+    P.blob(5, 5.5, 3.8, 4.6, { base: '#3A2A4A', dark: '#1A1020' });
+    P.r(3.4, 4.6, 1.2, 1.2, '#B57BFF');
+    P.r(5.6, 4.6, 1.2, 1.2, '#B57BFF');
+    P.path([[3.6, 7.4], [4.4, 6.8], [5.2, 7.4], [6, 6.8]], '#B57BFF', 0.5);
+  },
+  icon_soggy_bread: (P) => {
+    P.blob(5, 5, 4.4, 3.2, { base: '#D9A86A', dark: '#A8784A', light: '#F0CC94' });
+    P.in(() => P.r(1, 4.6, 8, 0.6, '#A8784A'));
+    for (const [x, y] of [[2.4, 8.4], [5, 9], [7.4, 8.4]]) {
+      P.p([[x, y - 1.4], [x - 0.7, y], [x + 0.7, y]], '#6FB8D8');
+      P.o(x, y + 0.2, 0.7, '#6FB8D8');
+    }
+  },
+  icon_weed_killer: (P) => {
+    P.r(4, 0.8, 2.6, 1.4, '#3A3A3A');
+    P.r(6.6, 1, 2.4, 0.8, '#3A3A3A');
+    P.blob(5, 6.2, 3.2, 3.8, { base: '#7A9A5A', dark: '#4A6A3A' });
+    P.in(() => {
+      P.r(2.6, 5, 4.8, 2.4, '#E8E4DA');
+      P.r(4.4, 5.4, 1.2, 1.6, '#4A6A3A');
+    });
+  },
+  icon_bad_luck_penny: (P) => {
+    P.blob(5, 5, 4.2, 4.2, { base: '#A0603C', dark: '#6E3A22', light: '#C9845A' });
+    P.path([[5.6, 1.2], [4.6, 3.6], [6, 5.2], [4.4, 8.6]], '#3A1E10', 0.6);
+  },
+  icon_garden_hose: (P) => {
+    P.o(4.4, 5.4, 3.8, '#3F7A2A');
+    P.o(4.4, 5.4, 2.4, '#00000000');
+    P.in(() => P.o(4.4, 5.4, 3, '#6CA850'));
+    P.o(4.4, 5.4, 1.5, '#2E5A2A');
+    P.l(7.6, 4, 9.4, 2, '#3F7A2A', 1.2);
+    P.r(8.8, 0.8, 1.2, 1.6, '#C9C3A1');
+  },
+  icon_pine_cone: (P) => {
+    P.blob(5, 5.4, 3.4, 4.4, { base: '#8A5A2A', dark: '#5A3A1A' });
+    P.in(() => {
+      for (let row = 0; row < 4; row++) for (let i = 0; i < 3; i++) P.r(2.2 + i * 2 + (row % 2), 2 + row * 2, 1.2, 0.6, '#C9945A');
+    });
+    P.r(4.6, 0.2, 0.8, 1.2, '#5E9C3A');
+  },
+  icon_ladybug: (P) => {
+    P.o(5, 2.6, 2, '#2C2C2A');
+    P.blob(5, 6, 4.2, 3.6, { base: '#C2413B', dark: '#7A2420' });
+    P.in(() => {
+      P.l(5, 2.4, 5, 9.6, '#2C2C2A', 0.5);
+      for (const [x, y] of [[3, 5], [7, 5], [3.4, 7.6], [6.6, 7.6]]) P.o(x, y, 0.8, '#2C2C2A');
+    });
+  },
+  icon_compost_heap: (P) => {
+    P.blob(5, 7, 4.6, 3, { base: '#6E5A3E', dark: '#4A3A2A', light: '#8A7454' });
+    P.in(() => {
+      P.e(3, 6, 1, 0.5, '#6CA850');
+      P.e(6.6, 7, 1, 0.5, '#E8903C');
+      P.e(5, 8.4, 0.8, 0.4, '#C9C3A1');
+    });
+    P.path([[3.6, 3.4], [4.2, 2.2], [3.6, 1]], '#9A948A', 0.5);
+    P.path([[6.4, 3.4], [7, 2.2], [6.4, 1]], '#9A948A', 0.5);
+  },
+  icon_worm_jar: (P) => {
+    P.r(2.4, 1.2, 5.2, 1.4, '#7A5232');
+    P.blob(5, 6, 3.6, 3.8, { base: '#A8D4D8', dark: '#6A9AA0' });
+    P.in(() => P.path([[3, 7.4], [4, 5.4], [5.4, 7], [6.6, 5]], '#F2A0A8', 0.9));
+  },
+  icon_rose_thorns: (P) => {
+    P.l(5, 9.6, 5, 4, '#3F7A2A', 0.9);
+    for (const [x, y, d] of [[5, 8, -1], [5, 6.4, 1]]) P.p([[x, y - 0.6], [x + d * 1.6, y - 1.2], [x, y + 0.4]], '#C9C3A1');
+    P.blob(5, 3, 2.6, 2.4, { base: '#B83A52', dark: '#7A2236' });
+    P.in(() => P.path([[4, 3], [5, 2.2], [6, 3.2]], '#7A2236', 0.5));
+  },
+  icon_sun_hat: (P) => {
+    P.e(5, 6.6, 4.8, 1.8, '#D9B46A');
+    P.blob(5, 5, 2.8, 2.6, { base: '#E8C67A', dark: '#B8904A' });
+    P.in(() => P.r(2, 5.6, 6, 0.8, '#5E9C3A'));
+    P.o(7.6, 5.8, 1.2, '#FFD23F');
+    P.o(7.6, 5.8, 0.5, '#7A4A1E');
+  },
+  icon_queen_bee: (P) => {
+    P.e(3, 4, 2.2, 1.5, '#D6F2EA');
+    P.e(7, 4, 2.2, 1.5, '#D6F2EA');
+    P.blob(5, 6.8, 2.2, 2.8, { base: '#FFE45C', dark: '#E0A030' });
+    P.in(() => {
+      P.r(2.5, 6, 5, 0.8, '#2C2C2A');
+      P.r(2.5, 7.6, 5, 0.8, '#2C2C2A');
+    });
+    P.p([[3.4, 2.6], [3.4, 0.8], [4.2, 1.6], [5, 0.4], [5.8, 1.6], [6.6, 0.8], [6.6, 2.6]], '#F2C94C');
+  },
+  icon_golden_watering_can: (P) => {
+    P.path([[2.4, 4.4], [3.2, 2], [5.6, 2], [6.4, 4.4]], '#8A6A1C', 0.8);
+    P.p([[7, 6.4], [9.4, 3], [9.9, 3.6], [7.6, 7.6]], '#C9A23A');
+    P.blob(4.4, 6.6, 3, 2.8, { base: '#F2C94C', dark: '#A8801C', light: '#FFF4B8' });
+  },
+  icon_dragonfly_wings: (P) => {
+    for (const [x, y, rx] of [[2.6, 3.6, 2.6], [7.4, 3.6, 2.6], [2.8, 6, 2.2], [7.2, 6, 2.2]]) P.e(x, y, rx, 1, '#B8E0F0');
+    P.l(5, 1.6, 5, 9.6, '#3E8AB0', 1);
+    P.o(5, 1.6, 1.1, '#3E8AB0');
+  },
+  icon_pitchfork: (P) => {
+    P.l(5, 4, 5, 9.8, '#8A6040', 1);
+    P.r(2, 3.4, 6, 0.9, '#8A8A84');
+    for (const x of [2, 4.55, 7.1]) P.p([[x, 3.6], [x + 0.45, 0.2], [x + 0.9, 3.6]], '#B8B8B0');
+  },
+  icon_sunflower_heart: (P) => {
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      P.o(5 + Math.cos(a) * 3.8, 5 + Math.sin(a) * 3.8, 1.2, '#FFD23F');
+    }
+    P.o(3.8, 4.2, 1.6, '#E25C4B');
+    P.o(6.2, 4.2, 1.6, '#E25C4B');
+    P.p([[2.3, 4.6], [7.7, 4.6], [5, 7.6]], '#E25C4B');
+    P.r(3.2, 3.4, 0.8, 0.8, '#FFB3A3');
+  },
+  icon_world_tree_sap: (P) => {
+    P.p([[5, 0.4], [1.8, 5.4], [8.2, 5.4]], '#E8903C');
+    P.o(5, 6.4, 3.3, '#E8903C');
+    P.in(() => {
+      P.o(5, 6.6, 2.6, '#F2B860');
+      P.l(5, 8.4, 5, 5.4, '#7A4A1E', 0.6);
+      P.o(5, 5, 1.6, '#5E9C3A');
+      P.r(3.4, 4, 0.7, 1.6, '#FFE0A0');
+    });
+  },
+};
+
+// The skill upgrades offered after a boss.
+function burger(P, x, y, k) {
+  P.e(x, y, 3 * k, 1.6 * k, '#E0A040');
+  P.r(x - 3 * k, y + 1 * k, 6 * k, 0.7 * k, '#6CC24A');
+  P.r(x - 3 * k, y + 1.7 * k, 6 * k, 1 * k, '#7A3E20');
+  P.r(x - 3 * k, y + 2.7 * k, 6 * k, 1 * k, '#E0A040');
+}
+function catHead(P, x, y, k) {
+  P.p([[x - 2.8 * k, y], [x - 2.4 * k, y - 3 * k], [x - 0.6 * k, y - 1.4 * k]], '#E8903C');
+  P.p([[x + 2.8 * k, y], [x + 2.4 * k, y - 3 * k], [x + 0.6 * k, y - 1.4 * k]], '#2C2C2A');
+  P.e(x, y + 0.4 * k, 3 * k, 2.4 * k, '#F5F0E8');
+  P.r(x - 1.6 * k, y, 0.8 * k, 0.8 * k, '#7FCF5A');
+  P.r(x + 0.8 * k, y, 0.8 * k, 0.8 * k, '#7FCF5A');
+}
+function clock(P, x, y, r) {
+  P.o(x, y, r, '#E8E4DA');
+  P.in(() => {
+    P.l(x, y, x, y - r * 0.7, '#2C2C2A', 0.5);
+    P.l(x, y, x + r * 0.5, y, '#2C2C2A', 0.5);
+  });
+}
+function bolt(P, x, y, k) {
+  P.p([[x + 0.6 * k, y - 3 * k], [x - 1.6 * k, y + 0.4 * k], [x, y + 0.4 * k], [x - 0.8 * k, y + 3 * k], [x + 1.8 * k, y - 0.8 * k], [x + 0.2 * k, y - 0.8 * k]], '#FFE45C');
+}
+const UPGRADE_ICONS = {
+  upgrade_beam_longer: (P) => {
+    burger(P, 4, 3.4, 1);
+    clock(P, 7.2, 7.2, 2.4);
+  },
+  upgrade_beam_quicker: (P) => {
+    burger(P, 4, 3.4, 1);
+    bolt(P, 7.4, 6.8, 0.9);
+  },
+  upgrade_cat_more: (P) => {
+    catHead(P, 3.2, 4.4, 0.8);
+    catHead(P, 6.8, 6.6, 0.8);
+  },
+  upgrade_cat_longer: (P) => {
+    catHead(P, 3.8, 4, 0.9);
+    clock(P, 7.2, 7.2, 2.4);
+  },
 };
 
 const SHOT_OUTLINE = '#1E1418';
 
 function paintShotsAndIcons(scene, itemDefs) {
   for (const [key, design] of Object.entries(SHOTS)) paint(scene, key, 10, 10, (c) => design(pen(c, 1)), { outline: SHOT_OUTLINE });
-  for (const [key, design] of Object.entries(ICONS)) paint(scene, key, 24, 24, (c) => design(pen(c, 2.4)));
+  for (const [key, design] of Object.entries({ ...ICONS, ...UPGRADE_ICONS })) paint(scene, key, 24, 24, (c) => design(pen(c, 2.4)));
   for (const [itemId, shot] of Object.entries(SHOT_ITEM_ICONS)) {
     if (itemDefs[itemId]) paint(scene, itemDefs[itemId].icon, 24, 24, (c) => SHOTS[shot](pen(c, 2.4)));
   }

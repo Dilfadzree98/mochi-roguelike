@@ -84,14 +84,14 @@ game/
     ├── characters.json  playable characters: name, description, texture, stat modifiers, skill
     ├── enemies.json     17 enemies and 7 bosses: stats, behaviour + params, floors range + weight, onDeath (bosses: idle + 3 moves)
     ├── floors.json      4 floors: palette, wall face, decorations, obstacles
-    └── items.json       37 items (20 shot, 17 stat); each is a list of stat modifiers
+    └── items.json       57 items, each with a tier (1-4) and a list of stat modifiers
 ```
 
 Adding an enemy: add an entry to `data/enemies.json` using an existing `behaviour` (`chase`, `ring_shooter`, `charger`, `aimed_shooter`, `teleporter`, `wander`, `kiter`, `flutter`, `burrower`, `hopper`, `shell`, `dasher`, `spinner`, `wisp`) with its `params`, a `death` from `DEATHS`, a `floors` range ([first, last], 1-based) and a `weight`, and a sprite in `art/Critters.js`. Optional: `"flying": true` (passes over obstacles), `onDeath` (`ring` of bullets or `spawn` { type, count }), `maxPerWave`. A new movement pattern goes in `BEHAVIOURS` in Enemy.js. Enemy attacks use Game's `fireRing` / `fireSpread` / `fireSpiral` / `fireSweep` / `rootStrike` / `markStrike`.
 
 Adding a boss: an entry in `data/enemies.json` with `"boss": true`, `"behaviour": "boss"`, an `idle` (`still`, `chase`, `wander`), three `moves` and `params.cooldownMs`. Moves are generators in `BOSS_MOVES` (entities/BossMoves.js): `yield ms` waits, a bare `yield` waits one frame. It joins the boss pool automatically.
 
-Adding an item: add an entry to `data/items.json` with `modifiers` like `{ "damage": { "add": 0.5 } }`, `{ "fireDelay": { "mul": 0.75 } }` or `{ "pierce": { "set": true } }`, and an `icon` texture key (draw it in `art/Items.js` ICONS, or for a shot item add it to SHOT_ITEM_ICONS and its shot to SHOTS). A brand-new stat also needs a default in `BASE_STATS` (Player.js) and code that reads it.
+Adding an item: add an entry to `data/items.json` with `modifiers` like `{ "damage": { "add": 0.5 } }`, `{ "fireDelay": { "mul": 0.75 } }` or `{ "pierce": { "set": true } }`, a `tier` (1 = weak or with a downside, 2 = mid, 3 = good, 4 = best) and an `icon` texture key (draw it in `art/Items.js` ICONS, or for a shot item add it to SHOT_ITEM_ICONS and its shot to SHOTS). A brand-new stat also needs a default in `BASE_STATS` (Player.js) and code that reads it.
 
 Implementation patterns to keep:
 - **Hitbox + sprite split:** Player and Enemy own an invisible physics `zone` (the hitbox) and a separate image that follows it. Squash/stretch scales only the image, so collisions stay stable. `hitbox.owner` points back to the entity.
@@ -130,6 +130,8 @@ Implementation patterns to keep:
 - Controls: WASD to move, arrow keys to shoot in four directions, E to drop a bomb, Space for the skill, hold Tab for the map, Esc/P to pause, M to mute. Gamepad and mobile touch are undecided / later.
 - Room: one screen, 13×7 floor tiles of 32×32 px inside a 1-tile wall border. One door slot centred on each wall; doors lock until the room is cleared.
 - Run: 4 floors, each a grid of 8–15 rooms with start, treasure (key-locked; 3 items, take one, the other two go back into the pool), shop and boss rooms.
+- **Item tiers:** every item has `tier` 1–4. Items are drawn from the run's pool by tier first (`drawItem` in Items.js): treasure rooms and the shop use `TIER_WEIGHTS.normal` (30/35/25/10 %), the item a boss leaves uses `TIER_WEIGHTS.boss` (0/20/50/30 %). The pedestal glow and the tooltip name are in the tier colour (`TIER_COLORS` in Game.js: lilac, green, blue, gold) and the tooltip says "Tier N".
+- **Skill upgrades:** after beating a boss on floors 1–3, two orbs appear above the item ("Upgrade your skill"); taking one makes the other vanish (`offerSkillUpgrades`, remembered in `room.contents.upgradeTaken`). The options are the skill's `upgrades` in characters.json, which add to `Skills.bonus`: Burger Beam = Longer Beam (+1 s) or Quicker Beam (8 fewer shots to charge, never under 10); Chinggu = Another Chinggu (one more cat each cast; cats go for different enemies) or Chinggu Stays Longer (+2 s). Upgrades stack across the run.
 - Pick-ups: hearts, coins, keys, bombs.
 - Mochi's leaf shows health: perky when full, wilting when low.
 
@@ -202,6 +204,12 @@ Bosses (7; one random boss per floor, never the same one twice in a run):
 
 - **Shot items (20):** Fire Seed (burn), Frost Seed (slow), Bouncing Pollen (bounces 3x off walls and obstacles), Dewdrop (pierce), Thorn Seed (split in 3), Homing Spore (homing), Pumpkin Seed (big shots), Wiggle Vine (wave), Boomerang Leaf (returns), Dandelion Puff (fan of seeds), Hedgehog Seed (back shot), Popcorn Kernel (splash), Nightshade Berry (poison), Static Thistle (chain zap), Acorn (knockback), Sprinkler Head (ring every 6th shot), Rocket Radish (accelerating shots), Catnip (dizzy enemies; bosses immune), Golden Kernel (15% triple damage), Ghost Pepper (through obstacles).
 - **Stat items (17):** Bone Meal, Sun Drop, Watering Can, Bee Wings, Big Leaf, Twin Sprout, Lucky Clover, Honey Pot, Morning Dew, Garden Gloves, Snail Shell, Grasshopper Legs, Fertilizer Bag, Scarecrow Hat, Piggy Bank, Sweet Nectar, Cactus Water.
+- **Newer items (20):**
+  - Tier 1, with a downside: Rusty Trowel (+damage, slower shots), Wilted Rose (−1 heart, +damage), Cursed Seed (×1.3 damage, enemies ×1.3 health), Soggy Bread (+1 heart, much slower), Weed Killer (poison, shorter range), Bad Luck Penny (10 coins, −1 luck).
+  - Tier 2: Garden Hose (shot speed and range), Pine Cone (damage, knockback), Ladybug (blocks the first hit in each room), Compost Heap (heal half a heart every 12 kills), Worm Jar (3 bombs, blasts ×1.5), Rose Thorns (enemies touching Mochi take 4 damage).
+  - Tier 3: Sun Hat (fire rate, range), Queen Bee (damage, homing), Golden Watering Can (heart, full heal, damage), Dragonfly Wings (speed, shot speed, +0.5 s invincibility), Pitchfork (bosses take ×1.5 damage).
+  - Tier 4: Sunflower Heart (+2 hearts, full heal, damage, fire rate), Thunder Seed (piercing shots that chain-zap twice), World Tree Sap (extra seed, ×1.25 damage, fire rate, range).
+- Item stats added for these: `enemyHp`, `roomShield`, `healEvery`, `bombPower`, `thorns`, `invulnBonus`, `bossDamage` (defaults in `BASE_STATS`). `maxHp` never drops below 1 heart.
 - `onPickup` supports `heal`, `healFull`, `coins`, `bombs`, `keys`. Shot behaviour stats and their defaults are in `BASE_STATS` (Player.js); caps in `LIMITS` (Items.js). Shots steer by angle each frame in `Projectile.steer()` so homing/wave/accelerate/boomerang combine.
 
 ### Floors (getting darker)

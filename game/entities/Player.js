@@ -34,6 +34,14 @@ export const BASE_STATS = {
   confuse: 0,        // ms enemies stay dizzy
   crit: 0,           // chance of triple damage
   phase: false,      // shots pass through obstacles
+  // Effects from the newer items.
+  enemyHp: 1,        // enemy health multiplier (a downside)
+  roomShield: 0,     // hits blocked in each room
+  healEvery: 0,      // heal half a heart every N kills
+  bombPower: 1,      // bomb blast size and damage multiplier
+  thorns: 0,         // damage to enemies that touch Mochi
+  invulnBonus: 0,    // extra ms of invincibility after a hit
+  bossDamage: 1,     // damage multiplier against bosses
 };
 
 const START_INVENTORY = { coins: 0, bombs: 1, keys: 1 };
@@ -202,7 +210,7 @@ export class Player {
   takeDamage(amount, time) {
     if (!this.alive || time < this.invulnUntil) return false;
     this.hp = Math.max(0, this.hp - amount);
-    this.invulnUntil = time + INVULN_MS;
+    this.invulnUntil = time + INVULN_MS + this.stats.invulnBonus;
     this.hurtUntil = time + HURT_FACE_MS;
     flashWhite(this.scene, this.sprite, 80);
     this.emitHp();

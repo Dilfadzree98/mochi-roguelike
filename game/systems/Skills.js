@@ -4,7 +4,10 @@ import { tileOf } from './Pathing.js';
 
 // Character skills. Every `skill.every` shots charge the character's skill; once it's ready,
 // Space casts it for `skill.durationMs`: Burger Beam (Mangkok) or Spawn Chinggu (Lilo).
-// The HUD meter listens to the 'skill' event.
+// After each boss Mochi can take one of the skill's `upgrades` (characters.json), which add to
+// `bonus`. The HUD meter listens to the 'skill' event.
+
+const MIN_SHOTS_TO_CHARGE = 10;
 
 const BEAM = {
   width: 12,
@@ -31,13 +34,33 @@ export class Skills {
     this.shots = 0;
     this.ready = false;  // fully charged, waiting for Space
     this.active = null; // { until, ... } while a skill is running
+    this.bonus = { durationMs: 0, every: 0, cats: 0 }; // from upgrades
+  }
+
+  // Shots needed to charge, how long it lasts, and how many Chinggus come (after upgrades).
+  get every() {
+    return Math.max(MIN_SHOTS_TO_CHARGE, this.skill.every + this.bonus.every);
+  }
+
+  get durationMs() {
+    return this.skill.durationMs + this.bonus.durationMs;
+  }
+
+  get catCount() {
+    return 1 + this.bonus.cats;
+  }
+
+  applyUpgrade(upgrade) {
+    for (const stat of ['durationMs', 'every', 'cats']) this.bonus[stat] += upgrade[stat] ?? 0;
+    if (this.shots >= this.every && !this.active) this.ready = true;
+    this.emit();
   }
 
   // Called for every shot Mochi fires (one press, however many seeds).
   onShotFired() {
     if (this.active || this.ready) return;
     this.shots += 1;
-    if (this.shots >= this.skill.every) {
+    if (this.shots >= this.every) {
       this.ready = true;
       Audio.play('unlock');
       this.scene.hint(`${this.skill.name} ready - Space`);
@@ -57,13 +80,13 @@ export class Skills {
 
   emit() {
     const now = this.scene.time.now;
-    const progress = this.active ? (this.active.until - now) / this.skill.durationMs : this.shots / this.skill.every;
+    const progress = this.active ? (this.active.until - now) / this.durationMs : this.shots / this.every;
     this.scene.events.emit('skill', { progress: Math.min(1, Math.max(0, progress)), active: !!this.active, ready: this.ready, icon: this.skill.icon });
   }
 
   cast() {
     const now = this.scene.time.now;
-    const until = now + this.skill.durationMs;
+    const until = now + this.durationMs;
     this.scene.shout(`${this.skill.name}!`, this.skill.id === 'burger_beam' ? 0xffd23f : 0xe8903c);
     if (this.skill.id === 'burger_beam') this.startBeam(until);
     if (this.skill.id === 'chinggu') this.startCat(until);
@@ -83,7 +106,7 @@ export class Skills {
   // Ends whatever is running (also called when leaving a room or dying).
   stop() {
     if (!this.active) return;
-    if (this.active.kind === 'cat') this.scene.burst(this.active.zone.x, this.active.zone.y, 'smoke', 6, { distance: 16 });
+    if (this.active.kind === 'cat') for (const cat of this.active.cats) this.scene.burst(cat.zone.x, cat.zone.y, 'smoke', 6, { distance: 16 });
     (this.active.colliders ?? []).forEach((collider) => this.scene.physics.world.removeCollider(collider));
     this.active.objects.forEach((obj) => obj.destroy());
     this.player.beamUntil = 0;
@@ -180,56 +203,73 @@ export class Skills {
 
   // ---------- Spawn Chinggu (Lilo) ----------
 
-  // Chinggu, a calico cat, appears next to Lilo. Enemies ignore her and she can't be hurt.
+  // Chinggu, a calico cat, appears next to Lilo (more than one with the upgrade).
+  // Enemies ignore her and she can't be hurt.
   startCat(until) {
     const scene = this.scene;
     const { x: px, y: py } = this.player.hitbox;
-    const spot = scene.freeSpot(Phaser.Math.Clamp(px + 28, FLOOR.left + 16, FLOOR.right - 16), py, 10);
-
-    const zone = scene.add.zone(spot.x, spot.y, 16, 12);
-    scene.physics.add.existing(zone);
-    const shadow = scene.add.image(spot.x, spot.y, 'shadow').setAlpha(0.3).setDepth(DEPTH.shadow);
-    const sprite = scene.add.image(spot.x, spot.y, 'chinggu').setOrigin(0.5, 1);
-    const colliders = [
-      scene.physics.add.collider(zone, scene.view.solidWalls),
-      scene.physics.add.collider(zone, scene.view.obstacleBodies),
-    ];
-    this.active = { kind: 'cat', until, zone, sprite, shadow, colliders, nextScratchAt: 0, objects: [sprite, shadow, zone] };
-
-    scene.burst(spot.x, spot.y - 12, 'spark', 8, { distance: 24 });
-    scene.burst(spot.x, spot.y - 8, 'smoke', 6, { distance: 20 });
+    const cats = [];
+    const objects = [];
+    const colliders = [];
+    for (let i = 0; i < this.catCount; i++) {
+      // Side by side: right of Lilo, then left, then further right...
+      const side = i % 2 === 0 ? 1 : -1;
+      const reach = 28 + Math.floor(i / 2) * 24;
+      const spot = scene.freeSpot(Phaser.Math.Clamp(px + side * reach, FLOOR.left + 16, FLOOR.right - 16), py, 10);
+      const zone = scene.add.zone(spot.x, spot.y, 16, 12);
+      scene.physics.add.existing(zone);
+      const shadow = scene.add.image(spot.x, spot.y, 'shadow').setAlpha(0.3).setDepth(DEPTH.shadow);
+      const sprite = scene.add.image(spot.x, spot.y, 'chinggu').setOrigin(0.5, 1);
+      colliders.push(scene.physics.add.collider(zone, scene.view.solidWalls), scene.physics.add.collider(zone, scene.view.obstacleBodies));
+      objects.push(sprite, shadow, zone);
+      cats.push({ zone, sprite, shadow, nextScratchAt: 0 });
+      scene.burst(spot.x, spot.y - 12, 'spark', 8, { distance: 24 });
+      scene.burst(spot.x, spot.y - 8, 'smoke', 6, { distance: 20 });
+    }
+    this.active = { kind: 'cat', until, cats, colliders, objects };
     Audio.play('meow');
     this.updateCat(scene.time.now);
   }
 
-  // Run to the nearest enemy and scratch it; with none left, follow Lilo.
+  // Each Chinggu runs to the nearest enemy no other Chinggu is after (or the nearest one)
+  // and scratches it; with no enemies left they follow Lilo.
   updateCat(time) {
+    const taken = new Set();
+    for (const cat of this.active.cats) {
+      const target = this.catTarget(cat, taken);
+      if (target) taken.add(target);
+      this.moveCat(cat, target, time);
+    }
+  }
+
+  catTarget(cat, taken) {
+    const distance = Phaser.Math.Distance.Between;
+    let free = null;
+    let any = null;
+    for (const enemy of this.scene.enemies) {
+      if (enemy.state !== 'active' || !enemy.hitbox.body.enable || enemy.untouchable) continue;
+      const d = distance(cat.zone.x, cat.zone.y, enemy.x, enemy.y);
+      if (!any || d < any.d) any = { enemy, d };
+      if (!taken.has(enemy) && (!free || d < free.d)) free = { enemy, d };
+    }
+    return (free ?? any)?.enemy ?? null;
+  }
+
+  moveCat(cat, target, time) {
     const scene = this.scene;
-    const cat = this.active;
     const { zone, sprite, shadow } = cat;
     const body = zone.body;
     const distance = Phaser.Math.Distance.Between;
 
-    let target = null;
-    let best = Infinity;
-    for (const enemy of scene.enemies) {
-      if (enemy.state !== 'active' || !enemy.hitbox.body.enable) continue;
-      const d = distance(zone.x, zone.y, enemy.x, enemy.y);
-      if (d < best) {
-        best = d;
-        target = enemy;
-      }
-    }
-
     let moving = false;
     if (target) {
       const reach = target.def.hitbox.w / 2 + CAT.reach;
-      if (best > reach) {
+      if (distance(zone.x, zone.y, target.x, target.y) > reach) {
         body.velocity.setToPolar(scene.pathAngle(zone.x, zone.y, target.x, target.y, 8), CAT.speed);
         moving = true;
       } else {
         body.setVelocity(0, 0);
-        if (time >= cat.nextScratchAt) this.scratch(target, time);
+        if (time >= cat.nextScratchAt) this.scratch(cat, target, time);
       }
       sprite.setFlipX(target.x < zone.x);
     } else {
@@ -247,13 +287,12 @@ export class Skills {
     const hop = moving ? Math.round(Math.abs(Math.sin(time * 0.025)) * 2) * 2 : 0;
     const feetY = zone.y + CAT.footOffset;
     sprite.setPosition(zone.x, feetY - hop).setDepth(DEPTH.actors + feetY);
-    sprite.setVisible(cat.until - time > 1000 || Math.floor(time / 100) % 2 === 0);
+    sprite.setVisible(this.active.until - time > 1000 || Math.floor(time / 100) % 2 === 0);
     shadow.setPosition(zone.x, feetY - 2);
   }
 
-  scratch(target, time) {
+  scratch(cat, target, time) {
     const scene = this.scene;
-    const cat = this.active;
     cat.nextScratchAt = time + CAT.scratchMs;
     const angle = Math.atan2(target.y - cat.zone.y, target.x - cat.zone.x);
     target.hit(this.player.stats.damage * CAT.damage, { x: Math.cos(angle), y: Math.sin(angle) }, time);

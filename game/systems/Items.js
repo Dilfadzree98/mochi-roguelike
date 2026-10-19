@@ -5,9 +5,12 @@
 // A modifier is one of: { "add": n }, { "mul": n } or { "set": value }.
 
 const LIMITS = {
+  maxHp: { min: 2 },
+  luck: { min: -3 },
+  range: { min: 80 },
+  shotSpeed: { min: 120, max: 600 },
   fireDelay: { min: 110 },
   speed: { min: 80, max: 260 },
-  shotSpeed: { max: 600 },
   multishot: { max: 4 },
   shotScale: { max: 2.5 },
   homing: { max: 8 },
@@ -34,12 +37,28 @@ export function computeStats(base, items) {
   return stats;
 }
 
-// A fresh shuffled pool per run; each item can appear once.
-export function makeItemPool(rng, itemDefs) {
-  const pool = Object.keys(itemDefs);
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(rng.next() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+// A fresh pool per run; each item can appear once.
+export function makeItemPool(itemDefs) {
+  return Object.keys(itemDefs);
+}
+
+// How likely each tier is: 1 = weak or with a downside ... 4 = best.
+export const TIER_WEIGHTS = {
+  normal: { 1: 30, 2: 35, 3: 25, 4: 10 }, // treasure rooms and the shop
+  boss: { 1: 0, 2: 20, 3: 50, 4: 30 },    // the item a boss leaves
+};
+
+// Takes a random item out of the pool: first a tier (by `weights`), then an item of that tier.
+// If that tier has run out it falls back to any item left.
+export function drawItem(rng, pool, itemDefs, weights = TIER_WEIGHTS.normal) {
+  if (pool.length === 0) return null;
+  const available = {};
+  for (const [tier, weight] of Object.entries(weights)) {
+    if (weight > 0 && pool.some((id) => String(itemDefs[id].tier) === tier)) available[tier] = weight;
   }
-  return pool;
+  const tier = Object.keys(available).length ? rng.weighted(available) : null;
+  const choices = tier ? pool.filter((id) => String(itemDefs[id].tier) === tier) : pool;
+  const id = rng.pick(choices);
+  pool.splice(pool.indexOf(id), 1);
+  return id;
 }

@@ -4,7 +4,7 @@ import { Rng, newSeed } from '../systems/Rng.js';
 import { Save } from '../systems/Save.js';
 import { Audio } from '../systems/Audio.js';
 import { bossIds, generateDungeon } from '../systems/DungeonGen.js';
-import { makeItemPool } from '../systems/Items.js';
+import { TIER_WEIGHTS, drawItem, makeItemPool } from '../systems/Items.js';
 import { buildRoom } from '../systems/Room.js';
 import { areaFree, flowField, lineClear, nearestFree, nextStep, tileOf } from '../systems/Pathing.js';
 import { Player } from '../entities/Player.js';
@@ -60,6 +60,10 @@ const CHAIN_RANGE = 100;       // px a zap can jump
 const CHAIN_DAMAGE = 0.6;      // times the shot's damage
 
 const TREASURE_SPACING = 88;   // px between the three treasure pedestals
+const UPGRADE_SPACING = 80;    // px between the two skill upgrades after a boss
+
+// Item tiers: 1 = weak or with a downside ... 4 = best. Shown in tooltips and the pedestal glow.
+export const TIER_COLORS = { 1: 0x9a8fb0, 2: 0xa6d987, 3: 0x6fb8e8, 4: 0xf2c94c };
 
 const SHOP_PRICES = { item: 5, heart: 3, bomb: 3, key: 3 };
 const PICKUP_TEXTURES = { heart: 'heart_full', coin: 'coin', bomb: 'bomb', key: 'key' };
@@ -96,7 +100,7 @@ export class Game extends Phaser.Scene {
     this.floors = this.cache.json.get('floors');
     const characters = this.cache.json.get('characters');
     this.character = characters.find((c) => c.id === data?.character) ?? characters[0];
-    this.itemPool = makeItemPool(this.rng, this.itemDefs);
+    this.itemPool = makeItemPool(this.itemDefs);
     this.bossOrder = this.rng.shuffle(bossIds(this.enemyDefs)); // a different boss on every floor
 
     this.shots = this.physics.add.group();
@@ -123,6 +127,7 @@ export class Game extends Phaser.Scene {
     this.physics.add.overlap(this.enemyBodies, this.bombBodies, (_, zone) => zone.body.setVelocity(0, 0));
 
     this.roomsCleared = 0;
+    this.kills = 0;
     this.waveIndex = 0;
     this.waveActive = false;
     this.over = false;
@@ -225,6 +230,7 @@ export class Game extends Phaser.Scene {
       this.physics.add.collider(this.bombBodies, this.view.obstacleBodies),
     ];
     this.flowCache = new Map();
+    this.shieldsLeft = this.player.stats.roomShield;
 
     const entry = fromDir ? ENTRY_POINTS[fromDir] : CENTER;
     this.player.placeAt(entry.x, entry.y);
@@ -378,13 +384,14 @@ export class Game extends Phaser.Scene {
   // A glowing pedestal, with an item on it if `itemId` is set. `onTake` runs when Mochi
   // takes it. Returns the pickup spot (or null for an empty pedestal).
   addItemPedestal(x, y, itemId, onTake) {
-    const glow = this.add.image(x, y, 'glow').setDepth(DEPTH.decor);
+    const def = itemId ? this.itemDefs[itemId] : null;
+    // The glow is the item's tier colour.
+    const glow = this.add.image(x, y, 'glow_white').setTint(def ? TIER_COLORS[def.tier] : 0xf2c94c).setDepth(DEPTH.decor);
     const pedestal = this.add.image(x, y + 8, 'pedestal').setOrigin(0.5, 1).setDepth(DEPTH.actors + y + 8);
     this.tweens.add({ targets: glow, alpha: 0.5, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.roomObjects.push(glow, pedestal);
     if (!itemId) return null;
 
-    const def = this.itemDefs[itemId];
     const icon = this.floatingImage(x, y - 24, def.icon);
     return this.addPickupSpot(x, y - 8, [icon], () => {
       onTake();
@@ -395,7 +402,7 @@ export class Game extends Phaser.Scene {
 
   // Three items on pedestals; taking one makes the others vanish back into the item pool.
   setUpTreasure(room) {
-    room.contents ??= { itemIds: [this.itemPool.pop(), this.itemPool.pop(), this.itemPool.pop()].filter(Boolean) };
+    room.contents ??= { itemIds: [this.drawItem(), this.drawItem(), this.drawItem()].filter(Boolean) };
     const { itemIds } = room.contents;
     const xs = [CENTER.x - TREASURE_SPACING, CENTER.x, CENTER.x + TREASURE_SPACING];
 
@@ -408,7 +415,7 @@ export class Game extends Phaser.Scene {
       spots.push(this.addItemPedestal(x, CENTER.y, itemId, () => {
         const others = itemIds.filter((id) => id !== itemId);
         room.contents.itemIds = [];
-        this.itemPool.unshift(...others); // back to the bottom of the pool
+        this.itemPool.push(...others); // back into the pool
         note?.destroy();
         for (const spot of spots) {
           if (!spot || spot.itemId === itemId) continue;
@@ -423,8 +430,9 @@ export class Game extends Phaser.Scene {
   // After a boss: an item, and a trapdoor down (unless this was the last floor).
   setUpBossReward(room) {
     if (this.floorIndex >= this.floors.length - 1) return;
-    room.contents ??= { itemId: this.itemPool.pop() ?? null };
+    room.contents ??= { itemId: this.drawItem(TIER_WEIGHTS.boss), upgradeTaken: false };
     this.addItemPedestal(CENTER.x - 64, CENTER.y, room.contents.itemId, () => (room.contents.itemId = null));
+    if (!room.contents.upgradeTaken) this.offerSkillUpgrades(room);
 
     const x = CENTER.x + 64;
     const trapdoor = this.add.image(x, CENTER.y, 'trapdoor').setDepth(DEPTH.decor);
@@ -435,10 +443,43 @@ export class Game extends Phaser.Scene {
     }, { name: 'Trapdoor', description: `Down to ${this.floors[this.floorIndex + 1].name}` });
   }
 
+  drawItem(weights = TIER_WEIGHTS.normal) {
+    return drawItem(this.rng, this.itemPool, this.itemDefs, weights);
+  }
+
+  // After a boss: the character's two skill upgrades on glowing orbs. Taking one makes the other vanish.
+  offerSkillUpgrades(room) {
+    const upgrades = this.character.skill.upgrades ?? [];
+    const y = CENTER.y - 64;
+    const label = addText(this, CENTER.x, y + 30, 'Upgrade your skill', { tint: UI.gold }).setDepth(DEPTH.shadow);
+    this.roomObjects.push(label);
+    const spots = upgrades.map((upgrade, i) => {
+      const x = CENTER.x + (i - (upgrades.length - 1) / 2) * UPGRADE_SPACING;
+      const glow = this.add.image(x, y, 'glow_white').setTint(0xb57bff).setScale(0.6).setDepth(DEPTH.decor);
+      this.tweens.add({ targets: glow, alpha: 0.4, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.roomObjects.push(glow);
+      const icon = this.floatingImage(x, y, upgrade.icon);
+      return this.addPickupSpot(x, y, [icon, glow], () => {
+        room.contents.upgradeTaken = true;
+        this.skills.applyUpgrade(upgrade);
+        this.banner(upgrade.name, 0xb57bff, upgrade.description);
+        Audio.play('item');
+        label.destroy();
+        for (const other of spots) {
+          if (other.upgrade === upgrade) continue;
+          this.burst(other.x, other.y, 'smoke', 6, { distance: 16 });
+          this.removePickupSpot(other);
+        }
+        return true;
+      }, upgrade);
+    });
+    spots.forEach((spot, i) => (spot.upgrade = upgrades[i]));
+  }
+
   setUpShop(room) {
     if (!room.contents) {
       const kinds = ['heart', 'bomb', 'key'];
-      const itemId = this.itemPool.pop();
+      const itemId = this.drawItem();
       const wares = itemId ? [{ kind: 'item', itemId }, ...kinds.map((kind) => ({ kind }))] : kinds.map((kind) => ({ kind }));
       const spacing = 64;
       const startX = CENTER.x - ((wares.length - 1) * spacing) / 2;
@@ -514,8 +555,9 @@ export class Game extends Phaser.Scene {
   }
 
   hpScale(def) {
-    if (def.boss) return BOSS_HP_BY_FLOOR[Math.min(this.floorIndex, BOSS_HP_BY_FLOOR.length - 1)];
-    return 1 + ENEMY_HP_PER_FLOOR * this.floorIndex;
+    const curse = this.player.stats.enemyHp;
+    if (def.boss) return BOSS_HP_BY_FLOOR[Math.min(this.floorIndex, BOSS_HP_BY_FLOOR.length - 1)] * curse;
+    return (1 + ENEMY_HP_PER_FLOOR * this.floorIndex) * curse;
   }
 
   // Extra enemies mid-fight (a boss's summons).
@@ -581,6 +623,13 @@ export class Game extends Phaser.Scene {
     }
     const chance = COIN_DROP_CHANCE + COIN_DROP_LUCK_BONUS * this.player.stats.luck;
     if (this.rng.chance(chance)) this.dropPickup('coin', enemy.x, enemy.y);
+
+    this.kills += 1;
+    const every = this.player.stats.healEvery;
+    if (every > 0 && this.kills % every === 0 && this.player.hp < this.player.stats.maxHp) {
+      this.player.heal(1);
+      this.burst(this.player.hitbox.x, this.player.hitbox.y - 12, 'leaf', 6, { distance: 16 });
+    }
   }
 
   onBossHp(enemy) {
@@ -699,13 +748,17 @@ export class Game extends Phaser.Scene {
   showTooltip(spot) {
     const left = FLOOR.left + 4;
     const top = FLOOR.bottom - 26;
-    const name = addText(this, left + 5, top + 8, spot.info.name, { tint: UI.gold, originX: 0 });
+    const tier = spot.info.tier;
+    const name = addText(this, left + 5, top + 8, spot.info.name, { tint: tier ? TIER_COLORS[tier] : UI.gold, originX: 0 });
+    const parts = [name];
+    if (tier) parts.push(addText(this, name.x + name.width + 6, top + 9, `Tier ${tier}`, { scale: 1, originX: 0, tint: TIER_COLORS[tier] }));
     const description = addText(this, left + 5, top + 18, spot.info.description, { scale: 1, originX: 0 });
-    const width = Math.max(name.width, description.width) + 10;
+    parts.push(description);
+    const right = Math.max(...parts.map((part) => part.x + part.width));
+    const width = right - left + 5;
     const box = this.add.rectangle(left, top, width, 23, 0x120e16, 0.8).setOrigin(0).setStrokeStyle(2, 0x4a4058).setDepth(DEPTH.ui);
-    name.setDepth(DEPTH.ui + 1);
-    description.setDepth(DEPTH.ui + 1);
-    this.tooltip = { spot, parts: [box, name, description] };
+    parts.forEach((part) => part.setDepth(DEPTH.ui + 1));
+    this.tooltip = { spot, parts: [box, ...parts] };
   }
 
   hideTooltip() {
@@ -774,24 +827,26 @@ export class Game extends Phaser.Scene {
   explode(bomb) {
     this.bombs = this.bombs.filter((b) => b !== bomb);
     const { x, y } = bomb.zone;
+    const power = this.player.stats.bombPower;
+    const radius = BOMB_RADIUS * power;
     bomb.image.destroy();
     bomb.zone.destroy();
     Audio.play('bomb');
-    this.burst(x, y, 'spark', 12, { distance: BOMB_RADIUS * 0.7, duration: 350 });
-    this.burst(x, y, 'smoke', 10, { distance: BOMB_RADIUS * 0.6, duration: 500 });
+    this.burst(x, y, 'spark', 12, { distance: radius * 0.7, duration: 350 });
+    this.burst(x, y, 'smoke', 10, { distance: radius * 0.6, duration: 500 });
     this.cameras.main.shake(200, 0.02);
 
     const now = this.time.now;
     const distance = Phaser.Math.Distance.Between;
     for (const enemy of this.enemies) {
-      if (enemy.state !== 'active' || distance(x, y, enemy.x, enemy.y) > BOMB_RADIUS) continue;
+      if (enemy.state !== 'active' || distance(x, y, enemy.x, enemy.y) > radius) continue;
       const angle = Math.atan2(enemy.y - y, enemy.x - x);
-      enemy.hit(BOMB_DAMAGE, { x: Math.cos(angle), y: Math.sin(angle) }, now);
+      enemy.hit(BOMB_DAMAGE * power, { x: Math.cos(angle), y: Math.sin(angle) }, now);
     }
     for (const obstacle of this.view.obstacles.slice()) {
-      if (distance(x, y, obstacle.x, obstacle.y) <= BOMB_RADIUS + 12) this.breakObstacle(obstacle);
+      if (distance(x, y, obstacle.x, obstacle.y) <= radius + 12) this.breakObstacle(obstacle);
     }
-    this.hurtPlayerNear(x, y, BOMB_RADIUS);
+    this.hurtPlayerNear(x, y, radius);
   }
 
   // ---------- Player shots ----------
@@ -983,6 +1038,13 @@ export class Game extends Phaser.Scene {
 
   onPlayerTouchEnemy(enemy) {
     if (this.over || enemy.state !== 'active' || !enemy.hitbox.body.enable || enemy.untouchable) return;
+    const thorns = this.player.stats.thorns;
+    if (thorns > 0 && this.time.now >= (enemy.thornsAt ?? 0)) {
+      enemy.thornsAt = this.time.now + 500;
+      const angle = Math.atan2(enemy.y - this.player.hitbox.y, enemy.x - this.player.hitbox.x);
+      enemy.hit(thorns, { x: Math.cos(angle), y: Math.sin(angle) }, this.time.now);
+      if (enemy.state !== 'active') return;
+    }
     this.damagePlayer(enemy.def.contactDamage, enemy.x, enemy.y);
   }
 
@@ -999,7 +1061,16 @@ export class Game extends Phaser.Scene {
   }
 
   damagePlayer(amount, fromX, fromY) {
-    if (this.over || !this.player.takeDamage(amount, this.time.now)) return;
+    if (this.over) return;
+    if (this.shieldsLeft > 0 && this.player.alive && this.time.now >= this.player.invulnUntil) {
+      this.shieldsLeft -= 1;
+      this.player.invulnUntil = this.time.now + 600;
+      this.burst(this.player.hitbox.x, this.player.hitbox.y - 8, 'spark', 10, { distance: 22 });
+      this.hint('Blocked!');
+      Audio.play('crit');
+      return;
+    }
+    if (!this.player.takeDamage(amount, this.time.now)) return;
     Audio.play('hurt');
     this.cameras.main.shake(120, 0.012);
     if (this.player.alive) this.player.knockbackFrom(fromX, fromY);

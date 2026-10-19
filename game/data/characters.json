@@ -11,7 +11,11 @@
       "description": "Charge 30 shots, Space",
       "icon": "icon_burger",
       "every": 30,
-      "durationMs": 2000
+      "durationMs": 2000,
+      "upgrades": [
+        { "id": "beam_longer", "name": "Longer Beam", "description": "The beam lasts 1 s longer", "icon": "upgrade_beam_longer", "durationMs": 1000 },
+        { "id": "beam_quicker", "name": "Quicker Beam", "description": "Charges with 8 fewer shots", "icon": "upgrade_beam_quicker", "every": -8 }
+      ]
     }
   },
   {
@@ -26,7 +30,11 @@
       "description": "Charge 30 shots, Space",
       "icon": "icon_cat",
       "every": 30,
-      "durationMs": 4000
+      "durationMs": 4000,
+      "upgrades": [
+        { "id": "cat_more", "name": "Another Chinggu", "description": "One more Chinggu comes to help", "icon": "upgrade_cat_more", "cats": 1 },
+        { "id": "cat_longer", "name": "Chinggu Stays Longer", "description": "Chinggu stays 2 s longer", "icon": "upgrade_cat_longer", "durationMs": 2000 }
+      ]
     }
   }
 ]
