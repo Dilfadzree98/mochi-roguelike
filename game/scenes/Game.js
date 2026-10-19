@@ -62,9 +62,6 @@ const CHAIN_DAMAGE = 0.6;      // times the shot's damage
 const TREASURE_SPACING = 88;   // px between the three treasure pedestals
 const UPGRADE_SPACING = 80;    // px between the two skill upgrades after a boss
 
-// Item tiers: 1 = weak or with a downside ... 4 = best. Shown in tooltips and the pedestal glow.
-export const TIER_COLORS = { 1: 0x9a8fb0, 2: 0xa6d987, 3: 0x6fb8e8, 4: 0xf2c94c };
-
 const SHOP_PRICES = { item: 5, heart: 3, bomb: 3, key: 3 };
 const PICKUP_TEXTURES = { heart: 'heart_full', coin: 'coin', bomb: 'bomb', key: 'key' };
 const PICKUP_INFO = {
@@ -385,8 +382,7 @@ export class Game extends Phaser.Scene {
   // takes it. Returns the pickup spot (or null for an empty pedestal).
   addItemPedestal(x, y, itemId, onTake) {
     const def = itemId ? this.itemDefs[itemId] : null;
-    // The glow is the item's tier colour.
-    const glow = this.add.image(x, y, 'glow_white').setTint(def ? TIER_COLORS[def.tier] : 0xf2c94c).setDepth(DEPTH.decor);
+    const glow = this.add.image(x, y, 'glow').setDepth(DEPTH.decor);
     const pedestal = this.add.image(x, y + 8, 'pedestal').setOrigin(0.5, 1).setDepth(DEPTH.actors + y + 8);
     this.tweens.add({ targets: glow, alpha: 0.5, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.roomObjects.push(glow, pedestal);
@@ -430,9 +426,10 @@ export class Game extends Phaser.Scene {
   // After a boss: an item, and a trapdoor down (unless this was the last floor).
   setUpBossReward(room) {
     if (this.floorIndex >= this.floors.length - 1) return;
-    room.contents ??= { itemId: this.drawItem(TIER_WEIGHTS.boss), upgradeTaken: false };
+    // A skill upgrade is the prize for beating the boss without losing any health.
+    room.contents ??= { itemId: this.drawItem(TIER_WEIGHTS.boss), upgradeEarned: this.bossNoHit, upgradeTaken: false };
     this.addItemPedestal(CENTER.x - 64, CENTER.y, room.contents.itemId, () => (room.contents.itemId = null));
-    if (!room.contents.upgradeTaken) this.offerSkillUpgrades(room);
+    if (room.contents.upgradeEarned && !room.contents.upgradeTaken) this.offerSkillUpgrades(room);
 
     const x = CENTER.x + 64;
     const trapdoor = this.add.image(x, CENTER.y, 'trapdoor').setDepth(DEPTH.decor);
@@ -535,6 +532,7 @@ export class Game extends Phaser.Scene {
     this.events.emit('wave', boss ? 0 : this.waveIndex, total); // boss rooms have no waves
 
     if (boss) {
+      this.bossNoHit = true; // until Mochi loses health in this fight
       this.banner(boss.name, 0xb57bff, boss.subtitle);
       Audio.play('bossIntro');
     } else {
@@ -594,7 +592,7 @@ export class Game extends Phaser.Scene {
         this.banner('Garden saved!', UI.gold, `${boss.name} is beaten`);
         this.endRun(true, WIN_DELAY_MS);
       } else {
-        this.banner('Boss defeated!', UI.gold, 'A trapdoor opens...');
+        this.banner('Boss defeated!', UI.gold, this.bossNoHit ? 'Not a scratch! Upgrade your skill' : 'A trapdoor opens...');
         this.setUpBossReward(room);
         // Hearts below the item and trapdoor, so picking them up never means stepping on the trapdoor.
         const hearts = this.rng.chance(BOSS_DOUBLE_HEART_CHANCE) ? [-16, 16] : [0];
@@ -748,10 +746,8 @@ export class Game extends Phaser.Scene {
   showTooltip(spot) {
     const left = FLOOR.left + 4;
     const top = FLOOR.bottom - 26;
-    const tier = spot.info.tier;
-    const name = addText(this, left + 5, top + 8, spot.info.name, { tint: tier ? TIER_COLORS[tier] : UI.gold, originX: 0 });
+    const name = addText(this, left + 5, top + 8, spot.info.name, { tint: UI.gold, originX: 0 });
     const parts = [name];
-    if (tier) parts.push(addText(this, name.x + name.width + 6, top + 9, `Tier ${tier}`, { scale: 1, originX: 0, tint: TIER_COLORS[tier] }));
     const description = addText(this, left + 5, top + 18, spot.info.description, { scale: 1, originX: 0 });
     parts.push(description);
     const right = Math.max(...parts.map((part) => part.x + part.width));
@@ -1071,6 +1067,7 @@ export class Game extends Phaser.Scene {
       return;
     }
     if (!this.player.takeDamage(amount, this.time.now)) return;
+    this.bossNoHit = false;
     Audio.play('hurt');
     this.cameras.main.shake(120, 0.012);
     if (this.player.alive) this.player.knockbackFrom(fromX, fromY);
