@@ -11,9 +11,13 @@ const BOSS_BAR = { left: 64, right: 416, barX: 216, h: 6, y: GAME_HEIGHT - 12 };
 
 // Minimap: one 12x8 cell per room, in the top-right corner of the room, faded so it
 // doesn't hide the fight. Holding Tab shows a big map in the middle of the screen.
-const MINIMAP = { x: GAME_WIDTH - 8 - (GRID_W * 14 - 2), y: HUD_HEIGHT + 8, w: 12, h: 8, stepX: 14, stepY: 10 };
+// Each room is drawn in its real shape: `w` x `h` for a one-screen room, `wideW` / `tallH` for the
+// bigger rooms (21 and 11 tiles instead of 13 and 7), centred in its grid step.
+const MINIMAP = { w: 9, h: 6, wideW: 14, tallH: 9, stepX: 16, stepY: 11 };
+MINIMAP.x = GAME_WIDTH - 8 - GRID_W * MINIMAP.stepX;
+MINIMAP.y = HUD_HEIGHT + 8;
 const MINIMAP_ALPHA = 0.4;
-const BIG_MAP = { w: 40, h: 26, stepX: 46, stepY: 32 };
+const BIG_MAP = { w: 26, h: 16, wideW: 42, tallH: 26, stepX: 46, stepY: 32 };
 BIG_MAP.x = Math.round((GAME_WIDTH - (GRID_W * BIG_MAP.stepX - 6)) / 2);
 BIG_MAP.y = Math.round((GAME_HEIGHT - (GRID_H * BIG_MAP.stepY - 6)) / 2);
 const MAP_COLORS = {
@@ -161,16 +165,24 @@ export class HUD extends Phaser.Scene {
   drawMap(g, dungeon, current, layout, backing) {
     g.clear();
     const seen = dungeon.rooms.filter((room) => room.visited || dungeon.neighbors(room).some((n) => n.visited));
-    const { x: mapX, y: mapY, w, h, stepX, stepY } = layout;
+    const { x: mapX, y: mapY, stepX, stepY } = layout;
+    // A room's rectangle on the map, in its real shape, centred in its grid step.
+    const box = (room) => {
+      const w = room.size.cols > 13 ? layout.wideW : layout.w;
+      const h = room.size.rows > 7 ? layout.tallH : layout.h;
+      const x = Math.round(mapX + room.x * stepX + (stepX - w) / 2);
+      const y = Math.round(mapY + room.y * stepY + (stepY - h) / 2);
+      return { x, y, w, h };
+    };
 
     if (backing) {
       // Backing box only around the rooms shown so far.
       const xs = seen.map((room) => room.x);
       const ys = seen.map((room) => room.y);
-      const left = mapX + Math.min(...xs) * stepX - 4;
-      const top = mapY + Math.min(...ys) * stepY - 4;
-      const right = mapX + Math.max(...xs) * stepX + w + 4;
-      const bottom = mapY + Math.max(...ys) * stepY + h + 4;
+      const left = mapX + Math.min(...xs) * stepX - 2;
+      const top = mapY + Math.min(...ys) * stepY - 2;
+      const right = mapX + (Math.max(...xs) + 1) * stepX + 2;
+      const bottom = mapY + (Math.max(...ys) + 1) * stepY + 2;
       g.fillStyle(MAP_COLORS.background, 0.6).fillRect(left, top, right - left, bottom - top);
     }
 
@@ -178,22 +190,21 @@ export class HUD extends Phaser.Scene {
     if (!backing) {
       g.fillStyle(MAP_COLORS.seen, 1);
       for (const room of seen) {
-        const cx = mapX + room.x * stepX + w / 2;
-        const cy = mapY + room.y * stepY + h / 2;
+        const cx = mapX + room.x * stepX + stepX / 2;
+        const cy = mapY + room.y * stepY + stepY / 2;
         if (room.doors.right && seen.includes(dungeon.neighbor(room, 'right'))) g.fillRect(cx, cy - 2, stepX, 4);
         if (room.doors.down && seen.includes(dungeon.neighbor(room, 'down'))) g.fillRect(cx - 2, cy, 4, stepY);
       }
     }
 
-    const iconSize = Math.round(h / 2);
+    const iconSize = Math.round(layout.h / 2);
     for (const room of seen) {
-      const x = mapX + room.x * stepX;
-      const y = mapY + room.y * stepY;
+      const { x, y, w, h } = box(room);
       const color = room === current ? MAP_COLORS.current : room.visited ? MAP_COLORS.visited : MAP_COLORS.seen;
       g.fillStyle(color, 1).fillRect(x, y, w, h);
 
       const icon = MAP_COLORS[room.type];
-      if (icon) g.fillStyle(icon, 1).fillRect(x + (w - iconSize) / 2, y + (h - iconSize) / 2, iconSize, iconSize);
+      if (icon) g.fillStyle(icon, 1).fillRect(Math.round(x + (w - iconSize) / 2), Math.round(y + (h - iconSize) / 2), iconSize, iconSize);
     }
   }
 }
