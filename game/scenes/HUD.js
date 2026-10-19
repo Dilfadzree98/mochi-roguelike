@@ -3,8 +3,8 @@ import { addText } from '../art/PixelFont.js';
 import { GRID_W, GRID_H } from '../systems/DungeonGen.js';
 
 const HEART_KEYS = ['heart_empty', 'heart_half', 'heart_full'];
-// The top bar has a gap in the middle so the top door stays visible.
-const DOOR_GAP = { left: 204, right: 276 };
+// No backing bar: hearts, counters and the meter sit straight on the wall. The middle stays
+// clear so the top door is visible.
 const SKILL_METER = { x: 310, w: 60, h: 6 };
 // Boss name and health bar on one dark strip along the bottom wall.
 const BOSS_BAR = { left: 64, right: 416, barX: 216, h: 6, y: GAME_HEIGHT - 12 };
@@ -36,14 +36,11 @@ export class HUD extends Phaser.Scene {
 
   create() {
     const game = this.scene.get('Game');
-    this.add.rectangle(0, 0, DOOR_GAP.left, HUD_HEIGHT, 0x120e16, 0.75).setOrigin(0);
-    this.add.rectangle(DOOR_GAP.right, 0, GAME_WIDTH - DOOR_GAP.right, HUD_HEIGHT, 0x120e16, 0.75).setOrigin(0);
     this.hearts = [];
     this.waveText = addText(this, GAME_WIDTH - 8, HUD_HEIGHT / 2, '', { originX: 1, tint: UI.muted });
     this.map = this.add.graphics().setAlpha(MINIMAP_ALPHA);
 
     // Coin, bomb and key counters stacked under the hearts, over the left wall.
-    this.add.rectangle(0, HUD_HEIGHT, 52, 58, 0x120e16, 0.5).setOrigin(0);
     this.counters = {};
     ['coins', 'bombs', 'keys'].forEach((kind, i) => {
       const y = HUD_HEIGHT + 11 + i * 18;
