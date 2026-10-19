@@ -12,24 +12,24 @@ export class Menu extends Phaser.Scene {
     const cx = GAME_WIDTH / 2;
     Audio.startMusic(0);
 
-    addText(this, cx, 20, 'Mochi', { scale: 4, tint: UI.peach });
-    addText(this, cx, 40, 'A sprout bun in a haunted garden', { tint: UI.leaf });
+    addText(this, cx, 30, 'Mochi', { scale: 8, tint: UI.peach });
+    addText(this, cx, 60, 'A sprout bun in a haunted garden', { tint: UI.leaf });
 
     // Mangkok and Lilo bouncing side by side, out of step.
     this.cache.json.get('characters').forEach((character, i, all) => {
-      const sprite = this.add.image(cx + (i - (all.length - 1) / 2) * 40, 92, character.texture).setOrigin(0.5, 1).setScale(3);
-      this.tweens.add({ targets: sprite, y: 88, duration: 500, delay: i * 250, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      const sprite = this.add.image(cx + (i - (all.length - 1) / 2) * 84, 170, character.texture).setOrigin(0.5, 1).setScale(2);
+      this.tweens.add({ targets: sprite, y: 162, duration: 500, delay: i * 250, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     });
 
-    addText(this, cx, 100, '[WASD] move, [Arrows] shoot, [E] bomb', { tint: UI.muted });
-    addText(this, cx, 108, '[Space] skill, [Esc] pause', { tint: UI.muted });
-    const prompt = addText(this, cx, 123, 'Press space', { scale: 2, tint: UI.gold });
+    addText(this, cx, 184, '[WASD] move, [Arrows] shoot, [E] bomb', { tint: UI.muted });
+    addText(this, cx, 198, '[Space] skill, [Esc] pause', { tint: UI.muted });
+    const prompt = addText(this, cx, 222, 'Press space', { scale: 4, tint: UI.gold });
     this.tweens.add({ targets: prompt, alpha: 0.2, duration: 600, yoyo: true, repeat: -1 });
 
     const best = Save.best();
-    if (best.floor > 0) addText(this, cx, 134, `Best: floor ${best.floor}   Wins ${best.wins}`, { tint: UI.dim });
-    addText(this, cx, 144, 'M mute sound', { tint: UI.dim });
-    addText(this, cx, 154, 'Created by Dilfadzree', { tint: UI.peach });
+    if (best.floor > 0) addText(this, cx, 241, `Best: floor ${best.floor}   Wins ${best.wins}`, { tint: UI.dim });
+    addText(this, cx, 253, 'M mute sound', { tint: UI.dim });
+    addText(this, cx, 265, 'Created by Dilfadzree', { tint: UI.peach });
 
     const start = () => {
       Audio.play('select');

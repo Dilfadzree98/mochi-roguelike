@@ -1,7 +1,7 @@
 import { DEPTH, FLOOR } from '../constants.js';
 
 const SPIN_STEP_MS = 90;
-const HOMING_RANGE = 110;      // px: only enemies this close are chased
+const HOMING_RANGE = 220;      // px: only enemies this close are chased
 const WAVE_SPEED = 14;         // radians per second of the wiggle
 const ACCEL = { from: 0.4, to: 1.8, rampMs: 600 };
 const BOOMERANG_RETURN_MS = 2000;
@@ -25,7 +25,7 @@ export class Projectile extends Phaser.Physics.Arcade.Image {
     this.returning = false;
     const scale = stats.shotScale * (isFragment ? 0.6 : 1);
     this.setScale(scale);
-    this.body.setSize(4 * Math.max(1, scale), 4 * Math.max(1, scale));
+    this.body.setSize(8 * Math.max(1, scale), 8 * Math.max(1, scale));
     if (stats.phase) this.setAlpha(0.75);
     this.steer(time, 0);
   }
@@ -70,7 +70,7 @@ export class Projectile extends Phaser.Physics.Arcade.Image {
     if (this.returning) {
       const mochi = scene.player.hitbox;
       this.angleRad = Math.atan2(mochi.y - this.y, mochi.x - this.x);
-      if (Phaser.Math.Distance.Between(this.x, this.y, mochi.x, mochi.y) < 8) {
+      if (Phaser.Math.Distance.Between(this.x, this.y, mochi.x, mochi.y) < 16) {
         this.destroy(); // caught
         return;
       }
@@ -118,20 +118,20 @@ export class Projectile extends Phaser.Physics.Arcade.Image {
       return;
     }
     this.bouncesLeft -= 1;
-    if (this.x - 2 < FLOOR.left || this.x + 2 > FLOOR.right) {
+    if (this.x - 4 < FLOOR.left || this.x + 4 > FLOOR.right) {
       this.angleRad = Math.PI - this.angleRad;
-      this.x = Phaser.Math.Clamp(this.x, FLOOR.left + 3, FLOOR.right - 3);
+      this.x = Phaser.Math.Clamp(this.x, FLOOR.left + 6, FLOOR.right - 6);
     }
-    if (this.y - 2 < FLOOR.top || this.y + 2 > FLOOR.bottom) {
+    if (this.y - 4 < FLOOR.top || this.y + 4 > FLOOR.bottom) {
       this.angleRad = -this.angleRad;
-      this.y = Phaser.Math.Clamp(this.y, FLOOR.top + 3, FLOOR.bottom - 3);
+      this.y = Phaser.Math.Clamp(this.y, FLOOR.top + 6, FLOOR.bottom - 6);
     }
   }
 
   // Cracks open into tiny husk pieces (and splashes, with Popcorn Kernel).
   impact() {
     if (!this.active) return;
-    this.scene.burst(this.x, this.y, 'husk', 3, { distance: 6, duration: 250 });
+    this.scene.burst(this.x, this.y, 'husk', 3, { distance: 12, duration: 250 });
     if (this.stats.explode > 0) this.scene.shotSplash(this.x, this.y, this.stats.explode, this.damage * 0.5);
     this.destroy();
   }

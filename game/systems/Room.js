@@ -72,8 +72,8 @@ export function buildRoom(scene, room, dungeon) {
 
   const decorationCount = rng.int(8, 12);
   for (let i = 0; i < decorationCount; i++) {
-    const x = rng.int(FLOOR.left + 4, FLOOR.right - 4);
-    const y = rng.int(FLOOR.top + 4, FLOOR.bottom - 4);
+    const x = rng.int(FLOOR.left + 8, FLOOR.right - 8);
+    const y = rng.int(FLOOR.top + 8, FLOOR.bottom - 8);
     const key = rng.pick(floor.decorations);
     if (DECOR_GLOW[key]) add(scene.add.image(x, y, DECOR_GLOW[key]).setDepth(DEPTH.decor).setAlpha(0.8));
     add(scene.add.image(x, y, key).setDepth(DEPTH.decor));

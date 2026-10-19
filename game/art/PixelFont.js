@@ -80,7 +80,8 @@ export function makeFont(scene) {
   scene.cache.bitmapFont.add(FONT_KEY, data);
 }
 
-export function addText(scene, x, y, text, { scale = 1, tint = 0xffffff, originX = 0.5, originY = 0.5 } = {}) {
+// The 3x5 font is drawn at 2x by default, so its pixels match the sprites' 2px style.
+export function addText(scene, x, y, text, { scale = 2, tint = 0xffffff, originX = 0.5, originY = 0.5 } = {}) {
   return scene.add
     .bitmapText(Math.round(x), Math.round(y), FONT_KEY, String(text).toUpperCase())
     .setScale(scale)

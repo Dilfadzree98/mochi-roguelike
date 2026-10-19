@@ -5,10 +5,10 @@ import { computeStats } from '../systems/Items.js';
 // Starting stats. player.stats is rebuilt from these, the character's modifiers and every held item.
 export const BASE_STATS = {
   maxHp: 6,        // half-hearts
-  speed: 72,       // px per second
+  speed: 144,      // px per second
   fireDelay: 320,  // ms between shots
-  shotSpeed: 150,  // px per second
-  range: 120,      // px a shot travels
+  shotSpeed: 300,  // px per second
+  range: 240,      // px a shot travels
   damage: 1,
   multishot: 1,    // seeds per shot
   pierce: false,
@@ -46,13 +46,13 @@ const FIRE_DIRS = {
   RIGHT: { x: 1, y: 0 },
 };
 
-const HITBOX = { w: 10, h: 10 };
-const FOOT_OFFSET = HITBOX.h / 2 + 1; // from hitbox centre down to the sprite's feet
+const HITBOX = { w: 20, h: 20 };
+const FOOT_OFFSET = HITBOX.h / 2 + 2; // from hitbox centre down to the sprite's feet
 const ACCEL = 14;                     // how fast velocity eases toward the input (per second)
 const INVULN_MS = 2000;               // invincible for 2 seconds after a hit
 const HURT_FACE_MS = 200;
 const WILT_AT_HP = 2;                 // leaf droops at one heart or less
-const KNOCKBACK_SPEED = 140;
+const KNOCKBACK_SPEED = 280;
 
 // Physics uses an invisible hitbox; the sprite just follows it, so squash and
 // stretch never changes the collision size.
@@ -126,7 +126,7 @@ export class Player {
     const dir = FIRE_DIRS[held];
     this.nextFireAt = time + this.stats.fireDelay;
     this.recoil = 1;
-    this.scene.firePlayerShot(this.hitbox.x + dir.x * 6, this.hitbox.y - 1 + dir.y * 6, dir, this.stats);
+    this.scene.firePlayerShot(this.hitbox.x + dir.x * 12, this.hitbox.y - 2 + dir.y * 12, dir, this.stats);
     this.scene.onShotFired();
   }
 
@@ -141,7 +141,7 @@ export class Player {
       const phase = Math.sin(time * 0.02);
       scaleX += 0.08 * phase;
       scaleY -= 0.08 * phase;
-      hop = Math.round(Math.max(0, -phase) * 2);
+      hop = Math.round(Math.max(0, -phase) * 2) * 2;
     } else {
       // 2-frame breathing bounce.
       const breathing = Math.floor(time / 500) % 2;
@@ -165,7 +165,7 @@ export class Player {
   syncVisuals(hop) {
     const { x, y } = this.feet;
     this.sprite.setPosition(x, y - hop).setDepth(DEPTH.actors + y);
-    this.shadow.setPosition(x, y - 1);
+    this.shadow.setPosition(x, y - 2);
   }
 
   // ---------- Items and inventory ----------
@@ -235,11 +235,11 @@ export class Player {
     this.sprite.setVisible(true).setTexture(`${this.skin}_bare`).setScale(1);
     this.scene.tweens.add({ targets: this.sprite, scaleX: 1.5, scaleY: 0.3, duration: 600, ease: 'Quad.easeIn' });
 
-    const leaf = this.scene.add.image(this.sprite.x, this.sprite.y - 14, 'leaf').setDepth(DEPTH.overlay - 1);
+    const leaf = this.scene.add.image(this.sprite.x, this.sprite.y - 30, 'leaf').setDepth(DEPTH.overlay - 1);
     this.scene.tweens.add({
       targets: leaf,
-      x: leaf.x + 12,
-      y: this.sprite.y - 2,
+      x: leaf.x + 24,
+      y: this.sprite.y - 4,
       angle: 160,
       duration: 900,
       ease: 'Sine.easeInOut',

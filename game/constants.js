@@ -1,14 +1,17 @@
-export const TILE = 16;
+// The screen is 480x272. All sprites are drawn at this resolution with 2px outlines,
+// and every distance and speed in the game is in these screen pixels.
+export const GAME_WIDTH = 480;
+export const GAME_HEIGHT = 272;
+
+export const TILE = 32;
 export const ROOM_COLS = 15; // 13 floor tiles + a 1-tile wall on each side
 export const ROOM_ROWS = 9;  // 7 floor tiles + a 1-tile wall on each side
-export const HUD_HEIGHT = 16;
 
-export const GAME_WIDTH = TILE * ROOM_COLS;               // 240
-export const GAME_HEIGHT = HUD_HEIGHT + TILE * ROOM_ROWS; // 160
-
-// The room sits under the HUD bar.
+// The room (480x288) is a little taller than the screen, so the top and bottom walls
+// are cut by 8px each. The HUD sits over the top wall.
 export const ROOM_X = 0;
-export const ROOM_Y = HUD_HEIGHT;
+export const ROOM_Y = (GAME_HEIGHT - TILE * ROOM_ROWS) / 2; // -8
+export const HUD_HEIGHT = TILE + ROOM_Y;                    // 24: the visible part of the top wall
 
 // Walkable floor area inside the walls, in world pixels.
 export const FLOOR = {

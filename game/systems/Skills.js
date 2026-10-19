@@ -7,7 +7,7 @@ import { tileOf } from './Pathing.js';
 // The HUD meter listens to the 'skill' event.
 
 const BEAM = {
-  width: 6,
+  width: 12,
   tickMs: 100,         // damage is dealt in ticks
   damagePerTick: 0.6,  // times the player's damage stat
   moveSlow: 0.6,       // Mangkok moves slower while beaming
@@ -15,12 +15,12 @@ const BEAM = {
 };
 
 const CAT = {
-  speed: 95,
-  reach: 6,             // extra px beyond touching the target
+  speed: 190,
+  reach: 12,             // extra px beyond touching the target
   scratchMs: 450,       // time between scratches
   damage: 1.5,          // times the player's damage stat
-  followDistance: 18,   // with no enemies she trots after Lilo and sits this close
-  footOffset: 4,
+  followDistance: 36,   // with no enemies she trots after Lilo and sits this close
+  footOffset: 8,
 };
 
 export class Skills {
@@ -83,7 +83,7 @@ export class Skills {
   // Ends whatever is running (also called when leaving a room or dying).
   stop() {
     if (!this.active) return;
-    if (this.active.kind === 'cat') this.scene.burst(this.active.zone.x, this.active.zone.y, 'smoke', 6, { distance: 8 });
+    if (this.active.kind === 'cat') this.scene.burst(this.active.zone.x, this.active.zone.y, 'smoke', 6, { distance: 16 });
     (this.active.colliders ?? []).forEach((collider) => this.scene.physics.world.removeCollider(collider));
     this.active.objects.forEach((obj) => obj.destroy());
     this.player.beamUntil = 0;
@@ -105,21 +105,21 @@ export class Skills {
   beamRect() {
     const { x: px, y: py } = this.player.hitbox;
     const dir = this.player.facing;
-    const startX = px + dir.x * 6;
-    const startY = py - 2 + dir.y * 6;
+    const startX = px + dir.x * 12;
+    const startY = py - 4 + dir.y * 12;
     let length = 0;
     let blockedBy = null;
     const blocked = this.scene.view.blocked;
-    while (length < 260) {
-      const x = startX + dir.x * (length + 2);
-      const y = startY + dir.y * (length + 2);
+    while (length < 520) {
+      const x = startX + dir.x * (length + 4);
+      const y = startY + dir.y * (length + 4);
       if (x < FLOOR.left || x > FLOOR.right || y < FLOOR.top || y > FLOOR.bottom) break;
       const t = tileOf(x, y);
       if (blocked.has(`${t.col},${t.row}`)) {
         blockedBy = `${t.col},${t.row}`;
         break;
       }
-      length += 2;
+      length += 4;
     }
     const half = BEAM.width / 2;
     if (dir.x !== 0) {
@@ -156,13 +156,13 @@ export class Skills {
       if (horizontal) g.fillRect(beam.x, beam.y + inset, beam.w, beam.h - inset * 2);
       else g.fillRect(beam.x + inset, beam.y, beam.w - inset * 2, beam.h);
     };
-    layer(-(Math.floor(time / 50) % 2), 0xd94a2a);
-    layer(1, 0xffd23f);
-    layer(2, 0xfff4b8);
+    layer(-(Math.floor(time / 50) % 2) * 2, 0xd94a2a);
+    layer(2, 0xffd23f);
+    layer(4, 0xfff4b8);
 
     if (time < this.active.nextTickAt) return;
     this.active.nextTickAt = time + BEAM.tickMs;
-    scene.burst(beam.endX, beam.endY, 'crumb', 3, { distance: 8, duration: 250 });
+    scene.burst(beam.endX, beam.endY, 'crumb', 3, { distance: 16, duration: 250 });
     if (beam.blockedBy) this.burnObstacle(beam.blockedBy);
 
     const overlaps = (x, y, w, h) => x < beam.x + beam.w && x + w > beam.x && y < beam.y + beam.h && y + h > beam.y;
@@ -174,7 +174,7 @@ export class Skills {
     }
     // The beam burns through enemy bullets too.
     for (const bullet of scene.enemyShots.getChildren().slice()) {
-      if (overlaps(bullet.x - 2, bullet.y - 2, 4, 4)) bullet.pop();
+      if (overlaps(bullet.x - 4, bullet.y - 4, 8, 8)) bullet.pop();
     }
   }
 
@@ -184,9 +184,9 @@ export class Skills {
   startCat(until) {
     const scene = this.scene;
     const { x: px, y: py } = this.player.hitbox;
-    const spot = scene.freeSpot(Phaser.Math.Clamp(px + 14, FLOOR.left + 8, FLOOR.right - 8), py, 5);
+    const spot = scene.freeSpot(Phaser.Math.Clamp(px + 28, FLOOR.left + 16, FLOOR.right - 16), py, 10);
 
-    const zone = scene.add.zone(spot.x, spot.y, 8, 6);
+    const zone = scene.add.zone(spot.x, spot.y, 16, 12);
     scene.physics.add.existing(zone);
     const shadow = scene.add.image(spot.x, spot.y, 'shadow').setAlpha(0.3).setDepth(DEPTH.shadow);
     const sprite = scene.add.image(spot.x, spot.y, 'chinggu').setOrigin(0.5, 1);
@@ -196,8 +196,8 @@ export class Skills {
     ];
     this.active = { kind: 'cat', until, zone, sprite, shadow, colliders, nextScratchAt: 0, objects: [sprite, shadow, zone] };
 
-    scene.burst(spot.x, spot.y - 6, 'spark', 8, { distance: 12 });
-    scene.burst(spot.x, spot.y - 4, 'smoke', 6, { distance: 10 });
+    scene.burst(spot.x, spot.y - 12, 'spark', 8, { distance: 24 });
+    scene.burst(spot.x, spot.y - 8, 'smoke', 6, { distance: 20 });
     Audio.play('meow');
     this.updateCat(scene.time.now);
   }
@@ -225,7 +225,7 @@ export class Skills {
     if (target) {
       const reach = target.def.hitbox.w / 2 + CAT.reach;
       if (best > reach) {
-        body.velocity.setToPolar(scene.pathAngle(zone.x, zone.y, target.x, target.y, 4), CAT.speed);
+        body.velocity.setToPolar(scene.pathAngle(zone.x, zone.y, target.x, target.y, 8), CAT.speed);
         moving = true;
       } else {
         body.setVelocity(0, 0);
@@ -235,7 +235,7 @@ export class Skills {
     } else {
       const lilo = this.player.hitbox;
       if (distance(zone.x, zone.y, lilo.x, lilo.y) > CAT.followDistance) {
-        body.velocity.setToPolar(scene.pathAngle(zone.x, zone.y, lilo.x, lilo.y, 4), CAT.speed * 0.8);
+        body.velocity.setToPolar(scene.pathAngle(zone.x, zone.y, lilo.x, lilo.y, 8), CAT.speed * 0.8);
         moving = true;
       } else {
         body.setVelocity(0, 0);
@@ -244,11 +244,11 @@ export class Skills {
     }
 
     // Little hops while running; blinks in the last second before she leaves.
-    const hop = moving ? Math.round(Math.abs(Math.sin(time * 0.025)) * 2) : 0;
+    const hop = moving ? Math.round(Math.abs(Math.sin(time * 0.025)) * 2) * 2 : 0;
     const feetY = zone.y + CAT.footOffset;
     sprite.setPosition(zone.x, feetY - hop).setDepth(DEPTH.actors + feetY);
     sprite.setVisible(cat.until - time > 1000 || Math.floor(time / 100) % 2 === 0);
-    shadow.setPosition(zone.x, feetY - 1);
+    shadow.setPosition(zone.x, feetY - 2);
   }
 
   scratch(target, time) {
@@ -262,7 +262,7 @@ export class Skills {
     // Pounce squish and claw marks on the target.
     cat.sprite.setScale(1.25, 0.8);
     scene.tweens.add({ targets: cat.sprite, scaleX: 1, scaleY: 1, duration: 180, ease: 'Back.easeOut' });
-    const marks = scene.add.image(target.x, target.y - 6, 'scratch').setFlipX(target.x < cat.zone.x).setDepth(DEPTH.ui - 1);
+    const marks = scene.add.image(target.x, target.y - 12, 'scratch').setFlipX(target.x < cat.zone.x).setDepth(DEPTH.ui - 1);
     scene.tweens.add({ targets: marks, alpha: 0, duration: 250, delay: 80, onComplete: () => marks.destroy() });
   }
 }

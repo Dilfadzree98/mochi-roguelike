@@ -15,7 +15,7 @@ export class Boot extends Phaser.Scene {
   }
 
   create() {
-    makeTextures(this, this.cache.json.get('floors'));
+    makeTextures(this, { floors: this.cache.json.get('floors'), items: this.cache.json.get('items') });
     makeFont(this);
     this.scene.start('Menu');
   }

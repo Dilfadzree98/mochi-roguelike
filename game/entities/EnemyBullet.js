@@ -7,7 +7,7 @@ const LIFETIME_MS = 5000;
 export class EnemyBullet extends Phaser.Physics.Arcade.Image {
   // Call after adding the bullet to a physics group (adding resets velocity).
   launch(angle, speed, time, range = null) {
-    this.body.setSize(4, 4);
+    this.body.setSize(8, 8);
     this.setRotation(angle); // only the thorn has a direction; round bullets look the same
     this.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
     this.expiresAt = time + LIFETIME_MS;
@@ -25,7 +25,7 @@ export class EnemyBullet extends Phaser.Physics.Arcade.Image {
 
   pop() {
     if (!this.active) return;
-    this.scene.burst(this.x, this.y, 'pink_bit', 3, { distance: 4, duration: 200 });
+    this.scene.burst(this.x, this.y, 'pink_bit', 3, { distance: 8, duration: 200 });
     this.destroy();
   }
 }

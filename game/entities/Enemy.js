@@ -20,7 +20,7 @@ const BEHAVIOURS = {
     ai.nextAt = time + p.interval;
     ai.offset = (ai.offset ?? 0) + Math.PI / p.bullets; // alternate the gaps
     e.squish();
-    e.scene.fireRing(e.x, e.y - 4 * e.size, p.bullets, p.bulletSpeed, p.bullet, ai.offset, p.range);
+    e.scene.fireRing(e.x, e.y - 8 * e.size, p.bullets, p.bulletSpeed, p.bullet, ai.offset, p.range);
   },
 
   // Wanders, wiggles as a warning, then charges in a straight line until it hits something.
@@ -65,7 +65,7 @@ const BEHAVIOURS = {
     const ai = e.ai;
     ai.nextAt ??= time + e.scene.rng.range(800, p.interval);
     if (ai.fireAt && time >= ai.fireAt) {
-      e.scene.fireSpread(e.x, e.y - 8, angleTo(e, player), p.bullets, p.spreadDeg, p.bulletSpeed, p.bullet, p.range);
+      e.scene.fireSpread(e.x, e.y - 16, angleTo(e, player), p.bullets, p.spreadDeg, p.bulletSpeed, p.bullet, p.range);
       ai.fireAt = null;
       ai.closeAt = time + 300;
     }
@@ -90,18 +90,18 @@ const BEHAVIOURS = {
     if (time < ai.until) return;
 
     if (ai.phase === 'shown') {
-      e.scene.fireSpread(e.x, e.y - 6 * e.size, angleTo(e, player), p.bullets, p.spreadDeg, p.bulletSpeed, p.bullet, p.range);
+      e.scene.fireSpread(e.x, e.y - 12 * e.size, angleTo(e, player), p.bullets, p.spreadDeg, p.bulletSpeed, p.bullet, p.range);
       ai.cycle = (ai.cycle ?? 0) + 1;
       if (p.ringEvery && ai.cycle % p.ringEvery === 0) e.scene.fireRing(e.x, e.y, p.ringBullets, p.bulletSpeed * 0.8, p.bullet, 0, p.range);
       e.scene.tweens.add({ targets: e.sprite, alpha: 0, delay: 350, duration: p.fadeMs });
       Object.assign(ai, { phase: 'leaving', until: time + 350 + p.fadeMs });
     } else if (ai.phase === 'leaving') {
-      e.scene.burst(e.x, e.y - 6, 'hex_spark', 8, { distance: 10 });
+      e.scene.burst(e.x, e.y - 12, 'hex_spark', 8, { distance: 20 });
       e.hitbox.body.enable = false;
       const spot = e.scene.findTeleportSpot();
       e.hitbox.body.reset(spot.x, spot.y);
       e.syncVisuals();
-      e.scene.burst(spot.x, spot.y - 6, 'hex_spark', 8, { distance: 10 });
+      e.scene.burst(spot.x, spot.y - 12, 'hex_spark', 8, { distance: 20 });
       e.scene.tweens.add({ targets: e.sprite, alpha: 1, duration: p.fadeMs });
       Object.assign(ai, { phase: 'arriving', until: time + p.fadeMs });
     } else if (ai.phase === 'arriving') {
@@ -144,7 +144,7 @@ const BEHAVIOURS = {
 
 const SPAWN_MS = 500;
 const KNOCKBACK_MS = 100;
-const KNOCKBACK_SPEED = 70;
+const KNOCKBACK_SPEED = 140;
 const ANIM_FRAME_MS = 250;
 const FLASH_MS = 60;
 const BURN_TINT = 0xff8a3d;
@@ -156,6 +156,7 @@ const ENRAGED_TINT = 0xffb3d0;
 const ENRAGE_AT = 0.5;          // bosses get angry below half health
 const ENRAGED_COOLDOWN = 0.65;  // and rest this much less between moves
 const FIRST_MOVE_MS = 1200;
+const SHADOW_WIDTH = 24; // the 'shadow' texture, stretched to each enemy's width
 
 // States: spawning -> active -> dead (or frozen when the run ends).
 export class Enemy {
@@ -178,7 +179,7 @@ export class Enemy {
     this.slow = null;   // { multiplier, until }
     this.dizzyUntil = 0; // Catnip: wanders around and doesn't attack
     this.animOffset = scene.fxRng.range(0, ANIM_FRAME_MS * 2);
-    this.footOffset = def.hitbox.h / 2 + 1;
+    this.footOffset = def.hitbox.h / 2 + 2;
     this.size = def.scale ?? 1;
     this.squashAmount = def.squash ?? 0.1;
 
@@ -188,7 +189,7 @@ export class Enemy {
     this.hitbox.body.enable = false;
     if (def.stationary) this.hitbox.body.setImmovable(true);
 
-    this.shadow = scene.add.image(x, y, 'shadow').setDepth(DEPTH.shadow).setAlpha(0).setScale(this.size);
+    this.shadow = scene.add.image(x, y, 'shadow').setDepth(DEPTH.shadow).setAlpha(0).setScale((def.hitbox.w + 8) / SHADOW_WIDTH);
     this.sprite = scene.add.image(x, y, def.texture).setOrigin(0.5, 1).setAlpha(0).setScale(this.size, 0.2 * this.size);
     this.syncVisuals();
 
@@ -196,7 +197,7 @@ export class Enemy {
     scene.tweens.add({ targets: this.sprite, alpha: 1, scaleY: this.size, duration: SPAWN_MS, ease: 'Back.easeOut' });
     scene.tweens.add({ targets: this.shadow, alpha: 0.3, duration: SPAWN_MS });
     scene.time.delayedCall(SPAWN_MS, () => {
-      if (this.state !== 'spawning') return;
+      if (this.destroyed || this.state !== 'spawning') return; // removed while popping up
       this.state = 'active';
       this.hitbox.body.enable = true;
       if (def.boss) scene.onBossHp(this);
@@ -234,7 +235,7 @@ export class Enemy {
     if (Math.abs(body.velocity.x) > 1) this.sprite.setFlipX(body.velocity.x < 0);
 
     if (this.def.trail && time >= this.nextTrailAt) {
-      this.scene.dropSlime(this.x, this.y + this.footOffset - 1, this.def.trail);
+      this.scene.dropSlime(this.x, this.y + this.footOffset - 2, this.def.trail);
       this.nextTrailAt = time + this.def.trail.interval;
     }
 
@@ -244,7 +245,7 @@ export class Enemy {
       const s = this.squashAmount;
       this.sprite.setScale(this.size * (stretched ? 1 + s : 1), this.size * (stretched ? 1 - s : 1));
     }
-    this.syncVisuals(time < this.shakeUntil ? (Math.floor(time / 40) % 2 ? 1 : -1) : 0);
+    this.syncVisuals(time < this.shakeUntil ? (Math.floor(time / 40) % 2 ? 2 : -2) : 0);
   }
 
   // Dizzy: wander in random directions and don't attack.
@@ -285,7 +286,7 @@ export class Enemy {
   syncVisuals(shakeX = 0) {
     const feetY = this.y + this.footOffset;
     this.sprite.setPosition(this.x + shakeX, feetY).setDepth(DEPTH.actors + feetY);
-    this.shadow.setPosition(this.x, feetY - 1);
+    this.shadow.setPosition(this.x, feetY - 2);
   }
 
   // ---------- Helpers used by behaviours ----------
@@ -348,9 +349,9 @@ export class Enemy {
     this.stop();
     this.hitbox.body.enable = false;
     flashWhite(this.scene, this.sprite);
-    const s = this.size;
-    if (this.def.deathParticle) this.scene.burst(this.x, this.y - 4 * s, this.def.deathParticle, Math.round(6 * s), { distance: 10 * s });
-    if (this.def.trail) this.scene.dropSlime(this.x, this.y + this.footOffset - 1, this.def.trail);
+    const w = this.def.hitbox.w; // bigger enemies burst into more pieces
+    if (this.def.deathParticle) this.scene.burst(this.x, this.y - 8, this.def.deathParticle, Math.max(6, Math.round(w / 4)), { distance: w * 0.8 });
+    if (this.def.trail) this.scene.dropSlime(this.x, this.y + this.footOffset - 2, this.def.trail);
     this.scene.onEnemyKilled(this);
 
     this.scene.tweens.add({ targets: this.shadow, alpha: 0, duration: 450 });
@@ -377,10 +378,10 @@ const DEATHS = {
   // Melts into a puddle.
   melt: (e) => ({ scaleX: 1.5 * e.size, scaleY: 0.15 * e.size, alpha: 0, duration: 450, ease: 'Quad.easeIn' }),
   // Cap pops off and rolls away.
-  pop: (e) => ({ x: e.sprite.x + 12 * e.size, y: e.sprite.y - 4, angle: 200, alpha: 0, duration: 550, ease: 'Quad.easeOut' }),
+  pop: (e) => ({ x: e.sprite.x + 24 * e.size, y: e.sprite.y - 8, angle: 200, alpha: 0, duration: 550, ease: 'Quad.easeOut' }),
   // Flips onto its back, legs wiggling.
   flip: (e) => {
-    e.sprite.setFlipY(true).setOrigin(0.5, 0.5).setY(e.sprite.y - 8);
+    e.sprite.setFlipY(true).setOrigin(0.5, 0.5).setY(e.sprite.y - 16);
     return { angle: { from: -8, to: 8 }, alpha: 0, duration: 700, ease: 'Sine.easeInOut' };
   },
   // Withers and shrinks into the ground.

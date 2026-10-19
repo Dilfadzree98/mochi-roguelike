@@ -8,7 +8,7 @@ import { HUD } from './scenes/HUD.js';
 import { GameOver } from './scenes/GameOver.js';
 import { Pause } from './scenes/Pause.js';
 
-// Scale the 240x160 canvas by a whole number so every pixel stays square.
+// Scale the 480x272 canvas by a whole number so every pixel stays square.
 function integerZoom() {
   return Math.max(1, Math.floor(Math.min(window.innerWidth / GAME_WIDTH, window.innerHeight / GAME_HEIGHT)));
 }

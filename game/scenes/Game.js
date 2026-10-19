@@ -1,4 +1,4 @@
-import { GAME_WIDTH, ROOM_Y, FLOOR, DEPTH, UI } from '../constants.js';
+import { GAME_WIDTH, HUD_HEIGHT, FLOOR, DEPTH, UI } from '../constants.js';
 import { addText } from '../art/PixelFont.js';
 import { Rng, newSeed } from '../systems/Rng.js';
 import { Save } from '../systems/Save.js';
@@ -15,10 +15,10 @@ import { Skills } from '../systems/Skills.js';
 
 const ROOM_START_DELAY_MS = 500;
 const WAVE_BREAK_MS = 900;
-const SPAWN_MIN_PLAYER_DISTANCE = 64;
-const SPAWN_MIN_ENEMY_DISTANCE = 20;
-const PICKUP_RADIUS = 9;
-const TOOLTIP_RADIUS = 24;
+const SPAWN_MIN_PLAYER_DISTANCE = 128;
+const SPAWN_MIN_ENEMY_DISTANCE = 40;
+const PICKUP_RADIUS = 18;
+const TOOLTIP_RADIUS = 48;
 const FADE_MS = 150;
 const FADE_COLOR = [18, 14, 22];
 const GAME_OVER_DELAY_MS = 1600;
@@ -36,23 +36,23 @@ const COIN_DROP_LUCK_BONUS = 0.03;
 const BOSS_DOUBLE_HEART_CHANCE = 0.4; // a boss always drops a heart, sometimes two
 
 const BOMB_FUSE_MS = 1500;
-const BOMB_RADIUS = 30;
+const BOMB_RADIUS = 60;
 const BOMB_DAMAGE = 5;
 
 const ROOT_WARNING_MS = 700;
-const ROOT_RADIUS = 11;
-const MARK_RADIUS = 10; // boss attacks that land on a target mark
+const ROOT_RADIUS = 22;
+const MARK_RADIUS = 20; // boss attacks that land on a target mark
 
 const SPLIT_SPREAD = 0.6;      // radians between split fragments
-const SPLIT_RANGE = 50;
-const MULTISHOT_SPACING = 4;   // px between side-by-side seeds
+const SPLIT_RANGE = 100;
+const MULTISHOT_SPACING = 8;   // px between side-by-side seeds
 const SPREAD_ANGLE = 0.26;     // radians between fanned seeds (about 15 degrees)
 const SPRINKLER_SEEDS = 8;
-const SPRINKLER_RANGE = 70;
-const CHAIN_RANGE = 50;        // px a zap can jump
+const SPRINKLER_RANGE = 140;
+const CHAIN_RANGE = 100;       // px a zap can jump
 const CHAIN_DAMAGE = 0.6;      // times the shot's damage
 
-const TREASURE_SPACING = 44;   // px between the three treasure pedestals
+const TREASURE_SPACING = 88;   // px between the three treasure pedestals
 
 const SHOP_PRICES = { item: 5, heart: 3, bomb: 3, key: 3 };
 const PICKUP_TEXTURES = { heart: 'heart_full', coin: 'coin', bomb: 'bomb', key: 'key' };
@@ -66,10 +66,10 @@ const CENTER = { x: (FLOOR.left + FLOOR.right) / 2, y: (FLOOR.top + FLOOR.bottom
 
 // Where Mochi appears after walking through a door in direction `dir`.
 const ENTRY_POINTS = {
-  up: { x: CENTER.x, y: FLOOR.bottom - 10 },
-  down: { x: CENTER.x, y: FLOOR.top + 10 },
-  left: { x: FLOOR.right - 10, y: CENTER.y },
-  right: { x: FLOOR.left + 10, y: CENTER.y },
+  up: { x: CENTER.x, y: FLOOR.bottom - 20 },
+  down: { x: CENTER.x, y: FLOOR.top + 20 },
+  left: { x: FLOOR.right - 20, y: CENTER.y },
+  right: { x: FLOOR.left + 20, y: CENTER.y },
 };
 
 // A run: four floors of rooms. Fight rooms have 2 waves and stay locked until both are cleared;
@@ -300,13 +300,13 @@ export class Game extends Phaser.Scene {
     door.neighbor.locked = false;
     this.view.unlock(door);
     Audio.play('unlock');
-    this.burst(door.x, door.y, 'spark', 8, { distance: 12 });
+    this.burst(door.x, door.y, 'spark', 8, { distance: 24 });
   }
 
   // Bombs and the Burger Beam break obstacles; the room remembers.
   breakObstacle(obstacle) {
-    this.burst(obstacle.x, obstacle.y, 'smoke', 6, { distance: 10 });
-    this.burst(obstacle.x, obstacle.y, 'husk', 6, { distance: 12 });
+    this.burst(obstacle.x, obstacle.y, 'smoke', 6, { distance: 20 });
+    this.burst(obstacle.x, obstacle.y, 'husk', 6, { distance: 24 });
     this.cameras.main.shake(80, 0.006);
     this.view.breakObstacle(obstacle);
   }
@@ -343,7 +343,7 @@ export class Game extends Phaser.Scene {
   }
 
   // Free floor point near (x, y): not inside an obstacle.
-  freeSpot(x, y, half = 6) {
+  freeSpot(x, y, half = 12) {
     return areaFree(this.view.blocked, x, y, half) ? { x, y } : nearestFree(this.view.blocked, x, y);
   }
 
@@ -351,7 +351,7 @@ export class Game extends Phaser.Scene {
     if (this.floorIndex > 0) return;
     const lines = ['[WASD] move, [Arrows] shoot, [E] bomb', '[Space] skill, [Esc] pause'];
     lines.forEach((line, i) => {
-      const hint = addText(this, CENTER.x, FLOOR.bottom - 20 + i * 8, line, { tint: UI.muted })
+      const hint = addText(this, CENTER.x, FLOOR.bottom - 34 + i * 14, line, { tint: UI.muted })
         .setDepth(DEPTH.shadow)
         .setAlpha(0.7);
       this.roomObjects.push(hint);
@@ -364,14 +364,14 @@ export class Game extends Phaser.Scene {
   // takes it. Returns the pickup spot (or null for an empty pedestal).
   addItemPedestal(x, y, itemId, onTake) {
     const glow = this.add.image(x, y, 'glow').setDepth(DEPTH.decor);
-    const pedestal = this.add.image(x, y + 4, 'pedestal').setOrigin(0.5, 1).setDepth(DEPTH.actors + y + 4);
+    const pedestal = this.add.image(x, y + 8, 'pedestal').setOrigin(0.5, 1).setDepth(DEPTH.actors + y + 8);
     this.tweens.add({ targets: glow, alpha: 0.5, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.roomObjects.push(glow, pedestal);
     if (!itemId) return null;
 
     const def = this.itemDefs[itemId];
-    const icon = this.floatingImage(x, y - 10, def.icon);
-    return this.addPickupSpot(x, y - 4, [icon], () => {
+    const icon = this.floatingImage(x, y - 24, def.icon);
+    return this.addPickupSpot(x, y - 8, [icon], () => {
       onTake();
       this.giveItem(itemId);
       return true;
@@ -384,7 +384,7 @@ export class Game extends Phaser.Scene {
     const { itemIds } = room.contents;
     const xs = [CENTER.x - TREASURE_SPACING, CENTER.x, CENTER.x + TREASURE_SPACING];
 
-    const note = itemIds.length > 1 ? addText(this, CENTER.x, CENTER.y + 16, 'Take one', { tint: UI.muted }).setDepth(DEPTH.shadow) : null;
+    const note = itemIds.length > 1 ? addText(this, CENTER.x, CENTER.y + 34, 'Take one', { tint: UI.muted }).setDepth(DEPTH.shadow) : null;
     if (note) this.roomObjects.push(note);
 
     const spots = [];
@@ -397,7 +397,7 @@ export class Game extends Phaser.Scene {
         note?.destroy();
         for (const spot of spots) {
           if (!spot || spot.itemId === itemId) continue;
-          this.burst(spot.x, spot.y - 6, 'smoke', 6, { distance: 8 });
+          this.burst(spot.x, spot.y - 12, 'smoke', 6, { distance: 16 });
           this.removePickupSpot(spot);
         }
       }));
@@ -409,9 +409,9 @@ export class Game extends Phaser.Scene {
   setUpBossReward(room) {
     if (this.floorIndex >= this.floors.length - 1) return;
     room.contents ??= { itemId: this.itemPool.pop() ?? null };
-    this.addItemPedestal(CENTER.x - 32, CENTER.y, room.contents.itemId, () => (room.contents.itemId = null));
+    this.addItemPedestal(CENTER.x - 64, CENTER.y, room.contents.itemId, () => (room.contents.itemId = null));
 
-    const x = CENTER.x + 32;
+    const x = CENTER.x + 64;
     const trapdoor = this.add.image(x, CENTER.y, 'trapdoor').setDepth(DEPTH.decor);
     this.roomObjects.push(trapdoor);
     this.addPickupSpot(x, CENTER.y, [], () => {
@@ -425,22 +425,22 @@ export class Game extends Phaser.Scene {
       const kinds = ['heart', 'bomb', 'key'];
       const itemId = this.itemPool.pop();
       const wares = itemId ? [{ kind: 'item', itemId }, ...kinds.map((kind) => ({ kind }))] : kinds.map((kind) => ({ kind }));
-      const spacing = 32;
+      const spacing = 64;
       const startX = CENTER.x - ((wares.length - 1) * spacing) / 2;
-      wares.forEach((ware, i) => Object.assign(ware, { price: SHOP_PRICES[ware.kind], x: startX + i * spacing, y: CENTER.y + 10 }));
+      wares.forEach((ware, i) => Object.assign(ware, { price: SHOP_PRICES[ware.kind], x: startX + i * spacing, y: CENTER.y + 20 }));
       room.contents = { wares };
     }
 
-    const worm = this.add.image(CENTER.x, FLOOR.top + 26, 'worm').setOrigin(0.5, 1).setDepth(DEPTH.actors + FLOOR.top + 26);
-    const greeting = addText(this, CENTER.x, FLOOR.top + 32, 'Coins for goodies!', { tint: UI.muted }).setDepth(DEPTH.shadow);
+    const worm = this.add.image(CENTER.x, FLOOR.top + 50, 'worm').setOrigin(0.5, 1).setDepth(DEPTH.actors + FLOOR.top + 50);
+    const greeting = addText(this, CENTER.x, FLOOR.top + 62, 'Coins for goodies!', { tint: UI.muted }).setDepth(DEPTH.shadow);
     this.tweens.add({ targets: worm, scaleY: 1.08, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.roomObjects.push(worm, greeting);
 
     for (const ware of room.contents.wares) {
       const def = ware.kind === 'item' ? this.itemDefs[ware.itemId] : null;
       const image = this.floatingImage(ware.x, ware.y, def ? def.icon : PICKUP_TEXTURES[ware.kind]);
-      const coin = this.add.image(ware.x - 4, ware.y + 11, 'coin').setDepth(DEPTH.shadow);
-      const price = addText(this, ware.x + 1, ware.y + 11, ware.price, { originX: 0, tint: UI.gold }).setDepth(DEPTH.shadow);
+      const coin = this.add.image(ware.x - 8, ware.y + 24, 'coin').setDepth(DEPTH.shadow);
+      const price = addText(this, ware.x + 2, ware.y + 24, ware.price, { originX: 0, tint: UI.gold }).setDepth(DEPTH.shadow);
       this.roomObjects.push(coin, price);
 
       const info = def ?? PICKUP_INFO[ware.kind];
@@ -465,7 +465,7 @@ export class Game extends Phaser.Scene {
     this.player.addItem({ id: itemId, ...def });
     this.banner(def.name, UI.gold, def.description);
     Audio.play('item');
-    this.burst(this.player.hitbox.x, this.player.hitbox.y - 6, 'spark', 10, { distance: 14 });
+    this.burst(this.player.hitbox.x, this.player.hitbox.y - 12, 'spark', 10, { distance: 28 });
   }
 
   // ---------- Waves ----------
@@ -489,8 +489,8 @@ export class Game extends Phaser.Scene {
     for (const type of types) {
       const def = this.enemyDefs[type];
       let pos;
-      if (def.spawn === 'top') pos = { x: CENTER.x, y: FLOOR.top + 26 };
-      else if (def.boss) pos = this.freeSpot(CENTER.x, CENTER.y - 8, 12);
+      if (def.spawn === 'top') pos = { x: CENTER.x, y: FLOOR.top + 78 };
+      else if (def.boss) pos = this.freeSpot(CENTER.x, CENTER.y - 16, 24);
       else pos = this.findSpawnPoint(taken);
       taken.push(pos);
       this.enemies.push(new Enemy(this, def, pos.x, pos.y, this.hpScale(def)));
@@ -506,7 +506,7 @@ export class Game extends Phaser.Scene {
   // Extra enemies mid-fight (a boss's summons).
   spawnEnemyAt(type, x, y) {
     const def = this.enemyDefs[type];
-    const pos = this.freeSpot(Phaser.Math.Clamp(x, FLOOR.left + 12, FLOOR.right - 12), Phaser.Math.Clamp(y, FLOOR.top + 12, FLOOR.bottom - 10), 8);
+    const pos = this.freeSpot(Phaser.Math.Clamp(x, FLOOR.left + 24, FLOOR.right - 24), Phaser.Math.Clamp(y, FLOOR.top + 24, FLOOR.bottom - 20), 16);
     this.enemies.push(new Enemy(this, def, pos.x, pos.y, this.hpScale(def)));
   }
 
@@ -527,7 +527,7 @@ export class Game extends Phaser.Scene {
     this.events.emit('wave', 0, 0);
     this.view.setOpen(true);
     Audio.play('door');
-    for (const door of this.view.doors) this.burst(door.x, door.y, 'leaf', 4, { distance: 10 });
+    for (const door of this.view.doors) this.burst(door.x, door.y, 'leaf', 4, { distance: 20 });
 
     if (room.type === 'boss') {
       if (this.floorIndex >= this.floors.length - 1) {
@@ -540,8 +540,8 @@ export class Game extends Phaser.Scene {
         this.banner('Boss defeated!', UI.gold, 'A trapdoor opens...');
         this.setUpBossReward(room);
         // Hearts below the item and trapdoor, so picking them up never means stepping on the trapdoor.
-        const hearts = this.rng.chance(BOSS_DOUBLE_HEART_CHANCE) ? [-8, 8] : [0];
-        for (const dx of hearts) this.dropPickup('heart', CENTER.x + dx, CENTER.y + 28);
+        const hearts = this.rng.chance(BOSS_DOUBLE_HEART_CHANCE) ? [-16, 16] : [0];
+        for (const dx of hearts) this.dropPickup('heart', CENTER.x + dx, CENTER.y + 56);
       }
       return;
     }
@@ -577,26 +577,26 @@ export class Game extends Phaser.Scene {
     let pos;
     for (let tries = 0; tries < 30; tries++) {
       pos = {
-        x: Math.round(this.rng.range(FLOOR.left + 14, FLOOR.right - 14)),
-        y: Math.round(this.rng.range(FLOOR.top + 14, FLOOR.bottom - 10)),
+        x: Math.round(this.rng.range(FLOOR.left + 28, FLOOR.right - 28)),
+        y: Math.round(this.rng.range(FLOOR.top + 28, FLOOR.bottom - 20)),
       };
       const nearPlayer = distance(pos.x, pos.y, player.x, player.y) < minPlayerDistance;
       const crowded = taken.some((other) => distance(pos.x, pos.y, other.x, other.y) < SPAWN_MIN_ENEMY_DISTANCE);
-      const inObstacle = !areaFree(this.view.blocked, pos.x, pos.y, 9);
+      const inObstacle = !areaFree(this.view.blocked, pos.x, pos.y, 18);
       if (!nearPlayer && !crowded && !inObstacle) return pos;
     }
-    return this.freeSpot(pos.x, pos.y, 9);
+    return this.freeSpot(pos.x, pos.y, 18);
   }
 
   findTeleportSpot() {
-    return this.findSpawnPoint([], 48);
+    return this.findSpawnPoint([], 96);
   }
 
   // ---------- Pickups and tooltips ----------
 
   floatingImage(x, y, texture) {
-    const image = this.add.image(x, y, texture).setDepth(DEPTH.actors + y + 8);
-    this.tweens.add({ targets: image, y: y - 2, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    const image = this.add.image(x, y, texture).setDepth(DEPTH.actors + y + 16);
+    this.tweens.add({ targets: image, y: y - 4, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.roomObjects.push(image);
     return image;
   }
@@ -618,8 +618,8 @@ export class Game extends Phaser.Scene {
   // A new drop on the floor, remembered by the room until picked up.
   dropPickup(kind, x, y) {
     const spot = this.freeSpot(
-      Phaser.Math.Clamp(Math.round(x), FLOOR.left + 6, FLOOR.right - 6),
-      Phaser.Math.Clamp(Math.round(y), FLOOR.top + 6, FLOOR.bottom - 6),
+      Phaser.Math.Clamp(Math.round(x), FLOOR.left + 12, FLOOR.right - 12),
+      Phaser.Math.Clamp(Math.round(y), FLOOR.top + 12, FLOOR.bottom - 12),
     );
     const pickup = { kind, x: spot.x, y: spot.y };
     this.room.pickups.push(pickup);
@@ -679,14 +679,14 @@ export class Game extends Phaser.Scene {
   }
 
   showTooltip(spot) {
-    const top = Math.max(ROOM_Y + 4, spot.y - 30);
-    const name = addText(this, 0, top + 4, spot.info.name, { tint: UI.gold });
-    const description = addText(this, 0, top + 12, spot.info.description);
-    const width = Math.max(name.width, description.width) + 8;
+    const top = Math.max(HUD_HEIGHT + 2, spot.y - 64);
+    const name = addText(this, 0, top + 9, spot.info.name, { tint: UI.gold });
+    const description = addText(this, 0, top + 23, spot.info.description);
+    const width = Math.max(name.width, description.width) + 16;
     const cx = Math.round(Phaser.Math.Clamp(spot.x, FLOOR.left + width / 2, FLOOR.right - width / 2));
     name.setX(cx);
     description.setX(cx);
-    const box = this.add.rectangle(cx, top + 8, width, 18, 0x120e16, 0.85).setStrokeStyle(1, 0x4a4058).setDepth(DEPTH.ui);
+    const box = this.add.rectangle(cx, top + 16, width, 32, 0x120e16, 0.85).setStrokeStyle(2, 0x4a4058).setDepth(DEPTH.ui);
     name.setDepth(DEPTH.ui + 1);
     description.setDepth(DEPTH.ui + 1);
     this.tooltip = { spot, parts: [box, name, description] };
@@ -705,9 +705,9 @@ export class Game extends Phaser.Scene {
     player.addToInventory('bombs', -1);
 
     const { x, y } = player.feet;
-    const image = this.add.image(x, y - 3, 'bomb').setDepth(DEPTH.actors + y - 1);
+    const image = this.add.image(x, y - 6, 'bomb').setDepth(DEPTH.actors + y - 2);
     this.tweens.add({ targets: image, scale: 1.25, duration: 150, yoyo: true, repeat: -1 });
-    const bomb = { x, y: y - 3, image };
+    const bomb = { x, y: y - 6, image };
     bomb.timer = this.time.delayedCall(BOMB_FUSE_MS, () => this.explode(bomb));
     this.bombs.push(bomb);
     this.roomObjects.push(image);
@@ -730,7 +730,7 @@ export class Game extends Phaser.Scene {
       enemy.hit(BOMB_DAMAGE, { x: Math.cos(angle), y: Math.sin(angle) }, now);
     }
     for (const obstacle of this.view.obstacles.slice()) {
-      if (distance(bomb.x, bomb.y, obstacle.x, obstacle.y) <= BOMB_RADIUS + 6) this.breakObstacle(obstacle);
+      if (distance(bomb.x, bomb.y, obstacle.x, obstacle.y) <= BOMB_RADIUS + 12) this.breakObstacle(obstacle);
     }
     this.hurtPlayerNear(bomb.x, bomb.y, BOMB_RADIUS);
   }
@@ -787,7 +787,7 @@ export class Game extends Phaser.Scene {
     let damage = shot.damage;
     if (shot.stats.crit > 0 && this.rng.chance(shot.stats.crit)) {
       damage *= 3;
-      this.burst(enemy.x, enemy.y - 6, 'spark', 6, { distance: 10 });
+      this.burst(enemy.x, enemy.y - 12, 'spark', 6, { distance: 20 });
       Audio.play('crit');
     }
     enemy.hit(damage, shot.dir, this.time.now, shot.effects);
@@ -813,7 +813,7 @@ export class Game extends Phaser.Scene {
       }
       if (!next) return;
       const zap = this.add.graphics().setDepth(DEPTH.ui - 1);
-      zap.lineStyle(1, 0xffe45c, 1).lineBetween(source.x, source.y - 4, next.x, next.y - 4);
+      zap.lineStyle(2, 0xffe45c, 1).lineBetween(source.x, source.y - 8, next.x, next.y - 8);
       this.time.delayedCall(90, () => zap.destroy());
       this.roomObjects.push(zap);
       const angle = Math.atan2(next.y - source.y, next.x - source.x);
@@ -892,29 +892,29 @@ export class Game extends Phaser.Scene {
 
   // A warning crack under the target, then roots burst up.
   rootStrike(x, y) {
-    const crack = this.add.image(x, y + 4, 'crack').setDepth(DEPTH.slime);
+    const crack = this.add.image(x, y + 8, 'crack').setDepth(DEPTH.slime);
     this.roomObjects.push(crack);
     this.tweens.add({ targets: crack, alpha: { from: 1, to: 0.4 }, duration: 120, yoyo: true, repeat: -1 });
     this.time.delayedCall(ROOT_WARNING_MS, () => {
       crack.destroy();
       if (!this.waveActive) return;
-      const roots = this.add.image(x, y + 6, 'roots').setOrigin(0.5, 1).setDepth(DEPTH.actors + y + 6);
+      const roots = this.add.image(x, y + 12, 'roots').setOrigin(0.5, 1).setDepth(DEPTH.actors + y + 12);
       this.roomObjects.push(roots);
       this.tweens.add({ targets: roots, scaleY: { from: 0.2, to: 1 }, duration: 120, yoyo: true, hold: 300, onComplete: () => roots.destroy() });
-      this.burst(x, y + 4, 'smoke', 5, { distance: 8 });
+      this.burst(x, y + 8, 'smoke', 5, { distance: 16 });
       this.hurtPlayerNear(x, y, ROOT_RADIUS);
     });
   }
 
   // A blinking target mark, then `land` runs and anything on the mark gets hurt.
   markStrike(x, y, delayMs, land) {
-    const mark = this.add.image(x, y + 2, 'target').setDepth(DEPTH.slime);
+    const mark = this.add.image(x, y + 4, 'target').setDepth(DEPTH.slime);
     this.roomObjects.push(mark);
     this.tweens.add({ targets: mark, alpha: { from: 1, to: 0.35 }, duration: 110, yoyo: true, repeat: -1 });
     this.time.delayedCall(delayMs, () => {
       mark.destroy();
       if (!this.waveActive) return;
-      this.burst(x, y, 'smoke', 4, { distance: 7 });
+      this.burst(x, y, 'smoke', 4, { distance: 14 });
       this.hurtPlayerNear(x, y, MARK_RADIUS);
       land();
     });
@@ -987,7 +987,7 @@ export class Game extends Phaser.Scene {
   slowAt({ x, y }) {
     let multiplier = 1;
     for (const blob of this.slime.getChildren()) {
-      if (blob.alpha > 0.15 && Math.abs(blob.x - x) < 6 && Math.abs(blob.y - y) < 4) {
+      if (blob.alpha > 0.15 && Math.abs(blob.x - x) < 12 && Math.abs(blob.y - y) < 8) {
         multiplier = Math.min(multiplier, blob.getData('slow'));
       }
     }
@@ -996,7 +996,7 @@ export class Game extends Phaser.Scene {
 
   // ---------- Effects ----------
 
-  burst(x, y, texture, count, { distance = 8, duration = 300 } = {}) {
+  burst(x, y, texture, count, { distance = 16, duration = 300 } = {}) {
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2 + this.fxRng.range(-0.5, 0.5);
       const reach = distance * this.fxRng.range(0.6, 1.2);
@@ -1014,9 +1014,9 @@ export class Game extends Phaser.Scene {
   }
 
   banner(text, tint, subtitle) {
-    const y = FLOOR.top + 22;
-    const labels = [addText(this, GAME_WIDTH / 2, y, text, { scale: 2, tint })];
-    if (subtitle) labels.push(addText(this, GAME_WIDTH / 2, y + 13, subtitle, { tint: UI.muted }));
+    const y = FLOOR.top + 44;
+    const labels = [addText(this, GAME_WIDTH / 2, y, text, { scale: 4, tint })];
+    if (subtitle) labels.push(addText(this, GAME_WIDTH / 2, y + 26, subtitle, { tint: UI.muted }));
     labels.forEach((label) => label.setDepth(DEPTH.ui).setAlpha(0));
     this.tweens.add({
       targets: labels,
@@ -1031,8 +1031,8 @@ export class Game extends Phaser.Scene {
   // Bigger floating callout above Mochi (skill names).
   shout(text, tint) {
     const { x, y } = this.player.hitbox;
-    const label = addText(this, Phaser.Math.Clamp(x, FLOOR.left + 40, FLOOR.right - 40), y - 20, text, { tint }).setDepth(DEPTH.ui);
-    this.tweens.add({ targets: label, y: y - 30, alpha: 0, duration: 900, delay: 400, onComplete: () => label.destroy() });
+    const label = addText(this, Phaser.Math.Clamp(x, FLOOR.left + 80, FLOOR.right - 80), y - 40, text, { tint }).setDepth(DEPTH.ui);
+    this.tweens.add({ targets: label, y: y - 60, alpha: 0, duration: 900, delay: 400, onComplete: () => label.destroy() });
   }
 
   // Small floating message above Mochi, at most once per cooldown.
@@ -1040,7 +1040,7 @@ export class Game extends Phaser.Scene {
     if (this.time.now < this.nextHintAt) return;
     this.nextHintAt = this.time.now + HINT_COOLDOWN_MS;
     const { x, y } = this.player.hitbox;
-    const label = addText(this, x, y - 16, text, { tint: UI.muted }).setDepth(DEPTH.ui);
-    this.tweens.add({ targets: label, y: y - 24, alpha: 0, duration: 1000, delay: 300, onComplete: () => label.destroy() });
+    const label = addText(this, Phaser.Math.Clamp(x, FLOOR.left + 80, FLOOR.right - 80), y - 32, text, { tint: UI.muted }).setDepth(DEPTH.ui);
+    this.tweens.add({ targets: label, y: y - 48, alpha: 0, duration: 1000, delay: 300, onComplete: () => label.destroy() });
   }
 }

@@ -44,12 +44,17 @@ URL options: `?seed=12345` replays a run, `?debug` shows hitboxes.
 ```
 game/
 ├── index.html
-├── main.js              starts Phaser (240x160, integer zoom), registers scenes
+├── main.js              starts Phaser (480x272, integer zoom), registers scenes
 ├── constants.js         room size, floor bounds, draw depths, UI tints
 ├── lib/phaser.min.js
 ├── art/
-│   ├── Sprites.js       placeholder pixel art as text maps; per-floor tiles; Weed Queen drawn from shapes
-│   └── PixelFont.js     3x5 bitmap font, CAPITALS ONLY; use addText() (it uppercases); uppercase before setText()
+│   ├── Sprites.js       makeTextures(): builds every texture at boot from the modules below
+│   ├── Pixels.js        software canvas: shapes, `inside` shading, auto 2px outline, crop; paint()
+│   ├── Characters.js    Mochi + outfits (Mangkok, Lilo) and all their variants; Chinggu
+│   ├── Enemies.js       enemies, bosses (size-factor designs), pink enemy bullets
+│   ├── Items.js         shots, all item icons, pickups, hearts, skill icons
+│   ├── World.js         floor/wall tiles and wall faces, doors, obstacles, decorations, particles
+│   └── PixelFont.js     3x5 bitmap font drawn at 2x by default, CAPITALS ONLY; use addText() (it uppercases); uppercase before setText()
 ├── scenes/
 │   ├── Boot.js          loads data, builds textures and font
 │   ├── Menu.js
@@ -81,11 +86,11 @@ game/
     └── items.json       37 items (20 shot, 17 stat); each is a list of stat modifiers
 ```
 
-Adding an enemy: add an entry to `data/enemies.json` using an existing `behaviour` (`chase`, `ring_shooter`, `charger`, `aimed_shooter`, `teleporter`) with its `params`, a `death` from `DEATHS`, and a sprite in `art/Sprites.js` ENEMIES; then give it a weight in a floor's `enemies` in `floors.json`. A new movement pattern goes in `BEHAVIOURS` in Enemy.js. Enemy attacks use Game's `fireRing` / `fireSpread` / `fireSpiral` / `fireSweep` / `rootStrike` / `markStrike`.
+Adding an enemy: add an entry to `data/enemies.json` using an existing `behaviour` (`chase`, `ring_shooter`, `charger`, `aimed_shooter`, `teleporter`) with its `params`, a `death` from `DEATHS`, and a sprite in `art/Enemies.js` (`makeEnemyTextures`); then give it a weight in a floor's `enemies` in `floors.json`. A new movement pattern goes in `BEHAVIOURS` in Enemy.js. Enemy attacks use Game's `fireRing` / `fireSpread` / `fireSpiral` / `fireSweep` / `rootStrike` / `markStrike`.
 
 Adding a boss: an entry in `data/enemies.json` with `"boss": true`, `"behaviour": "boss"`, an `idle` (`still`, `chase`, `wander`), three `moves` and `params.cooldownMs`. Moves are generators in `BOSS_MOVES` (entities/BossMoves.js): `yield ms` waits, a bare `yield` waits one frame. It joins the boss pool automatically.
 
-Adding an item: add an entry to `data/items.json` with `modifiers` like `{ "damage": { "add": 0.5 } }`, `{ "fireDelay": { "mul": 0.75 } }` or `{ "pierce": { "set": true } }`, and an `icon` texture key (draw it in `art/Sprites.js` ICONS). A brand-new stat also needs a default in `BASE_STATS` (Player.js) and code that reads it.
+Adding an item: add an entry to `data/items.json` with `modifiers` like `{ "damage": { "add": 0.5 } }`, `{ "fireDelay": { "mul": 0.75 } }` or `{ "pierce": { "set": true } }`, and an `icon` texture key (draw it in `art/Items.js` ICONS, or for a shot item add it to SHOT_ITEM_ICONS and its shot to SHOTS). A brand-new stat also needs a default in `BASE_STATS` (Player.js) and code that reads it.
 
 Implementation patterns to keep:
 - **Hitbox + sprite split:** Player and Enemy own an invisible physics `zone` (the hitbox) and a separate image that follows it. Squash/stretch scales only the image, so collisions stay stable. `hitbox.owner` points back to the entity.
@@ -98,7 +103,7 @@ Implementation patterns to keep:
 - **Enemy bullet range:** regular shooters' bullets pop after `params.range` px (Grumpshroom 64, Thornvine 96, Hexed Gnome 88), so they can't hit Mochi from across the room. Boss bullets have no range limit.
 - **Mochi's invincibility:** 2 s after each hit (`INVULN_MS` in Player.js), with blinking.
 - **Characters:** Mangkok Mochi (boy, blue cap with a burger on it) and Lilo Mochi (girl, pink flower on her right ear, eyelashes). Each has stat `modifiers` in characters.json, applied like an item (Mangkok: damage +0.25, speed -6; Lilo: speed +8). The select screen shows hearts plus Damage/Speed/Fire rate as 1-5 pips (3 = base Mochi; `STAT_ROWS` in CharacterSelect.js).
-- **Skills** (systems/Skills.js): every `skill.every` (30) shots charge the character's skill. When it's ready (a sound, a "ready - Space" hint and a blinking meter), **Space** casts it (`Skills.tryCast`) for `skill.durationMs` (2 s). It stays charged until used, even between rooms. Shots don't charge it while it's ready or running. **Burger Beam** (Mangkok): a beam in the facing direction that stops at walls and burns through obstacles (each breaks after 2 ticks / 0.2 s, via `Game.breakObstacle`, same as bombs), damages every enemy it overlaps (0.6 x damage per 100 ms tick), pops enemy bullets, slows Mochi, and replaces normal shots. **Spawn Chinggu** (Lilo, 4 s): Chinggu, a calico cat (white with orange and black patches, pink bow), appears next to Lilo, runs to the nearest enemy using `Game.pathAngle()` and scratches it (1.5 x damage every 450 ms); with no enemies she follows Lilo. Enemies ignore her and she can't be hurt. The HUD meter (icon + bar) fills per shot, blinks when ready and drains while active. Skills stop when leaving a room or dying. Their sprites are base Mochi plus an outfit overlay (`CHARACTERS` in Sprites.js; `makeMochiTextures` builds `<key>`, `_hurt`, `_wilt`, `_wilt_hurt`, `_bare`). The sprout leaf stays visible on both because it shows health. The character id travels Select → Game → GameOver/Pause restart. Adding one: an outfit in `CHARACTERS` + an entry in `characters.json` (keep descriptions ≤ 22 characters so the two cards don't overlap).
+- **Skills** (systems/Skills.js): every `skill.every` (30) shots charge the character's skill. When it's ready (a sound, a "ready - Space" hint and a blinking meter), **Space** casts it (`Skills.tryCast`) for `skill.durationMs` (2 s). It stays charged until used, even between rooms. Shots don't charge it while it's ready or running. **Burger Beam** (Mangkok): a beam in the facing direction that stops at walls and burns through obstacles (each breaks after 2 ticks / 0.2 s, via `Game.breakObstacle`, same as bombs), damages every enemy it overlaps (0.6 x damage per 100 ms tick), pops enemy bullets, slows Mochi, and replaces normal shots. **Spawn Chinggu** (Lilo, 4 s): Chinggu, a calico cat (white with orange and black patches, pink bow), appears next to Lilo, runs to the nearest enemy using `Game.pathAngle()` and scratches it (1.5 x damage every 450 ms); with no enemies she follows Lilo. Enemies ignore her and she can't be hurt. The HUD meter (icon + bar) fills per shot, blinks when ready and drains while active. Skills stop when leaving a room or dying. Their sprites are base Mochi plus an outfit drawn on top (`OUTFITS` in art/Characters.js; `makeCharacter` builds `<key>`, `_hurt`, `_wilt`, `_wilt_hurt`, `_bare`). The sprout leaf stays visible on both because it shows health. The character id travels Select → Game → GameOver/Pause restart. Adding one: an outfit in `OUTFITS` + an entry in `characters.json` (keep descriptions ≤ 22 characters so the two cards don't overlap).
 - **Tooltips:** any pickup spot created with an `info` ({ name, description }) shows a tooltip when Mochi is within 24 px.
 - **Waves:** `makeWave` in DungeonGen.js: each wave is 1-6 enemies of 1-3 types (weights `TYPES_PER_WAVE`), types drawn from the floor's `enemies` weights without repeats; the minimum size grows with distance from start + floor; `maxPerWave` in enemies.json caps strong enemies (gnome 2, thornvine/grumpshroom 3, beetle 4).
 - **Obstacles:** each fight room gets a mirrored layout (`makeLayout` in Pathing.js) of whole-tile obstacles from the floor's `obstacles` list (20% of fight rooms are open; boss rooms get corner cover; start/treasure/shop stay empty). Layouts never block door entrances and always keep every free tile reachable. Obstacles block Mochi, enemies and all bullets; bombs and the Burger Beam break them (`room.obstacles[].broken` persists); `"hurts": true` (thorn clusters) damages Mochi on touch. Chasing enemies use `Game.chaseAngle()` (straight line if clear, else flow field). Spawns, teleports and drops use `areaFree` / `freeSpot` to avoid obstacles.
@@ -111,13 +116,15 @@ Implementation patterns to keep:
 - **Items are small, separate modifiers.** Each item applies one stat or shot change and must stack cleanly with others. Avoid special-case code between specific items.
 - **Keep rendering separate from logic** so placeholder rectangles can be swapped for sprites later without code changes beyond asset keys.
 - **Pixel-perfect rendering:** `pixelArt: true`, integer zoom, no anti-aliasing or smoothing.
+- **Resolution and units:** the game is 480x272. Every coordinate, speed (px/s), range, radius and hitbox in the code and JSON is in these screen pixels (they were all doubled when the game moved up from 240x160). Tiles are 32 px; the room is 15x9 tiles (480x288), so `ROOM_Y` is -8 and the top and bottom walls are cut by 8 px; the HUD (`HUD_HEIGHT` 24) sits over the top wall and the boss bar over the bottom wall.
+- **Art style in code:** every sprite is painted at boot with `paint()` (art/Pixels.js): simple shapes, shading with `inside()`, then an automatic 2 px dark outline, cropped so feet are on the texture's bottom edge. Characters are about 40x40, regular enemies 24-48 px, bosses 56-100 px (drawn at full size, never scaled up, so outlines stay 2 px), shots 10 px + outline, item icons 24 px + outline. Particles and floor decorations have no outline and use 2x2 blocks (`blocks()` in World.js). Text is the 3x5 font at scale 2 (titles 4 or 8). Never use `setScale` to enlarge in-game sprites; menus show characters at 2x.
 - **Seedable randomness:** route all run randomness (dungeon, drops, item pools) through one seeded RNG so seeded/daily runs (Stage 5) are possible later. Do not call `Math.random()` directly in gameplay code.
 - Write code a solo hobby developer can read and learn from: clear names, short functions, comments only where intent is not obvious.
 
 ## Gameplay basics
 
 - Controls: WASD to move, arrow keys to shoot in four directions, E to drop a bomb, Esc/P to pause, M to mute. Gamepad and mobile touch are undecided / later.
-- Room: one screen, 13×7 floor tiles of 16×16 px inside a 1-tile wall border. One door slot centred on each wall; doors lock until the room is cleared.
+- Room: one screen, 13×7 floor tiles of 32×32 px inside a 1-tile wall border. One door slot centred on each wall; doors lock until the room is cleared.
 - Run: 4 floors, each a grid of 8–15 rooms with start, treasure (key-locked; 3 items, take one, the other two go back into the pool), shop and boss rooms.
 - Pick-ups: hearts, coins, keys, bombs.
 - Mochi's leaf shows health: perky when full, wilting when low.
@@ -138,8 +145,8 @@ Suggested v1.0 scope: 1 character, 3 floors, 20 items, 3 bosses (not final).
 
 Cute but slightly creepy pixel art. A soft, warm hero in a world that grows darker the deeper you go. No gore.
 
-- Sprites 16×16 (gnome 16×24, boss 48×48, portraits 64×64, boss intro card 96×96). Shots 6×6 to 8×8.
-- 1-px outline in a darker shade of the fill, never pure black. Cel shading: one highlight, one shadow, no gradients.
+- Screen 480×272. Characters and items designed around 40×40 (worked on a 64×64 canvas); regular enemies about 24–48 px, bosses up to about 100 px. Shots about 10–14 px.
+- 2-px outline in a very dark shade, never pure black (Mochi's is dark brown). Cel shading: one highlight, one shadow, no gradients.
 - One fixed palette of 16–32 colours across the whole game.
 - **Readability rules (gameplay-critical):** player is warm (peach and green); enemies use cool or muted colours; **every enemy bullet is hot pink `#E0457B`** (outline `#8A1E47`, core `#FFC2D6`) and nothing else uses that colour; floors are dark and low-contrast; decorations must never look like enemies or bullets.
 

@@ -4,7 +4,7 @@
     "name": "Mangkok Mochi",
     "description": "Loves his burger cap",
     "texture": "mangkok",
-    "modifiers": { "damage": { "add": 0.25 }, "speed": { "add": -6 } },
+    "modifiers": { "damage": { "add": 0.25 }, "speed": { "add": -12 } },
     "skill": {
       "id": "burger_beam",
       "name": "Burger Beam",
@@ -19,7 +19,7 @@
     "name": "Lilo Mochi",
     "description": "Flower on her ear",
     "texture": "lilo",
-    "modifiers": { "speed": { "add": 8 } },
+    "modifiers": { "speed": { "add": 16 } },
     "skill": {
       "id": "chinggu",
       "name": "Spawn Chinggu",

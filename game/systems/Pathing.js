@@ -53,7 +53,7 @@ export function nextStep(field, from) {
 
 // True if a straight line between two points (with some width) crosses no obstacle.
 export function lineClear(blocked, x0, y0, x1, y1, halfWidth = 0) {
-  const steps = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 4);
+  const steps = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 8);
   for (let i = 0; i <= steps; i++) {
     const x = x0 + ((x1 - x0) * i) / steps;
     const y = y0 + ((y1 - y0) * i) / steps;

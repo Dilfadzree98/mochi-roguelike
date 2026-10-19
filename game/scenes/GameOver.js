@@ -16,17 +16,17 @@ export class GameOver extends Phaser.Scene {
     Audio.stopMusic();
 
     const firstName = character.name.split(' ')[0];
-    addText(this, cx, 26, won ? 'Garden saved!' : `${firstName} wilted...`, { scale: 2, tint: won ? UI.gold : UI.peach });
-    this.add.image(cx, 74, won ? character.texture : `${character.texture}_wilt`).setOrigin(0.5, 1).setScale(2);
+    addText(this, cx, 24, won ? 'Garden saved!' : `${firstName} wilted...`, { scale: 4, tint: won ? UI.gold : UI.peach });
+    this.add.image(cx, 120, won ? character.texture : `${character.texture}_wilt`).setOrigin(0.5, 1).setScale(2);
 
-    addText(this, cx, 86, won ? `${bossName} is beaten` : `Floor ${floor}: ${floorName}`);
-    addText(this, cx, 96, `Rooms cleared ${roomsCleared}`, { tint: UI.muted });
-    if (newBest) addText(this, cx, 106, 'New best!', { tint: UI.gold });
-    else addText(this, cx, 106, `Best: floor ${Save.best().floor}`, { tint: UI.dim });
-    drawItemRow(this, cx, 120, items);
-    addText(this, cx, 132, `Seed ${seed}`, { tint: UI.dim });
+    addText(this, cx, 134, won ? `${bossName} is beaten` : `Floor ${floor}: ${floorName}`);
+    addText(this, cx, 148, `Rooms cleared ${roomsCleared}`, { tint: UI.muted });
+    if (newBest) addText(this, cx, 162, 'New best!', { tint: UI.gold });
+    else addText(this, cx, 162, `Best: floor ${Save.best().floor}`, { tint: UI.dim });
+    drawItemRow(this, cx, 186, items, { rowGap: 24 });
+    addText(this, cx, 250, `Seed ${seed}`, { tint: UI.dim });
 
-    addText(this, cx, 148, 'Space new run   R same seed   Esc menu', { tint: UI.muted });
+    addText(this, cx, 264, '[Space] new run, [R] same seed, [Esc] menu', { tint: UI.muted });
 
     const keyboard = this.input.keyboard;
     keyboard.once('keydown-SPACE', () => this.scene.start('Game', { seed: newSeed(), character: character.id }));

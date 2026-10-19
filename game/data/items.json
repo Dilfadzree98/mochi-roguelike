@@ -2,7 +2,7 @@
   "fire_seed": {
     "name": "Fire Seed",
     "description": "Shots set enemies alight",
-    "icon": "seed_fire",
+    "icon": "icon_fire_seed",
     "modifiers": {
       "shotTexture": {
         "set": "seed_fire"
@@ -19,7 +19,7 @@
   "frost_seed": {
     "name": "Frost Seed",
     "description": "Shots slow enemies",
-    "icon": "seed_frost",
+    "icon": "icon_frost_seed",
     "modifiers": {
       "shotTexture": {
         "set": "seed_frost"
@@ -35,7 +35,7 @@
   "bouncing_pollen": {
     "name": "Bouncing Pollen",
     "description": "Shots bounce off walls",
-    "icon": "pollen",
+    "icon": "icon_bouncing_pollen",
     "modifiers": {
       "shotTexture": {
         "set": "pollen"
@@ -48,7 +48,7 @@
   "dewdrop": {
     "name": "Dewdrop",
     "description": "Shots pierce enemies",
-    "icon": "dewdrop",
+    "icon": "icon_dewdrop",
     "modifiers": {
       "shotTexture": {
         "set": "dewdrop"
@@ -61,7 +61,7 @@
   "thorn_seed": {
     "name": "Thorn Seed",
     "description": "Shots split in 3 on hit",
-    "icon": "seed_thorn",
+    "icon": "icon_thorn_seed",
     "modifiers": {
       "shotTexture": {
         "set": "seed_thorn"
@@ -97,10 +97,10 @@
     "icon": "icon_watering_can",
     "modifiers": {
       "range": {
-        "add": 50
+        "add": 100
       },
       "shotSpeed": {
-        "add": 40
+        "add": 80
       }
     }
   },
@@ -110,7 +110,7 @@
     "icon": "icon_bee_wings",
     "modifiers": {
       "speed": {
-        "add": 14
+        "add": 28
       }
     }
   },
@@ -150,7 +150,7 @@
   "homing_spore": {
     "name": "Homing Spore",
     "description": "Shots seek out enemies",
-    "icon": "seed_homing",
+    "icon": "icon_homing_spore",
     "modifiers": {
       "shotTexture": {
         "set": "seed_homing"
@@ -163,7 +163,7 @@
   "pumpkin_seed": {
     "name": "Pumpkin Seed",
     "description": "Huge shots, damage up",
-    "icon": "seed_pumpkin",
+    "icon": "icon_pumpkin_seed",
     "modifiers": {
       "shotTexture": {
         "set": "seed_pumpkin"
@@ -179,20 +179,20 @@
   "wiggle_vine": {
     "name": "Wiggle Vine",
     "description": "Shots wiggle as they fly",
-    "icon": "shot_wave",
+    "icon": "icon_wiggle_vine",
     "modifiers": {
       "shotTexture": {
         "set": "shot_wave"
       },
       "wave": {
-        "add": 5
+        "add": 10
       }
     }
   },
   "boomerang_leaf": {
     "name": "Boomerang Leaf",
     "description": "Shots fly back to you",
-    "icon": "shot_leaf",
+    "icon": "icon_boomerang_leaf",
     "modifiers": {
       "shotTexture": {
         "set": "shot_leaf"
@@ -201,14 +201,14 @@
         "set": true
       },
       "range": {
-        "add": 20
+        "add": 40
       }
     }
   },
   "dandelion_puff": {
     "name": "Dandelion Puff",
     "description": "Fires a fan of seeds",
-    "icon": "shot_fluff",
+    "icon": "icon_dandelion_puff",
     "modifiers": {
       "shotTexture": {
         "set": "shot_fluff"
@@ -224,7 +224,7 @@
   "hedgehog_seed": {
     "name": "Hedgehog Seed",
     "description": "Also shoots backwards",
-    "icon": "shot_spike",
+    "icon": "icon_hedgehog_seed",
     "modifiers": {
       "shotTexture": {
         "set": "shot_spike"
@@ -237,20 +237,20 @@
   "popcorn_kernel": {
     "name": "Popcorn Kernel",
     "description": "Shots pop with splash damage",
-    "icon": "shot_popcorn",
+    "icon": "icon_popcorn_kernel",
     "modifiers": {
       "shotTexture": {
         "set": "shot_popcorn"
       },
       "explode": {
-        "add": 14
+        "add": 28
       }
     }
   },
   "nightshade_berry": {
     "name": "Nightshade Berry",
     "description": "Shots poison enemies",
-    "icon": "shot_nightshade",
+    "icon": "icon_nightshade_berry",
     "modifiers": {
       "shotTexture": {
         "set": "shot_nightshade"
@@ -267,7 +267,7 @@
   "static_thistle": {
     "name": "Static Thistle",
     "description": "Hits zap a nearby enemy",
-    "icon": "shot_thistle",
+    "icon": "icon_static_thistle",
     "modifiers": {
       "shotTexture": {
         "set": "shot_thistle"
@@ -280,7 +280,7 @@
   "acorn": {
     "name": "Acorn",
     "description": "Shots knock enemies back",
-    "icon": "shot_acorn",
+    "icon": "icon_acorn",
     "modifiers": {
       "shotTexture": {
         "set": "shot_acorn"
@@ -296,7 +296,7 @@
   "sprinkler_head": {
     "name": "Sprinkler Head",
     "description": "Every 6th shot sprays a ring",
-    "icon": "shot_sprinkler",
+    "icon": "icon_sprinkler_head",
     "modifiers": {
       "shotTexture": {
         "set": "shot_sprinkler"
@@ -309,7 +309,7 @@
   "rocket_radish": {
     "name": "Rocket Radish",
     "description": "Shots speed up as they fly",
-    "icon": "shot_radish",
+    "icon": "icon_rocket_radish",
     "modifiers": {
       "shotTexture": {
         "set": "shot_radish"
@@ -325,7 +325,7 @@
   "catnip": {
     "name": "Catnip",
     "description": "Shots make enemies dizzy",
-    "icon": "shot_catnip",
+    "icon": "icon_catnip",
     "modifiers": {
       "shotTexture": {
         "set": "shot_catnip"
@@ -338,7 +338,7 @@
   "golden_kernel": {
     "name": "Golden Kernel",
     "description": "Chance of triple damage",
-    "icon": "shot_golden",
+    "icon": "icon_golden_kernel",
     "modifiers": {
       "shotTexture": {
         "set": "shot_golden"
@@ -351,7 +351,7 @@
   "ghost_pepper": {
     "name": "Ghost Pepper",
     "description": "Shots pass through obstacles",
-    "icon": "shot_ghost",
+    "icon": "icon_ghost_pepper",
     "modifiers": {
       "shotTexture": {
         "set": "shot_ghost"
@@ -383,7 +383,7 @@
         "mul": 0.85
       },
       "shotSpeed": {
-        "add": 20
+        "add": 40
       }
     }
   },
@@ -396,7 +396,7 @@
         "add": 0.3
       },
       "range": {
-        "add": 20
+        "add": 40
       }
     }
   },
@@ -409,7 +409,7 @@
         "add": 4
       },
       "speed": {
-        "add": -8
+        "add": -16
       }
     },
     "onPickup": {
@@ -422,7 +422,7 @@
     "icon": "icon_grasshopper",
     "modifiers": {
       "speed": {
-        "add": 10
+        "add": 20
       },
       "fireDelay": {
         "mul": 0.9
@@ -445,7 +445,7 @@
     "icon": "icon_scarecrow_hat",
     "modifiers": {
       "range": {
-        "add": 60
+        "add": 120
       }
     }
   },
