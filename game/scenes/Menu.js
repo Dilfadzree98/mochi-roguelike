@@ -21,8 +21,9 @@ export class Menu extends Phaser.Scene {
       this.tweens.add({ targets: sprite, y: 88, duration: 500, delay: i * 250, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     });
 
-    addText(this, cx, 104, 'WASD move  Arrows shoot  E bomb  Space skill  Esc pause', { tint: UI.muted });
-    const prompt = addText(this, cx, 120, 'Press space', { scale: 2, tint: UI.gold });
+    addText(this, cx, 100, '[WASD] move, [Arrows] shoot, [E] bomb', { tint: UI.muted });
+    addText(this, cx, 108, '[Space] skill, [Esc] pause', { tint: UI.muted });
+    const prompt = addText(this, cx, 123, 'Press space', { scale: 2, tint: UI.gold });
     this.tweens.add({ targets: prompt, alpha: 0.2, duration: 600, yoyo: true, repeat: -1 });
 
     const best = Save.best();

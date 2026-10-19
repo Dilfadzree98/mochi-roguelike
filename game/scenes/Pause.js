@@ -43,7 +43,8 @@ export class Pause extends Phaser.Scene {
     drawItemRow(this, cx, 114, game.player.items.map((item) => item.icon));
     addText(this, cx, 126, `Floor ${game.floorIndex + 1}: ${game.dungeon.floor.name}   Rooms cleared ${game.roomsCleared}`, { tint: UI.muted });
     addText(this, cx, 136, `Seed ${game.seed}   M mute`, { tint: UI.dim });
-    addText(this, cx, 150, 'WASD move  Arrows shoot  E bomb  Space skill  Esc resume', { tint: UI.dim });
+    addText(this, cx, 146, '[WASD] move, [Arrows] shoot, [E] bomb', { tint: UI.dim });
+    addText(this, cx, 154, '[Space] skill, [Esc] resume', { tint: UI.dim });
 
     const keyboard = this.input.keyboard;
     const move = (step) => {
