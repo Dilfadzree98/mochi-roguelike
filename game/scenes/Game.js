@@ -349,7 +349,7 @@ export class Game extends Phaser.Scene {
 
   addStartHint() {
     if (this.floorIndex > 0) return;
-    const lines = ['[WASD] move, [Arrows] shoot, [E] bomb', '[Space] skill, [Esc] pause'];
+    const lines = ['[WASD] move, [Arrows] shoot, [E] bomb', '[Space] skill, [Tab] map, [Esc] pause'];
     lines.forEach((line, i) => {
       const hint = addText(this, CENTER.x, FLOOR.bottom - 34 + i * 14, line, { tint: UI.muted })
         .setDepth(DEPTH.shadow)

@@ -116,14 +116,14 @@ Implementation patterns to keep:
 - **Items are small, separate modifiers.** Each item applies one stat or shot change and must stack cleanly with others. Avoid special-case code between specific items.
 - **Keep rendering separate from logic** so placeholder rectangles can be swapped for sprites later without code changes beyond asset keys.
 - **Pixel-perfect rendering:** `pixelArt: true`, integer zoom, no anti-aliasing or smoothing.
-- **Resolution and units:** the game is 480x272. Every coordinate, speed (px/s), range, radius and hitbox in the code and JSON is in these screen pixels (they were all doubled when the game moved up from 240x160). Tiles are 32 px; the room is 15x9 tiles (480x288), so `ROOM_Y` is -8 and the top and bottom walls are cut by 8 px; the HUD (`HUD_HEIGHT` 24) sits over the top wall and the boss bar over the bottom wall.
+- **Resolution and units:** the game is 480x272. Every coordinate, speed (px/s), range, radius and hitbox in the code and JSON is in these screen pixels (they were all doubled when the game moved up from 240x160). Tiles are 32 px; the room is 15x9 tiles (480x288), so `ROOM_Y` is -8 and the top and bottom walls are cut by 8 px; the HUD (`HUD_HEIGHT` 24) sits over the top wall, with a gap in the middle (`DOOR_GAP` in HUD.js) so the top door stays visible: hearts on the left, skill meter and wave/floor on the right, coin/bomb/key counters stacked under the hearts. The minimap (top-right, 40% opacity) and a big map shown while **Tab** is held are drawn by `HUD.drawMap`. The boss bar sits over the bottom wall.
 - **Art style in code:** every sprite is painted at boot with `paint()` (art/Pixels.js): simple shapes, shading with `inside()`, then an automatic 2 px dark outline, cropped so feet are on the texture's bottom edge. Characters are about 40x40, regular enemies 24-48 px, bosses 56-100 px (drawn at full size, never scaled up, so outlines stay 2 px), shots 10 px + outline, item icons 24 px + outline. Particles and floor decorations have no outline and use 2x2 blocks (`blocks()` in World.js). Text is the 3x5 font at scale 2 (titles 4 or 8). Never use `setScale` to enlarge in-game sprites; menus show characters at 2x.
 - **Seedable randomness:** route all run randomness (dungeon, drops, item pools) through one seeded RNG so seeded/daily runs (Stage 5) are possible later. Do not call `Math.random()` directly in gameplay code.
 - Write code a solo hobby developer can read and learn from: clear names, short functions, comments only where intent is not obvious.
 
 ## Gameplay basics
 
-- Controls: WASD to move, arrow keys to shoot in four directions, E to drop a bomb, Esc/P to pause, M to mute. Gamepad and mobile touch are undecided / later.
+- Controls: WASD to move, arrow keys to shoot in four directions, E to drop a bomb, Space for the skill, hold Tab for the map, Esc/P to pause, M to mute. Gamepad and mobile touch are undecided / later.
 - Room: one screen, 13×7 floor tiles of 32×32 px inside a 1-tile wall border. One door slot centred on each wall; doors lock until the room is cleared.
 - Run: 4 floors, each a grid of 8–15 rooms with start, treasure (key-locked; 3 items, take one, the other two go back into the pool), shop and boss rooms.
 - Pick-ups: hearts, coins, keys, bombs.
