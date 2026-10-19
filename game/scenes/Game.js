@@ -693,16 +693,14 @@ export class Game extends Phaser.Scene {
     if (nearest) this.showTooltip(nearest);
   }
 
+  // A small panel in the bottom-left corner of the room: name, and the description at half size.
   showTooltip(spot) {
-    // Name at the normal text size, description at half size so the box stays small.
-    const top = Math.max(HUD_HEIGHT + 2, spot.y - 56);
-    const name = addText(this, 0, top + 9, spot.info.name, { tint: UI.gold });
-    const description = addText(this, 0, top + 20, spot.info.description, { scale: 1 });
-    const width = Math.max(name.width, description.width) + 12;
-    const cx = Math.round(Phaser.Math.Clamp(spot.x, FLOOR.left + width / 2, FLOOR.right - width / 2));
-    name.setX(cx);
-    description.setX(cx);
-    const box = this.add.rectangle(cx, top + 13, width, 26, 0x120e16, 0.85).setStrokeStyle(2, 0x4a4058).setDepth(DEPTH.ui);
+    const left = FLOOR.left + 4;
+    const top = FLOOR.bottom - 26;
+    const name = addText(this, left + 5, top + 8, spot.info.name, { tint: UI.gold, originX: 0 });
+    const description = addText(this, left + 5, top + 18, spot.info.description, { scale: 1, originX: 0 });
+    const width = Math.max(name.width, description.width) + 10;
+    const box = this.add.rectangle(left, top, width, 23, 0x120e16, 0.8).setOrigin(0).setStrokeStyle(2, 0x4a4058).setDepth(DEPTH.ui);
     name.setDepth(DEPTH.ui + 1);
     description.setDepth(DEPTH.ui + 1);
     this.tooltip = { spot, parts: [box, name, description] };
