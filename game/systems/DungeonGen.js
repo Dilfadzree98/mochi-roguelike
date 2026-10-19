@@ -24,15 +24,17 @@ const WAVES_PER_ROOM = 2;
 const WAVE_SIZE = { min: 1, max: 6 };
 const TYPES_PER_WAVE = { 1: 5, 2: 4, 3: 2 }; // weights: one type is most common
 const EMPTY_ROOM_CHANCE = 0.2;              // fight rooms with no obstacles
+const ROSTER_SIZE = { min: 4, max: 6 };     // enemy types on one floor (floor 1: at most 5)
 
 const key = (x, y) => `${x},${y}`;
 
 export class Dungeon {
-  constructor(rooms, start, floor, floorIndex) {
+  constructor(rooms, start, floor, floorIndex, roster) {
     this.rooms = rooms;
     this.start = start;
     this.floor = floor; // entry from data/floors.json
     this.floorIndex = floorIndex;
+    this.roster = roster; // { enemyType: weight } for the enemies on this floor
     this.byKey = new Map(rooms.map((room) => [key(room.x, room.y), room]));
     this.combatRoomCount = rooms.filter((room) => room.waves.length > 0).length;
   }
@@ -62,11 +64,31 @@ export function bossIds(enemyDefs) {
   return Object.keys(enemyDefs).filter((id) => enemyDefs[id].boss);
 }
 
+// Which enemies show up on this floor: a random handful of those allowed on it (each enemy's
+// "floors" range in enemies.json), so some enemies don't appear at all in a given run.
+export function pickRoster(rng, floorIndex, enemyDefs) {
+  const eligible = {};
+  for (const [id, def] of Object.entries(enemyDefs)) {
+    const [first, last] = def.floors ?? [0, 0];
+    if (!def.boss && floorIndex + 1 >= first && floorIndex + 1 <= last) eligible[id] = def.weight ?? 1;
+  }
+  const max = floorIndex === 0 ? ROSTER_SIZE.max - 1 : ROSTER_SIZE.max;
+  const count = Math.min(Object.keys(eligible).length, rng.int(ROSTER_SIZE.min, max));
+  const roster = {};
+  while (Object.keys(roster).length < count) {
+    const id = rng.weighted(eligible);
+    roster[id] = eligible[id];
+    delete eligible[id];
+  }
+  return roster;
+}
+
 function pickBoss(rng, enemyDefs) {
   return rng.pick(bossIds(enemyDefs));
 }
 
 function tryGenerate(rng, floor, floorIndex, enemyDefs, bossId) {
+  const roster = pickRoster(rng, floorIndex, enemyDefs);
   const target = rng.int(ROOM_COUNT.min + floorIndex, ROOM_COUNT.max + floorIndex);
   const cells = new Map([[key(START.x, START.y), { ...START }]]);
   const neighborCount = (x, y) => Object.values(DIRS).filter((d) => cells.has(key(x + d.x, y + d.y))).length;
@@ -105,7 +127,7 @@ function tryGenerate(rng, floor, floorIndex, enemyDefs, bossId) {
     else if (c === shop) type = 'shop';
 
     let waves = [];
-    if (type === 'normal') waves = normalWaves(rng, floor.enemies, enemyDefs, dist + floorIndex);
+    if (type === 'normal') waves = normalWaves(rng, roster, enemyDefs, dist + floorIndex);
     if (type === 'boss') waves = [[bossId]]; // no waves: just the boss
 
     const doors = {};
@@ -128,7 +150,7 @@ function tryGenerate(rng, floor, floorIndex, enemyDefs, bossId) {
     };
   });
 
-  return new Dungeon(rooms, rooms.find((room) => room.type === 'start'), floor, floorIndex);
+  return new Dungeon(rooms, rooms.find((room) => room.type === 'start'), floor, floorIndex, roster);
 }
 
 // Fight rooms usually get a layout of the floor's obstacles; boss rooms just the corners

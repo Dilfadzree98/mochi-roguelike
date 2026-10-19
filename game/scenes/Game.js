@@ -218,7 +218,7 @@ export class Game extends Phaser.Scene {
       this.physics.add.overlap(this.enemyShots, this.view.solidWalls, (bullet) => bullet.pop()),
       // Obstacles block everyone and every bullet, so Mochi can hide behind them.
       this.physics.add.collider(hitbox, this.view.obstacleBodies, (_, zone) => this.onObstacleTouch(zone.obstacle)),
-      this.physics.add.collider(this.enemyBodies, this.view.obstacleBodies),
+      this.physics.add.collider(this.enemyBodies, this.view.obstacleBodies, null, (body) => !body.owner?.passesObstacles),
       this.physics.add.overlap(this.shots, this.view.obstacleBodies, (shot, zone) => !shot.stats.phase && shot.hitObstacle(zone)),
       this.physics.add.overlap(this.enemyShots, this.view.obstacleBodies, (bullet) => bullet.pop()),
       this.physics.add.collider(this.bombBodies, this.view.solidWalls),
@@ -572,7 +572,9 @@ export class Game extends Phaser.Scene {
     if (enemy.def.boss) {
       // A boss takes its minions with it.
       this.events.emit('boss', null);
+      this.clearingMinions = true; // no death tricks (splitting, spore bursts) from these
       for (const other of this.enemies) if (other !== enemy && other.state === 'active') other.die();
+      this.clearingMinions = false;
       this.enemyShots.getChildren().slice().forEach((bullet) => bullet.pop());
       this.cameras.main.shake(300, 0.015);
       return;
@@ -837,7 +839,7 @@ export class Game extends Phaser.Scene {
   }
 
   onShotHitEnemy(shot, enemy) {
-    if (!shot.active || enemy.state !== 'active' || shot.hitEnemies.has(enemy)) return;
+    if (!shot.active || enemy.state !== 'active' || enemy.untouchable || shot.hitEnemies.has(enemy)) return;
     shot.hitEnemies.add(enemy);
 
     // Golden Kernel: a chance of triple damage.
@@ -980,7 +982,7 @@ export class Game extends Phaser.Scene {
   // ---------- Damage to Mochi ----------
 
   onPlayerTouchEnemy(enemy) {
-    if (this.over || enemy.state !== 'active' || !enemy.hitbox.body.enable) return;
+    if (this.over || enemy.state !== 'active' || !enemy.hitbox.body.enable || enemy.untouchable) return;
     this.damagePlayer(enemy.def.contactDamage, enemy.x, enemy.y);
   }
 

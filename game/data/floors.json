@@ -22,10 +22,6 @@
       "clover",
       "pebble"
     ],
-    "enemies": {
-      "gloom_slug": 4,
-      "grumpshroom": 1
-    },
     "obstacles": [
       { "texture": "flower_pot" },
       { "texture": "stump" }
@@ -53,12 +49,6 @@
       "moss",
       "moss"
     ],
-    "enemies": {
-      "gloom_slug": 2,
-      "grumpshroom": 2,
-      "click_beetle": 2,
-      "thornvine": 1
-    },
     "obstacles": [
       { "texture": "planter" },
       { "texture": "bench" }
@@ -86,12 +76,6 @@
       "jar",
       "root"
     ],
-    "enemies": {
-      "click_beetle": 2,
-      "thornvine": 2,
-      "grumpshroom": 1,
-      "hexed_gnome": 1
-    },
     "obstacles": [
       { "texture": "barrel" },
       { "texture": "crate" },
@@ -120,13 +104,6 @@
       "purple_sprout",
       "murky_puddle"
     ],
-    "enemies": {
-      "gloom_slug": 1,
-      "grumpshroom": 1,
-      "click_beetle": 2,
-      "thornvine": 2,
-      "hexed_gnome": 2
-    },
     "obstacles": [
       { "texture": "root_knot" },
       { "texture": "thorn_cluster", "hurts": true }
