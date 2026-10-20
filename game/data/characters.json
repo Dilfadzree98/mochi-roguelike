@@ -14,7 +14,7 @@
       "durationMs": 2000,
       "upgrades": [
         { "id": "beam_longer", "name": "Longer Beam", "description": "The beam lasts 1 s longer", "icon": "upgrade_beam_longer", "durationMs": 1000 },
-        { "id": "beam_quicker", "name": "Quicker Beam", "description": "Charges with 8 fewer shots", "icon": "upgrade_beam_quicker", "every": -8 }
+        { "id": "beam_stronger", "name": "Stronger Beam", "description": "The beam does 50% more damage", "icon": "upgrade_beam_stronger", "beamDamage": 0.5 }
       ]
     }
   },

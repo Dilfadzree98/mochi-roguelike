@@ -34,7 +34,7 @@ export class Skills {
     this.shots = 0;
     this.ready = false;  // fully charged, waiting for Space
     this.active = null; // { until, ... } while a skill is running
-    this.bonus = { durationMs: 0, every: 0, cats: 0 }; // from upgrades
+    this.bonus = { durationMs: 0, every: 0, cats: 0, beamDamage: 0 }; // from upgrades
   }
 
   // Shots needed to charge, how long it lasts, and how many Chinggus come (after upgrades).
@@ -51,7 +51,7 @@ export class Skills {
   }
 
   applyUpgrade(upgrade) {
-    for (const stat of ['durationMs', 'every', 'cats']) this.bonus[stat] += upgrade[stat] ?? 0;
+    for (const stat of Object.keys(this.bonus)) this.bonus[stat] += upgrade[stat] ?? 0;
     if (this.shots >= this.every && !this.active) this.ready = true;
     this.emit();
   }
@@ -189,7 +189,7 @@ export class Skills {
     if (beam.blockedBy) this.burnObstacle(beam.blockedBy);
 
     const overlaps = (x, y, w, h) => x < beam.x + beam.w && x + w > beam.x && y < beam.y + beam.h && y + h > beam.y;
-    const damage = this.player.stats.damage * BEAM.damagePerTick;
+    const damage = this.player.stats.damage * BEAM.damagePerTick * (1 + this.bonus.beamDamage); // Stronger Beam adds to it
     for (const enemy of scene.enemies) {
       if (enemy.state !== 'active' || !enemy.hitbox.body.enable) continue;
       const { w, h } = enemy.def.hitbox;

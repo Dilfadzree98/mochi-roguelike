@@ -544,17 +544,15 @@ function clock(P, x, y, r) {
     P.l(x, y, x + r * 0.5, y, '#2C2C2A', 0.5);
   });
 }
-function bolt(P, x, y, k) {
-  P.p([[x + 0.6 * k, y - 3 * k], [x - 1.6 * k, y + 0.4 * k], [x, y + 0.4 * k], [x - 0.8 * k, y + 3 * k], [x + 1.8 * k, y - 0.8 * k], [x + 0.2 * k, y - 0.8 * k]], '#FFE45C');
-}
 const UPGRADE_ICONS = {
   upgrade_beam_longer: (P) => {
     burger(P, 4, 3.4, 1);
     clock(P, 7.2, 7.2, 2.4);
   },
-  upgrade_beam_quicker: (P) => {
+  upgrade_beam_stronger: (P) => {
     burger(P, 4, 3.4, 1);
-    bolt(P, 7.4, 6.8, 0.9);
+    // A red up-arrow: more damage.
+    P.p([[7.4, 4.4], [9.8, 7.2], [8.4, 7.2], [8.4, 9.6], [6.4, 9.6], [6.4, 7.2], [5, 7.2]], '#E25C4B');
   },
   upgrade_cat_more: (P) => {
     catHead(P, 3.2, 4.4, 0.8);
