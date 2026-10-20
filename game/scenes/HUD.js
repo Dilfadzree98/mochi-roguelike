@@ -1,5 +1,6 @@
 import { GAME_WIDTH, GAME_HEIGHT, HUD_HEIGHT, UI } from '../constants.js';
 import { addText } from '../art/PixelFont.js';
+import { Save } from '../systems/Save.js';
 import { GRID_W, GRID_H } from '../systems/DungeonGen.js';
 
 const HEART_KEYS = ['heart_empty', 'heart_half', 'heart_full'];
@@ -17,6 +18,18 @@ const MINIMAP = { w: 9, h: 6, wideW: 14, tallH: 9, stepX: 16, stepY: 11 };
 MINIMAP.x = GAME_WIDTH - 8 - GRID_W * MINIMAP.stepX;
 MINIMAP.y = HUD_HEIGHT + 8;
 const MINIMAP_ALPHA = 0.4;
+
+// The stats panel on the left side: the player's actual stat values.
+// Every one of these is better when higher; a change flashes green (up) or red (down).
+const STATS_PANEL = { x: 8, y: 162, lineGap: 9, flashMs: 900 }; // below the left door
+const STAT_LINES = [
+  { label: 'Damage', value: (s) => +s.damage.toFixed(2) },
+  { label: 'Fire rate', value: (s) => +(1000 / s.fireDelay).toFixed(1), unit: '/s' },
+  { label: 'Shot speed', value: (s) => Math.round(s.shotSpeed) },
+  { label: 'Range', value: (s) => Math.round(s.range) },
+  { label: 'Speed', value: (s) => Math.round(s.speed) },
+  { label: 'Luck', value: (s) => s.luck },
+];
 const BIG_MAP = { w: 26, h: 16, wideW: 42, tallH: 26, stepX: 46, stepY: 32 };
 BIG_MAP.x = Math.round((GAME_WIDTH - (GRID_W * BIG_MAP.stepX - 6)) / 2);
 BIG_MAP.y = Math.round((GAME_HEIGHT - (GRID_H * BIG_MAP.stepY - 6)) / 2);
@@ -51,6 +64,13 @@ export class HUD extends Phaser.Scene {
       this.add.image(14, y, kind.slice(0, -1));
       this.counters[kind] = addText(this, 26, y, '', { originX: 0, tint: UI.muted });
     });
+
+    // Stats panel (toggled with I or from the pause menu).
+    this.statTexts = STAT_LINES.map((line, i) =>
+      addText(this, STATS_PANEL.x, STATS_PANEL.y + i * STATS_PANEL.lineGap, '', { scale: 1, originX: 0, tint: UI.muted }),
+    );
+    this.statValues = [];
+    this.setStatsVisible(Save.showStats());
 
     // The big map, shown while Tab is held.
     this.bigMap = this.add.container(0, 0).setVisible(false).setDepth(100);
@@ -93,6 +113,8 @@ export class HUD extends Phaser.Scene {
       floor: () => this.drawRightLabel(game),
       boss: (boss) => this.drawBossBar(boss),
       skill: (skill) => this.drawSkillMeter(skill),
+      stats: (stats) => this.drawStats(stats),
+      statsVisible: (on) => this.setStatsVisible(on),
     };
     for (const [event, fn] of Object.entries(listeners)) game.events.on(event, fn);
     this.events.once('shutdown', () => {
@@ -104,6 +126,25 @@ export class HUD extends Phaser.Scene {
     listeners.room(game.dungeon, game.room);
     listeners.inventory(game.player.inventory);
     game.skills.emit();
+    this.drawStats(game.player.stats, false);
+  }
+
+  setStatsVisible(on) {
+    this.statTexts.forEach((text) => text.setVisible(on));
+  }
+
+  drawStats(stats, flash = true) {
+    STAT_LINES.forEach((line, i) => {
+      const value = line.value(stats);
+      const text = this.statTexts[i];
+      text.setText(`${line.label} ${value}${line.unit ?? ''}`.toUpperCase()); // the font only has capitals
+      const old = this.statValues[i];
+      if (flash && old !== undefined && value !== old) {
+        text.setTint(value > old ? 0xa6d987 : 0xe25c4b);
+        this.time.delayedCall(STATS_PANEL.flashMs, () => text.setTint(UI.muted));
+      }
+      this.statValues[i] = value;
+    });
   }
 
   // "WAVE 1/2" during a fight, otherwise the floor number.

@@ -22,7 +22,7 @@ export class Menu extends Phaser.Scene {
     });
 
     addText(this, cx, 184, '[WASD] move, [Arrows] shoot, [E] bomb', { tint: UI.muted });
-    addText(this, cx, 198, '[Space] skill, [Tab] map, [Esc] pause', { tint: UI.muted });
+    addText(this, cx, 198, '[Space] skill, [Tab] map, [I] stats, [Esc] pause', { tint: UI.muted });
     const prompt = addText(this, cx, 222, 'Press space', { scale: 4, tint: UI.gold });
     this.tweens.add({ targets: prompt, alpha: 0.2, duration: 600, yoyo: true, repeat: -1 });
 

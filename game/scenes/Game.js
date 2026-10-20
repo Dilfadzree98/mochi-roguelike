@@ -169,6 +169,7 @@ export class Game extends Phaser.Scene {
   setupPause() {
     this.input.keyboard.on('keydown-ESC', () => this.pause());
     this.input.keyboard.on('keydown-P', () => this.pause());
+    this.input.keyboard.on('keydown-I', () => this.toggleStats());
     this.input.keyboard.on('keydown-SPACE', () => {
       if (!this.over && !this.transitioning) this.skills.tryCast();
     });
@@ -185,6 +186,14 @@ export class Game extends Phaser.Scene {
       this.events.off('resume', onResume);
       this.game.events.off(Phaser.Core.Events.BLUR, onBlur);
     });
+  }
+
+  // Show or hide the stats panel (I, or the pause menu). Remembered between sessions.
+  toggleStats() {
+    const on = !Save.showStats();
+    Save.setShowStats(on);
+    this.events.emit('statsVisible', on);
+    return on;
   }
 
   pause() {
@@ -396,7 +405,7 @@ export class Game extends Phaser.Scene {
 
   addStartHint() {
     if (this.floorIndex > 0) return;
-    const lines = ['[WASD] move, [Arrows] shoot, [E] bomb', '[Space] skill, [Tab] map, [Esc] pause'];
+    const lines = ['[WASD] move, [Arrows] shoot, [E] bomb', '[Space] skill, [Tab] map, [I] stats, [Esc] pause'];
     lines.forEach((line, i) => {
       const hint = addText(this, CENTER.x, FLOOR.bottom - 34 + i * 14, line, { tint: UI.muted })
         .setDepth(DEPTH.shadow)

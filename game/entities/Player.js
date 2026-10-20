@@ -200,6 +200,7 @@ export class Player {
     for (const kind of ['coins', 'bombs', 'keys']) if (bonus[kind]) this.addToInventory(kind, bonus[kind]);
     this.hp = Math.min(this.hp, this.stats.maxHp);
     this.emitHp();
+    this.scene.events.emit('stats', this.stats);
   }
 
   // kind is 'coins', 'bombs' or 'keys'; amount may be negative.

@@ -2,6 +2,7 @@ import { GAME_WIDTH, GAME_HEIGHT, UI } from '../constants.js';
 import { addText } from '../art/PixelFont.js';
 import { newSeed } from '../systems/Rng.js';
 import { Audio } from '../systems/Audio.js';
+import { Save } from '../systems/Save.js';
 
 // Centred rows of item icons (used on the pause and game over screens).
 // Long lists wrap onto extra rows below the first one (at `y`).
@@ -16,9 +17,10 @@ export function drawItemRow(scene, cx, y, icons, { perRow = 15, spacing = 30, ro
 }
 
 const OPTIONS = [
-  { label: 'Resume', action: (scene) => scene.resumeGame() },
-  { label: 'Restart', action: (scene) => scene.restart() },
-  { label: 'Quit to menu', action: (scene) => scene.quit() },
+  { label: () => 'Resume', action: (scene) => scene.resumeGame() },
+  { label: () => `Stats: ${Save.showStats() ? 'On' : 'Off'}`, action: (scene) => scene.toggleStats() },
+  { label: () => 'Restart', action: (scene) => scene.restart() },
+  { label: () => 'Quit to menu', action: (scene) => scene.quit() },
 ];
 
 // Overlay shown while the Game scene is paused. W/S or Up/Down to choose, Space/Enter to pick.
@@ -35,15 +37,15 @@ export class Pause extends Phaser.Scene {
     addText(this, cx, 28, 'Paused', { scale: 4, tint: UI.peach });
 
     this.selected = 0;
-    this.items = OPTIONS.map((option, i) => addText(this, cx, 64 + i * 24, option.label, { scale: 4 }));
+    this.items = OPTIONS.map((option, i) => addText(this, cx, 58 + i * 22, option.label(), { scale: 4 }));
     this.cursor = addText(this, 0, 0, '>', { scale: 4, tint: UI.gold });
     this.refresh();
 
-    drawItemRow(this, cx, 146, game.player.items.map((item) => item.icon), { rowGap: 26 });
+    drawItemRow(this, cx, 158, game.player.items.map((item) => item.icon), { rowGap: 24 });
     addText(this, cx, 230, `Floor ${game.floorIndex + 1}: ${game.dungeon.floor.name}   Rooms cleared ${game.roomsCleared}`, { tint: UI.muted });
     addText(this, cx, 242, `Seed ${game.seed}   M mute`, { tint: UI.dim });
     addText(this, cx, 254, '[WASD] move, [Arrows] shoot, [E] bomb', { tint: UI.dim });
-    addText(this, cx, 266, '[Space] skill, [Tab] map, [Esc] resume', { tint: UI.dim });
+    addText(this, cx, 266, '[Space] skill, [Tab] map, [I] stats, [Esc] resume', { tint: UI.dim });
 
     const keyboard = this.input.keyboard;
     const move = (step) => {
@@ -66,6 +68,13 @@ export class Pause extends Phaser.Scene {
     this.items.forEach((item, i) => item.setTint(i === this.selected ? UI.gold : 0xffffff));
     const item = this.items[this.selected];
     this.cursor.setPosition(Math.round(item.x - item.width / 2 - 20), item.y);
+  }
+
+  toggleStats() {
+    this.scene.get('Game').toggleStats();
+    Audio.play('select');
+    this.items.forEach((item, i) => item.setText(OPTIONS[i].label().toUpperCase()));
+    this.refresh();
   }
 
   resumeGame() {

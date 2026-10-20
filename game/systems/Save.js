@@ -28,6 +28,17 @@ export const Save = {
     write(data);
   },
 
+  // The on-screen stats panel (on unless the player turned it off).
+  showStats() {
+    return load().showStats ?? true;
+  },
+
+  setShowStats(on) {
+    const data = load();
+    data.showStats = on;
+    write(data);
+  },
+
   best() {
     const data = load();
     return { floor: data.bestFloor ?? 0, rooms: data.bestRooms ?? 0, wins: data.wins ?? 0 };
