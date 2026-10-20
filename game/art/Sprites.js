@@ -1,7 +1,7 @@
 import { Rng } from '../systems/Rng.js';
 import { makeCharacterTextures } from './Characters.js';
 import { makeEnemyTextures } from './Enemies.js';
-import { makeCritterTextures } from './Critters.js';
+import { makeCritterTextures, makeMiniBossTextures } from './Critters.js';
 import { makeItemTextures } from './Items.js';
 import { makeWorldTextures } from './World.js';
 
@@ -13,6 +13,7 @@ export function makeTextures(scene, { floors, items }) {
   makeCharacterTextures(scene);
   makeEnemyTextures(scene);
   makeCritterTextures(scene);
+  makeMiniBossTextures(scene);
   makeItemTextures(scene, items);
   // Fixed seed: tiles look the same every run. Run randomness only decides placement.
   makeWorldTextures(scene, floors, new Rng(20261018));

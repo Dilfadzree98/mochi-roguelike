@@ -30,7 +30,8 @@ const BOSS_HP_BY_FLOOR = [1, 1.5, 2.1, 2.8]; // bosses get tougher the deeper th
 // Drops. Each point of luck raises the chances.
 const ROOM_DROP_CHANCE = 0.5;
 const ROOM_DROP_LUCK_BONUS = 0.15;
-const ROOM_DROP_WEIGHTS = { coin: 40, heart: 30, bomb: 15, key: 15 };
+const ROOM_DROP_WEIGHTS = { coin: 35, heart: 25, bomb: 15, key: 15, chest: 10 };
+const CHEST = { min: 2, max: 4, spread: 26, weights: { coin: 45, heart: 20, bomb: 18, key: 17 } }; // what a chest spills
 const COIN_DROP_CHANCE = 0.1;        // a regular enemy drops a coin
 const COIN_DROP_LUCK_BONUS = 0.03;
 const BOSS_DOUBLE_HEART_CHANCE = 0.4; // a boss always drops a heart, sometimes two
@@ -68,7 +69,14 @@ const FIREWORK_RANGE = 80;     // Firework Seed: range of the small seeds
 const UPGRADE_SPACING = 80;    // px between the two skill upgrades after a boss
 
 const SHOP_PRICES = { item: 5, heart: 3, bomb: 3, key: 3 };
-const PICKUP_TEXTURES = { heart: 'heart_full', coin: 'coin', bomb: 'bomb', key: 'key' };
+const RESTOCK_PRICES = [[3, 6], [5, 9], [7, 12], [9, 15]]; // random price range for a shop restock, by floor
+
+// Sacrifice altar: costs a full heart a try; the chance of an item grows with each try.
+const SACRIFICE = { cost: 2, chance: 0.35, chanceStep: 0.2, maxChance: 0.9, maxItems: 2, itemOffset: 72 };
+const SECRET_ITEM_CHANCE = 0.4; // otherwise a secret room holds a pile of drops
+const SECRET_DROPS = { min: 3, max: 5, weights: { coin: 40, heart: 20, bomb: 15, key: 15, chest: 10 } };
+const SECRET_BLAST_REACH = 28; // px beyond the blast radius that still cracks a secret wall open
+const PICKUP_TEXTURES = { heart: 'heart_full', coin: 'coin', bomb: 'bomb', key: 'key', chest: 'chest' };
 const PICKUP_INFO = {
   heart: { name: 'Heart', description: 'Heals one heart' },
   bomb: { name: 'Bomb', description: 'E to drop, walk into it or shoot it to push' },
@@ -273,6 +281,9 @@ export class Game extends Phaser.Scene {
     if (room.type === 'treasure') this.setUpTreasure(room);
     if (room.type === 'shop') this.setUpShop(room);
     if (room.type === 'boss' && room.cleared) this.setUpBossReward(room);
+    if (room.type === 'miniboss' && room.cleared) this.setUpMiniBossReward(room);
+    if (room.type === 'sacrifice') this.setUpSacrifice(room);
+    if (room.type === 'secret') this.setUpSecret(room);
     room.pickups.forEach((pickup) => this.spawnPickup(pickup));
 
     this.events.emit('room', this.dungeon, room);
@@ -511,22 +522,57 @@ export class Game extends Phaser.Scene {
     spots.forEach((spot, i) => (spot.upgrade = upgrades[i]));
   }
 
+  // A fresh set of goods: an item (if the pool has one left) plus a heart, a bomb and a key.
+  stockShop(room) {
+    const kinds = ['heart', 'bomb', 'key'];
+    const itemId = this.drawItem();
+    const wares = itemId ? [{ kind: 'item', itemId }, ...kinds.map((kind) => ({ kind }))] : kinds.map((kind) => ({ kind }));
+    const spacing = 64;
+    const startX = CENTER.x - ((wares.length - 1) * spacing) / 2;
+    wares.forEach((ware, i) => Object.assign(ware, { price: SHOP_PRICES[ware.kind], x: startX + i * spacing, y: CENTER.y + 20 }));
+    return wares;
+  }
+
+  restockPrice() {
+    const [low, high] = RESTOCK_PRICES[Math.min(this.floorIndex, RESTOCK_PRICES.length - 1)];
+    return this.rng.int(low, high);
+  }
+
   setUpShop(room) {
-    if (!room.contents) {
-      const kinds = ['heart', 'bomb', 'key'];
-      const itemId = this.drawItem();
-      const wares = itemId ? [{ kind: 'item', itemId }, ...kinds.map((kind) => ({ kind }))] : kinds.map((kind) => ({ kind }));
-      const spacing = 64;
-      const startX = CENTER.x - ((wares.length - 1) * spacing) / 2;
-      wares.forEach((ware, i) => Object.assign(ware, { price: SHOP_PRICES[ware.kind], x: startX + i * spacing, y: CENTER.y + 20 }));
-      room.contents = { wares };
-    }
+    room.contents ??= { wares: this.stockShop(room), restockPrice: this.restockPrice() };
 
     const worm = this.add.image(CENTER.x, FLOOR.top + 50, 'worm').setOrigin(0.5, 1).setDepth(DEPTH.actors + FLOOR.top + 50);
     const greeting = addText(this, CENTER.x, FLOOR.top + 62, 'Coins for goodies!', { tint: UI.muted }).setDepth(DEPTH.shadow);
     this.tweens.add({ targets: worm, scaleY: 1.08, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     this.roomObjects.push(worm, greeting);
 
+    // Bump into the worm to pay for a restock: new goods (the unsold item goes back into the pool).
+    const restockInfo = { name: 'Restock', description: `New goods for ${room.contents.restockPrice} coins` };
+    this.addPickupSpot(CENTER.x, FLOOR.top + 36, [], () => {
+      const price = room.contents.restockPrice;
+      if (this.player.inventory.coins < price) {
+        this.hint(`Restock costs ${price} coins`);
+        return false;
+      }
+      this.player.addToInventory('coins', -price);
+      for (const ware of room.contents.wares) if (ware.kind === 'item') this.itemPool.push(ware.itemId);
+      room.contents.wares = this.stockShop(room);
+      room.contents.restockPrice = this.restockPrice();
+      restockInfo.description = `New goods for ${room.contents.restockPrice} coins`;
+      Audio.play('coin');
+      this.burst(CENTER.x, FLOOR.top + 30, 'spark', 10, { distance: 24 });
+      this.hint('Fresh stock!');
+      this.drawShopWares(room);
+      this.hideTooltip();
+      return false;
+    }, restockInfo).rearm = true;
+
+    this.drawShopWares(room);
+  }
+
+  drawShopWares(room) {
+    (this.shopSpots ?? []).forEach((spot) => this.pickups.includes(spot) && this.removePickupSpot(spot));
+    this.shopSpots = [];
     for (const ware of room.contents.wares) {
       const def = ware.kind === 'item' ? this.itemDefs[ware.itemId] : null;
       const image = this.floatingImage(ware.x, ware.y, def ? def.icon : PICKUP_TEXTURES[ware.kind]);
@@ -535,7 +581,7 @@ export class Game extends Phaser.Scene {
       this.roomObjects.push(coin, price);
 
       const info = def ?? PICKUP_INFO[ware.kind];
-      this.addPickupSpot(ware.x, ware.y, [image, coin, price], () => {
+      const spot = this.addPickupSpot(ware.x, ware.y, [image, coin, price], () => {
         const player = this.player;
         if (ware.kind === 'heart' && player.hp >= player.stats.maxHp) return false;
         if (player.inventory.coins < ware.price) {
@@ -548,7 +594,94 @@ export class Game extends Phaser.Scene {
         else this.takePickup(ware.kind);
         return true;
       }, { name: info.name, description: `${info.description} - ${ware.price} coins` });
+      this.shopSpots.push(spot);
     }
+  }
+
+  // ---------- Sacrifice room ----------
+
+  // An altar of spikes: each go costs a full heart and may give an item (better odds every try).
+  // It never takes your last heart, and gives at most two items.
+  setUpSacrifice(room) {
+    room.contents ??= { tries: 0, items: 0, pedestals: [] };
+    const c = room.contents;
+    const altar = this.add.image(CENTER.x, CENTER.y + 12, 'altar').setOrigin(0.5, 1).setDepth(DEPTH.actors + CENTER.y + 12);
+    const note = addText(this, CENTER.x, CENTER.y + 30, 'Give a heart?', { tint: 0xe25c4b }).setDepth(DEPTH.shadow);
+    this.roomObjects.push(altar, note);
+    for (const pedestal of c.pedestals) this.placeSacrificeItem(room, pedestal);
+
+    this.addPickupSpot(CENTER.x, CENTER.y, [], () => {
+      const player = this.player;
+      if (c.items >= SACRIFICE.maxItems) {
+        this.hint('The altar is quiet');
+        return false;
+      }
+      if (player.hp <= SACRIFICE.cost) {
+        this.hint('Not enough hearts');
+        return false;
+      }
+      player.hp -= SACRIFICE.cost;
+      player.emitHp();
+      player.hurtUntil = this.time.now + 200;
+      Audio.play('hurt');
+      this.cameras.main.shake(120, 0.01);
+      this.burst(CENTER.x, CENTER.y - 4, 'cap_bit', 10, { distance: 22 });
+      const chance = Math.min(SACRIFICE.maxChance, SACRIFICE.chance + SACRIFICE.chanceStep * c.tries);
+      if (this.rng.chance(chance)) {
+        const itemId = this.drawItem();
+        if (itemId) {
+          const pedestal = { x: CENTER.x + (c.items % 2 === 0 ? -1 : 1) * SACRIFICE.itemOffset, itemId };
+          c.pedestals.push(pedestal);
+          this.placeSacrificeItem(room, pedestal);
+          this.banner('The altar answers', 0xe25c4b);
+        }
+        c.items += 1;
+        c.tries = 0;
+      } else {
+        c.tries += 1;
+        this.hint('Nothing... yet');
+      }
+      return false;
+    }, { name: 'Sacrifice', description: 'Give a heart for a chance at an item' }).rearm = true;
+  }
+
+  placeSacrificeItem(room, pedestal) {
+    this.addItemPedestal(pedestal.x, CENTER.y, pedestal.itemId, () => (pedestal.itemId = null));
+  }
+
+  // ---------- Secret room ----------
+
+  // A bomb found the cracked wall: open the secret door for good.
+  revealSecret() {
+    const walls = this.view.revealSecret();
+    this.physics.world.removeCollider(this.roomColliders[0]);
+    this.roomColliders[0] = this.physics.add.collider(this.player.hitbox, walls);
+    Audio.play('unlock');
+    this.cameras.main.shake(150, 0.01);
+    this.hint('A secret room!');
+    this.events.emit('room', this.dungeon, this.room);
+  }
+
+  // Inside: either an item, or a pile of drops (maybe a chest).
+  setUpSecret(room) {
+    if (!room.contents) {
+      room.contents = this.rng.chance(SECRET_ITEM_CHANCE) ? { itemId: this.drawItem() } : { itemId: null };
+      if (!room.contents.itemId) {
+        const count = this.rng.int(SECRET_DROPS.min, SECRET_DROPS.max);
+        for (let i = 0; i < count; i++) {
+          const a = (i / count) * Math.PI * 2;
+          room.pickups.push({ kind: this.rng.weighted(SECRET_DROPS.weights), x: Math.round(CENTER.x + Math.cos(a) * 50), y: Math.round(CENTER.y + Math.sin(a) * 34) });
+        }
+      }
+      this.banner('Secret room!', UI.gold);
+    }
+    if (room.contents.itemId) this.addItemPedestal(CENTER.x, CENTER.y, room.contents.itemId, () => (room.contents.itemId = null));
+  }
+
+  // After both mini bosses: an item in the middle of the room.
+  setUpMiniBossReward(room) {
+    room.contents ??= { itemId: this.drawItem() };
+    this.addItemPedestal(CENTER.x, CENTER.y, room.contents.itemId, () => (room.contents.itemId = null));
   }
 
   giveItem(itemId) {
@@ -636,6 +769,12 @@ export class Game extends Phaser.Scene {
         const hearts = this.rng.chance(BOSS_DOUBLE_HEART_CHANCE) ? [-16, 16] : [0];
         for (const dx of hearts) this.dropPickup('heart', CENTER.x + dx, CENTER.y + 56);
       }
+      return;
+    }
+
+    if (room.type === 'miniboss') {
+      this.banner('Mini bosses beaten!', UI.gold, 'A prize for the brave');
+      this.setUpMiniBossReward(room);
       return;
     }
 
@@ -741,10 +880,24 @@ export class Game extends Phaser.Scene {
   spawnPickup(pickup) {
     const image = this.floatingImage(pickup.x, pickup.y, PICKUP_TEXTURES[pickup.kind]);
     this.addPickupSpot(pickup.x, pickup.y, [image], () => {
-      if (!this.takePickup(pickup.kind)) return false;
+      if (pickup.kind === 'chest') this.openChest(pickup);
+      else if (!this.takePickup(pickup.kind)) return false;
       this.room.pickups = this.room.pickups.filter((p) => p !== pickup);
       return true;
     });
+  }
+
+  // A chest pops open and spills a mix of coins, hearts, bombs and keys around it.
+  openChest({ x, y }) {
+    const lid = this.add.image(x, y, 'chest_open').setDepth(DEPTH.actors + y);
+    this.roomObjects.push(lid);
+    this.tweens.add({ targets: lid, alpha: 0, delay: 1500, duration: 600 });
+    Audio.play('unlock');
+    const count = this.rng.int(CHEST.min, CHEST.max);
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + this.rng.range(0, 1);
+      this.dropPickup(this.rng.weighted(CHEST.weights), x + Math.cos(a) * CHEST.spread, y + Math.sin(a) * CHEST.spread);
+    }
   }
 
   // Returns false if it can't be used right now (hearts at full health).
@@ -764,7 +917,16 @@ export class Game extends Phaser.Scene {
     if (!this.player.alive) return;
     const { x, y } = this.player.hitbox;
     for (const spot of this.pickups) {
-      if (Phaser.Math.Distance.Between(spot.x, spot.y, x, y) > PICKUP_RADIUS) continue;
+      const near = Phaser.Math.Distance.Between(spot.x, spot.y, x, y) <= PICKUP_RADIUS;
+      if (spot.rearm) {
+        // Used again only after Mochi steps away (the altar, the shop restock).
+        if (!near) spot.waiting = false;
+        if (!near || spot.waiting) continue;
+        spot.waiting = true;
+        spot.tryTake();
+        continue;
+      }
+      if (!near) continue;
       if (!spot.tryTake()) continue;
       this.burst(spot.x, spot.y, 'spark', 4);
       this.removePickupSpot(spot);
@@ -892,6 +1054,9 @@ export class Game extends Phaser.Scene {
       if (distance(x, y, obstacle.x, obstacle.y) <= radius + 12) this.breakObstacle(obstacle);
     }
     this.hurtPlayerNear(x, y, radius);
+
+    const crack = this.view.secretCrack;
+    if (crack && distance(x, y, crack.x, crack.y) <= radius + SECRET_BLAST_REACH) this.revealSecret();
   }
 
   // ---------- Player shots ----------

@@ -82,7 +82,7 @@ game/
 │   └── Save.js          localStorage (best floor, rooms cleared, wins)
 └── data/
     ├── characters.json  playable characters: name, description, texture, stat modifiers, skill
-    ├── enemies.json     33 enemies and 7 bosses: stats, behaviour + params, difficulty + weight, onDeath (bosses: idle + 3 moves)
+    ├── enemies.json     33 enemies, 7 bosses and 10 mini bosses: stats, behaviour + params, difficulty + weight, onDeath (bosses: idle + 3 moves)
     ├── floors.json      4 floors: palette, wall face, decorations, obstacles
     └── items.json       69 items, each with a tier (1-4) and a list of stat modifiers
 ```
@@ -132,7 +132,12 @@ Implementation patterns to keep:
 
 - Controls: WASD to move, arrow keys to shoot in four directions, E to drop a bomb, Space for the skill, hold Tab for the map, I to show/hide stats, Esc/P to pause, M to mute. Gamepad and mobile touch are undecided / later.
 - Room: one screen, 13×7 floor tiles of 32×32 px inside a 1-tile wall border. One door slot centred on each wall; doors lock until the room is cleared.
-- Run: 4 floors, each a grid of 8–15 rooms with start, treasure (key-locked; 3 items, take one, the other two go back into the pool), shop and boss rooms.
+- Run: 4 floors, each a grid of 11–18 rooms: start, fight rooms, treasure (key-locked; 3 items, take one, the other two go back into the pool), shop, sacrifice, mini boss, boss, and a hidden secret room. Treasure, shop, sacrifice and mini boss rooms take dead ends (`tryGenerate` needs at least 5).
+- **Chests:** a room-clear drop can be a chest (`ROOM_DROP_WEIGHTS`); walking into it spills 2-4 mixed coins, hearts, bombs and keys (`openChest`).
+- **Sacrifice room:** an altar of spikes in the middle. Each step onto it (step off and back on to go again: pickup spots with `rearm`) costs a full heart and has a 35% chance of an item, +20% per failed try (max 90%), resetting after an item. Never takes the last heart; at most 2 items (`SACRIFICE` in Game.js). Items appear on pedestals beside the altar and are remembered in `room.contents.pedestals`.
+- **Secret room:** one per floor, in an empty grid cell next to a normal/start/shop/sacrifice room and never next to the boss or mini boss room (`addSecretRoom` in DungeonGen.js). Its host room has `secretDoor`: that wall shows a crack (`wall_crack`) and stays solid until a bomb blast reaches it (`revealSecret`, which swaps in new player walls). Door slots are always kept free of obstacles. The secret room isn't on the map until revealed. Inside: 40% an item, else 3-5 drops (maybe a chest).
+- **Mini boss room:** optional, behind a skull door (`door_miniboss`). Entering locks you in for 2 waves, one random mini boss each (two different ones); beating both leaves a random item. Mini bosses are `"boss": true, "mini": true` in enemies.json (boss bar, boss HP scaling, 2 boss moves each) and never appear as floor bosses. Their sprites are regular enemies drawn 1.5-3.2x bigger with a crown (`paintScaled` in Pixels.js, `MINI_BOSSES` in Critters.js).
+- **Shop restock:** bump into the worm to pay for new goods (a new item, heart, bomb and key; the unsold item goes back into the pool). The price is random and rises with the floor (`RESTOCK_PRICES`: 3-6, 5-9, 7-12, 9-15 coins) and is rerolled after each restock.
 - **Item tiers:** every item has `tier` 1–4. Items are drawn from the run's pool by tier first (`drawItem` in Items.js): treasure rooms and the shop use `TIER_WEIGHTS.normal` (30/35/25/10 %), the item a boss leaves uses `TIER_WEIGHTS.boss` (0/20/50/30 %). Tiers are hidden from the player: no tier text or colours anywhere; they only change how often items show up.
 - **Skill upgrades:** only for beating a boss (floors 1–3) without losing any health (`Game.bossNoHit`, cleared by any hit that costs health; a Ladybug block doesn't count). Then two orbs appear above the item ("Upgrade your skill"); taking one makes the other vanish (`offerSkillUpgrades`, remembered in `room.contents.upgradeTaken`). The options are the skill's `upgrades` in characters.json, which add to `Skills.bonus`: Burger Beam = Longer Beam (+1 s) or Stronger Beam (+50% beam damage, `bonus.beamDamage`); Chinggu = Another Chinggu (one more cat each cast; cats go for different enemies) or Chinggu Stays Longer (+2 s). Upgrades stack across the run.
 - Pick-ups: hearts, coins, keys, bombs.
@@ -206,6 +211,8 @@ Cute but slightly creepy pixel art. A soft, warm hero in a world that grows dark
 | Lantern Spirit | 4 | 11 | Teleports, fires 5 hex orbs and a ring of 8 every time |
 | Shadow Fox | 4 | 9 | Creeps nearly invisible, appears and lunges when close |
 | Wasp Nest | 4 | 16 | Stationary; sends out Wasps (up to 3) |
+
+Mini bosses (10; two different ones per mini boss room): Aphid Queen (swarm of aphids, spore rings), Puffball Elder (spore spiral, hex curse marks), Mantis Duelist (triple charge, thorn volley), Bullfrog (hop slam, spore rings), Stag Lord (triple charge, shell shrapnel), Moth Matriarch (flying; spore spiral, hex nova), Turtle Elder (shell shrapnel, rolling bounce), Scarecrow Lord (vine sweep, root strike), Lantern Wraith (blink volley, hex nova), Shadow Alpha (triple charge, burrow).
 
 Bosses (7; one random boss per floor, never the same one twice in a run):
 

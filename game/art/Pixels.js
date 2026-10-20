@@ -180,6 +180,34 @@ function parseColor(color) {
 
 const PAD = 8;
 
+// Paints a design `k` times bigger (each design pixel becomes a k x k block), then adds the
+// usual 2px outline, so a scaled-up sprite still matches the others. `after(canvas, box)` can
+// draw extras on the scaled sprite (box = where the scaled design ended up).
+export function paintScaled(scene, key, width, height, draw, k, { outline = OUTLINE, after = null } = {}) {
+  if (scene.textures.exists(key)) return;
+  const src = new Pixels(width + PAD * 2, height + PAD * 2);
+  src.ox = PAD;
+  src.oy = PAD;
+  draw(src);
+  const b = src.bounds();
+  const w = Math.ceil(b.width * k);
+  const h = Math.ceil(b.height * k);
+  const dst = new Pixels(w + PAD * 4, h + PAD * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const color = src.pixels[(b.top + Math.floor(y / k)) * src.w + b.left + Math.floor(x / k)];
+      if (color !== null) dst.pixels[(y + PAD * 2) * dst.w + x + PAD * 2] = color;
+    }
+  }
+  if (after) {
+    dst.ox = PAD * 2;
+    dst.oy = PAD * 2;
+    after(dst, { width: w, height: h });
+  }
+  if (outline) dst.outline(outline);
+  dst.toTexture(scene, key, dst.bounds());
+}
+
 // Draws a sprite into a new texture (skipped if the key already exists, e.g. a loaded PNG).
 // Designs use coordinates in a width x height box; the canvas has room around it for
 // the outline, and the texture is cropped to what was painted, so a sprite's feet are

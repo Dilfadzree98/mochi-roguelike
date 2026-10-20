@@ -22,11 +22,17 @@ const DECOR_GLOW = { glow_mushroom: 'glow_blue', purple_sprout: 'glow_purple' };
 // A door to or from a special room uses that room's gate.
 function closedDoorTexture(room, neighbor) {
   const types = [room.type, neighbor.type];
+  if (types.includes('secret')) return 'door_secret';
   if (types.includes('boss')) return 'door_boss';
+  if (types.includes('miniboss')) return 'door_miniboss';
   if (types.includes('treasure')) return 'door_treasure';
   if (types.includes('shop')) return 'door_shop';
+  if (types.includes('sacrifice')) return 'door_sacrifice';
   return 'door';
 }
+
+// A secret door stays a plain (cracked) wall until it's bombed open.
+const isHiddenDoor = (room, dungeon, dir) => room.secretDoor === dir && !dungeon.neighbor(room, dir).revealed;
 
 // Wall colliders for a room `w` x `h` tiles (walls included), leaving a 1-tile gap wherever a door is.
 function wallRects(w, h, doors = {}) {
@@ -94,28 +100,37 @@ export function buildRoom(scene, room, dungeon) {
   add(scene.add.image(ROOM_X, ROOM_Y, roomVignette(scene, floor, cols, rows)).setOrigin(0).setDepth(DEPTH.overlay));
 
   const solidWalls = staticZones(scene, wallRects(width, height));
-  const playerWalls = staticZones(scene, wallRects(width, height, room.doors));
+  const openDoors = () => Object.fromEntries(Object.keys(room.doors).map((dir) => [dir, room.doors[dir] && !isHiddenDoor(room, dungeon, dir)]));
+  let playerWalls = staticZones(scene, wallRects(width, height, openDoors()));
   const slots = doorSlots(width, height);
   const doorBlockers = scene.physics.add.staticGroup();
+  const slotCenter = (dir) => ({ x: ROOM_X + slots[dir].col * TILE + TILE / 2, y: ROOM_Y + slots[dir].row * TILE + TILE / 2 });
 
+  const makeDoor = (dir) => {
+    const { x, y } = slotCenter(dir);
+    const neighbor = dungeon.neighbor(room, dir);
+    const closedTexture = closedDoorTexture(room, neighbor);
+    const image = add(scene.add.image(x, y, closedTexture).setAngle(slots[dir].angle).setDepth(DEPTH.wall));
+    const blocker = scene.add.zone(x, y, TILE, TILE);
+    doorBlockers.add(blocker);
+    // A secret door is just a hole: it looks the same open or shut.
+    const door = { dir, x, y, image, blocker, closedTexture, openTexture: closedTexture === 'door_secret' ? 'door_secret' : 'door_open', neighbor };
+    blocker.door = door;
+    return door;
+  };
   const doors = Object.keys(slots)
-    .filter((dir) => room.doors[dir])
-    .map((dir) => {
-      const slot = slots[dir];
-      const x = ROOM_X + slot.col * TILE + TILE / 2;
-      const y = ROOM_Y + slot.row * TILE + TILE / 2;
-      const neighbor = dungeon.neighbor(room, dir);
-      const closedTexture = closedDoorTexture(room, neighbor);
-      const image = add(scene.add.image(x, y, closedTexture).setAngle(slot.angle).setDepth(DEPTH.wall));
-      const blocker = scene.add.zone(x, y, TILE, TILE);
-      doorBlockers.add(blocker);
-      const door = { dir, x, y, image, blocker, closedTexture, neighbor };
-      blocker.door = door;
-      return door;
-    });
+    .filter((dir) => room.doors[dir] && !isHiddenDoor(room, dungeon, dir))
+    .map(makeDoor);
+
+  // The cracked wall over a hidden secret door.
+  let secretCrack = null;
+  if (room.secretDoor && isHiddenDoor(room, dungeon, room.secretDoor)) {
+    const { x, y } = slotCenter(room.secretDoor);
+    secretCrack = { dir: room.secretDoor, x, y, image: add(scene.add.image(x, y, 'wall_crack').setAngle(slots[room.secretDoor].angle).setDepth(DEPTH.wall + 0.5)) };
+  }
 
   const setDoorOpen = (door, open) => {
-    door.image.setTexture(open ? 'door_open' : door.closedTexture);
+    door.image.setTexture(open ? door.openTexture : door.closedTexture);
     door.blocker.body.enable = !open;
   };
 
@@ -138,7 +153,12 @@ export function buildRoom(scene, room, dungeon) {
 
   return {
     solidWalls,
-    playerWalls,
+    get playerWalls() {
+      return playerWalls;
+    },
+    get secretCrack() {
+      return secretCrack;
+    },
     doorBlockers,
     doors,
     obstacleBodies,
@@ -161,6 +181,21 @@ export function buildRoom(scene, room, dungeon) {
 
     unlock(door) {
       setDoorOpen(door, true);
+    },
+
+    // A bomb found the secret door: the wall gets a hole. Returns the new player walls
+    // (Game swaps its collider over to them).
+    revealSecret() {
+      const neighbor = dungeon.neighbor(room, secretCrack.dir);
+      neighbor.revealed = true;
+      secretCrack.image.destroy();
+      const door = makeDoor(secretCrack.dir);
+      doors.push(door);
+      setDoorOpen(door, room.cleared);
+      secretCrack = null;
+      playerWalls.destroy(true);
+      playerWalls = staticZones(scene, wallRects(width, height, openDoors()));
+      return playerWalls;
     },
 
     destroy() {

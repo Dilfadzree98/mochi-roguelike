@@ -71,6 +71,43 @@ function paintEffects(scene) {
   }, { outline: '#3A3A32' });
 }
 
+function paintRoomProps(scene) {
+  // A treasure chest; opening it spills a mix of pickups.
+  const chest = (c, open) => {
+    c.rect(1, 8, 20, 12, '#7A5232');
+    c.inside(() => {
+      c.rect(1, 8, 20, 2, '#A0703C');
+      for (const x of [1, 18]) c.rect(x, 8, 3, 12, '#C9A23A');
+    });
+    if (open) {
+      c.rect(1, 1, 20, 6, '#5A3A22');
+      c.rect(3, 6, 16, 3, '#1A140F');
+      c.rect(6, 4, 3, 3, '#F2C94C');
+      c.rect(12, 5, 2, 2, '#E25C4B');
+    } else {
+      c.rect(1, 3, 20, 6, '#8A6040');
+      c.inside(() => c.rect(1, 3, 20, 2, '#A8805A'));
+      c.rect(9, 7, 4, 5, '#F2C94C');
+      c.rect(10, 9, 2, 2, '#5A3A22');
+    }
+  };
+  paint(scene, 'chest', 22, 20, (c) => chest(c, false), { outline: '#2A1A10' });
+  paint(scene, 'chest_open', 22, 20, (c) => chest(c, true), { outline: '#2A1A10' });
+
+  // Sacrifice altar: a dark stone slab with blood-red spikes.
+  paint(scene, 'altar', 36, 26, (c) => {
+    c.rect(2, 12, 32, 12, '#4A4048');
+    c.inside(() => {
+      c.rect(2, 12, 32, 3, '#6A5E68');
+      c.rect(14, 16, 8, 5, '#6A1E2A');
+    });
+    for (const x of [6, 12, 18, 24, 30]) c.poly([[x - 3, 13], [x, 2], [x + 3, 13]], '#8A2A36');
+    c.inside(() => {
+      for (const x of [6, 12, 18, 24, 30]) c.line(x - 1, 11, x, 4, '#B84A56', 1);
+    });
+  }, { outline: '#1A0A0E' });
+}
+
 // Soft round light (behind item pedestals and glowing decorations).
 function paintGlow(scene, key, rgb, size) {
   paint(scene, key, size, size, (c) => {
@@ -302,6 +339,7 @@ const GATES = {
   door_boss: { frame: '#1F1A24', wood: '#4E3A5E', dark: '#2E2238', lock: '#B57BFF' },
   door_treasure: { frame: '#5C4520', wood: '#8A6A3A', dark: '#6E5234', lock: '#FFE45C' },
   door_shop: { frame: '#2A2219', wood: '#5E7A3A', dark: '#3E5A2A', lock: '#F2A0A8' },
+  door_sacrifice: { frame: '#1A0A0E', wood: '#6A1E2A', dark: '#4A1018', lock: '#E8E4DA' },
 };
 
 function makeDoors(scene) {
@@ -326,6 +364,32 @@ function makeDoors(scene) {
     c.rect(0, 0, 4, TILE, GATES.door.dark);
     c.rect(28, 0, 4, TILE, GATES.door.dark);
   });
+  // Mini boss gate: dark wood with a white skull, a warning to enter at your own risk.
+  tile('door_miniboss', (c) => {
+    c.rect(0, 0, TILE, TILE, '#120A0E');
+    c.rect(2, 2, 28, 30, '#4A1E24');
+    for (const x of [8, 16, 24]) c.rect(x, 2, 2, 30, '#2E1014');
+    c.circle(16, 14, 6, '#E8E4DA');
+    c.rect(12, 18, 8, 4, '#E8E4DA');
+    c.rect(13, 13, 2, 3, '#120A0E');
+    c.rect(17, 13, 2, 3, '#120A0E');
+    c.rect(14, 20, 1, 2, '#120A0E');
+    c.rect(17, 20, 1, 2, '#120A0E');
+  });
+  // A secret door once bombed open: a ragged hole in the wall.
+  tile('door_secret', (c) => {
+    c.ellipse(16, 18, 13, 15, '#0A0608');
+    c.inside(() => c.ellipse(16, 22, 9, 12, '#1A140F'));
+    for (const [x, y] of [[4, 6], [26, 8], [6, 28], [27, 26], [16, 3]]) c.rect(x, y, 3, 3, '#3A2E26');
+  });
+  // The crack that gives a secret door away (drawn over the wall).
+  paint(scene, 'wall_crack', TILE, TILE, (c) => {
+    c.path([[16, 2], [13, 10], [18, 16], [12, 24], [16, 30]], '#0E0A0C', 2);
+    c.path([[13, 10], [7, 13]], '#0E0A0C', 2);
+    c.path([[18, 16], [25, 19]], '#0E0A0C', 2);
+    c.path([[12, 24], [8, 28]], '#0E0A0C', 1);
+  }, { outline: null, crop: false });
+
   // Trapdoor to the next floor.
   tile('trapdoor', (c) => {
     c.rect(2, 2, 28, 28, '#5E4630');
@@ -337,6 +401,7 @@ function makeDoors(scene) {
 
 export function makeWorldTextures(scene, floors, rng) {
   paintEffects(scene);
+  paintRoomProps(scene);
   paintGlow(scene, 'glow', '#F2C94C', 80);
   paintGlow(scene, 'glow_white', '#FFFFFF', 80);
   paintGlow(scene, 'glow_blue', '#6FD3FF', 48);

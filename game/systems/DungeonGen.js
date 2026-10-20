@@ -1,6 +1,8 @@
 // Builds a random floor: a tree of rooms on a small grid.
-// Room types: start (empty), normal (2 waves), treasure (item pedestal, locked with a key),
-// shop (worm shopkeeper), boss (one boss fight, no waves).
+// Room types: start (empty), normal (2 waves), treasure (3 items, locked with a key),
+// shop (worm shopkeeper), sacrifice (trade hearts for items), miniboss (optional: 2 mini boss
+// waves for an item), boss (one boss fight, no waves), and secret (hidden behind a cracked
+// wall, opened with a bomb).
 
 import { ROOM_SIZES } from '../constants.js';
 import { makeLayout } from './Pathing.js';
@@ -16,7 +18,7 @@ export const GRID_W = 7;
 export const GRID_H = 5;
 
 const START = { x: 3, y: 2 };
-const ROOM_COUNT = { min: 8, max: 12 };
+const ROOM_COUNT = { min: 10, max: 14 };
 const MIN_BOSS_DISTANCE = 3;
 const MAX_ATTEMPTS = 200;
 const WAVES_PER_ROOM = 2;
@@ -68,7 +70,11 @@ export function generateDungeon(rng, floor, floorIndex, enemyDefs, bossId = pick
 }
 
 export function bossIds(enemyDefs) {
-  return Object.keys(enemyDefs).filter((id) => enemyDefs[id].boss);
+  return Object.keys(enemyDefs).filter((id) => enemyDefs[id].boss && !enemyDefs[id].mini);
+}
+
+export function miniBossIds(enemyDefs) {
+  return Object.keys(enemyDefs).filter((id) => enemyDefs[id].mini);
 }
 
 // Every enemy has a `difficulty` (1-4). Floor N may use difficulties N-2 to N, weighted toward
@@ -128,13 +134,13 @@ function tryGenerate(rng, floor, floorIndex, enemyDefs, bossId) {
   const deadEnds = [...cells.values()]
     .filter((c) => !(c.x === START.x && c.y === START.y) && neighborCount(c.x, c.y) === 1)
     .sort((a, b) => distance.get(key(b.x, b.y)) - distance.get(key(a.x, a.y)));
-  if (deadEnds.length < 3) return null;
+  if (deadEnds.length < 5) return null;
 
+  // The boss is the furthest dead end; the special rooms take other dead ends.
   const boss = deadEnds[0];
   if (distance.get(key(boss.x, boss.y)) < MIN_BOSS_DISTANCE) return null;
-  const others = deadEnds.slice(1);
-  const treasure = others.splice(Math.floor(rng.next() * others.length), 1)[0];
-  const shop = rng.pick(others);
+  const [treasure, shop, miniboss, sacrifice] = rng.shuffle(deadEnds.slice(1));
+  const miniBosses = rng.shuffle(miniBossIds(enemyDefs));
 
   const rooms = [...cells.values()].map((c) => {
     const dist = distance.get(key(c.x, c.y));
@@ -143,6 +149,8 @@ function tryGenerate(rng, floor, floorIndex, enemyDefs, bossId) {
     else if (c === boss) type = 'boss';
     else if (c === treasure) type = 'treasure';
     else if (c === shop) type = 'shop';
+    else if (c === miniboss) type = 'miniboss';
+    else if (c === sacrifice) type = 'sacrifice';
 
     // Some fight rooms are bigger than the screen (the camera scrolls).
     const shape = type === 'normal' && rng.chance(BIG_ROOM_CHANCE) ? rng.weighted(BIG_ROOM_WEIGHTS) : 'normal';
@@ -150,6 +158,7 @@ function tryGenerate(rng, floor, floorIndex, enemyDefs, bossId) {
     let waves = [];
     if (type === 'normal') waves = normalWaves(rng, pickRoomTypes(rng, pool, floorIndex, enemyDefs), enemyDefs, dist + floorIndex, WAVE_BONUS[shape]);
     if (type === 'boss') waves = [[bossId]]; // no waves: just the boss
+    if (type === 'miniboss') waves = [[miniBosses[0]], [miniBosses[1]]]; // two different mini bosses
 
     const doors = {};
     for (const [dir, d] of Object.entries(DIRS)) doors[dir] = cells.has(key(c.x + d.x, c.y + d.y));
@@ -173,13 +182,57 @@ function tryGenerate(rng, floor, floorIndex, enemyDefs, bossId) {
     };
   });
 
+  const secret = addSecretRoom(rng, rooms, cells);
+  if (!secret) return null;
+  rooms.push(secret);
   return new Dungeon(rooms, rooms.find((room) => room.type === 'start'), floor, floorIndex, pool);
+}
+
+// The secret room goes in an empty grid cell next to an ordinary room (never next to the boss or
+// mini boss room). That room gets a hidden door (`secretDoor`): a cracked wall until it's bombed.
+function addSecretRoom(rng, rooms, cells) {
+  const byKey = new Map(rooms.map((room) => [key(room.x, room.y), room]));
+  const hosts = new Set(['normal', 'start', 'shop', 'sacrifice']);
+  const spots = [];
+  for (let x = 0; x < GRID_W; x++) {
+    for (let y = 0; y < GRID_H; y++) {
+      if (cells.has(key(x, y))) continue;
+      const around = Object.entries(DIRS).map(([dir, d]) => ({ dir, room: byKey.get(key(x + d.x, y + d.y)) })).filter((n) => n.room);
+      if (around.length === 0 || around.some((n) => n.room.type === 'boss' || n.room.type === 'miniboss')) continue;
+      const ok = around.filter((n) => hosts.has(n.room.type));
+      if (ok.length) spots.push({ x, y, ok });
+    }
+  }
+  if (spots.length === 0) return null;
+  const spot = rng.pick(spots);
+  const { dir, room: host } = rng.pick(spot.ok);
+  const back = { up: 'down', down: 'up', left: 'right', right: 'left' }[dir];
+  host.doors[back] = true;
+  host.secretDoor = back; // the wall on this side is cracked until it's bombed open
+  return {
+    x: spot.x,
+    y: spot.y,
+    type: 'secret',
+    shape: 'normal',
+    size: ROOM_SIZES.normal,
+    dist: host.dist + 1,
+    doors: { up: false, down: false, left: false, right: false, [dir]: true },
+    waves: [],
+    seed: rng.int(0, 2 ** 31 - 1),
+    cleared: true,
+    visited: false,
+    revealed: false,
+    locked: false,
+    pickups: [],
+    contents: null,
+    obstacles: [],
+  };
 }
 
 // Fight rooms usually get a layout of the floor's obstacles; boss rooms one of a few cover
 // patterns (or none); start, treasure and shop rooms stay open.
 function makeObstacles(rng, floor, type, size) {
-  if (type === 'boss') return rng.chance(EMPTY_BOSS_ROOM_CHANCE) ? [] : withKinds(rng, floor, makeLayout(rng, 'boss'));
+  if (type === 'boss' || type === 'miniboss') return rng.chance(EMPTY_BOSS_ROOM_CHANCE) ? [] : withKinds(rng, floor, makeLayout(rng, 'boss'));
   if (type !== 'normal' || rng.chance(EMPTY_ROOM_CHANCE)) return [];
   return withKinds(rng, floor, makeLayout(rng, 'any', size));
 }

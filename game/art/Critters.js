@@ -1,4 +1,4 @@
-import { paint } from './Pixels.js';
+import { paint, paintScaled } from './Pixels.js';
 
 // The regular enemies added after the first five (the 12 pests, then 16 more). Same rules as
 // Enemies.js: cool or muted colours, no hot pink, side-on ones face right.
@@ -383,6 +383,33 @@ function waspNest(c) {
     c.circle(21, 13, 1.5, '#1A1420');
   });
   c.rect(14, 0, 2, 4, '#5A4A3A');
+}
+
+// Mini bosses: a regular enemy drawn bigger, with a small crown on top.
+const MINI_BOSSES = {
+  mini_aphid_queen: { draw: aphid, w: 12, h: 10, k: 3.2 },
+  mini_puffball_elder: { draw: puffball, w: 28, h: 24, k: 2 },
+  mini_mantis_duelist: { draw: mantis, w: 25, h: 31, k: 1.7 },
+  mini_bullfrog: { draw: toad, w: 32, h: 24, k: 1.9 },
+  mini_stag_lord: { draw: stagBeetle, w: 37, h: 22, k: 1.7 },
+  mini_moth_matriarch: { draw: duskMoth, w: 32, h: 22, k: 1.9 },
+  mini_turtle_elder: { draw: thornTurtle, w: 34, h: 21, k: 1.7 },
+  mini_scarecrow_lord: { draw: scarecrow, w: 30, h: 45, k: 1.5 },
+  mini_lantern_wraith: { draw: lanternSpirit, w: 22, h: 27, k: 1.8, outline: '#1E2A36' },
+  mini_shadow_alpha: { draw: shadowFox, w: 35, h: 21, k: 1.7 },
+};
+
+function smallCrown(c, { width }) {
+  const cx = Math.round(width / 2);
+  c.poly([[cx - 8, 2], [cx - 8, -5], [cx - 4, -2], [cx, -7], [cx + 4, -2], [cx + 8, -5], [cx + 8, 2]], '#F2C94C');
+  c.rect(cx - 8, 0, 16, 2, '#C98A2E');
+  c.circle(cx, -2, 1.4, '#E25C4B');
+}
+
+export function makeMiniBossTextures(scene) {
+  for (const [key, { draw, w, h, k, outline = OUTLINE }] of Object.entries(MINI_BOSSES)) {
+    paintScaled(scene, key, w, h, draw, k, { outline, after: smallCrown });
+  }
 }
 
 export function makeCritterTextures(scene) {

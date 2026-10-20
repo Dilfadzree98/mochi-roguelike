@@ -157,6 +157,17 @@ export const BOSS_MOVES = {
     yield 900;
   },
 
+  // ---------- Aphid Queen (mini boss) ----------
+
+  // Calls a swarm of aphids.
+  *aphid_swarm(e) {
+    yield* windup(e, 600);
+    e.squish();
+    e.scene.burst(e.x, e.y, 'husk', 10, { distance: 30 });
+    summon(e, 'aphid', rage(e, 3, 4), 6);
+    yield 500;
+  },
+
   // ---------- Grandshroom ----------
 
   // Hops at Mochi; every landing puffs a ring of spores.

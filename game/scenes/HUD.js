@@ -42,6 +42,9 @@ const MAP_COLORS = {
   boss: 0xb57bff,
   treasure: 0xf2c94c,
   shop: 0xf2a0a8,
+  miniboss: 0xe25c4b,
+  sacrifice: 0x8a2a36,
+  secret: 0xc9c3a1,
 };
 
 // Top bar over the top wall (hearts on the left; skill and wave/floor on the right), coin/bomb/key
@@ -80,14 +83,26 @@ export class HUD extends Phaser.Scene {
     ]);
     this.bigMapRooms = this.add.graphics();
     this.bigMap.add(this.bigMapRooms);
-    const legend = [['You', MAP_COLORS.current], ['Boss', MAP_COLORS.boss], ['Treasure', MAP_COLORS.treasure], ['Shop', MAP_COLORS.shop]];
-    let lx = GAME_WIDTH / 2 - 150;
-    for (const [label, color] of legend) {
-      this.bigMap.add(this.add.rectangle(lx, GAME_HEIGHT - 30, 10, 10, color).setOrigin(0, 0.5));
-      const text = addText(this, lx + 16, GAME_HEIGHT - 30, label, { originX: 0, tint: UI.muted });
-      this.bigMap.add(text);
-      lx += 16 + text.width + 24;
-    }
+    const legend = [
+      [['You', MAP_COLORS.current], ['Boss', MAP_COLORS.boss], ['Treasure', MAP_COLORS.treasure], ['Shop', MAP_COLORS.shop]],
+      [['Mini boss', MAP_COLORS.miniboss], ['Sacrifice', MAP_COLORS.sacrifice], ['Secret', MAP_COLORS.secret]],
+    ];
+    legend.forEach((row, r) => {
+      const y = GAME_HEIGHT - 38 + r * 18;
+      const parts = row.map(([label, color]) => {
+        const box = this.add.rectangle(0, y, 10, 10, color).setOrigin(0, 0.5);
+        const text = addText(this, 0, y, label, { originX: 0, tint: UI.muted });
+        return { box, text };
+      });
+      const total = parts.reduce((sum, { text }) => sum + 16 + text.width, 0) + 24 * (parts.length - 1);
+      let lx = Math.round(GAME_WIDTH / 2 - total / 2);
+      for (const { box, text } of parts) {
+        box.setX(lx);
+        text.setX(lx + 16);
+        this.bigMap.add([box, text]);
+        lx += 16 + text.width + 24;
+      }
+    });
     this.tabKey = this.input.keyboard.addKey('TAB'); // also stops Tab moving focus off the game
 
     // Skill meter: fills with each shot, blinks when ready (Space), then drains while the skill runs.
@@ -205,7 +220,9 @@ export class HUD extends Phaser.Scene {
   // `layout` is MINIMAP or BIG_MAP (position and cell sizes).
   drawMap(g, dungeon, current, layout, backing) {
     g.clear();
-    const seen = dungeon.rooms.filter((room) => room.visited || dungeon.neighbors(room).some((n) => n.visited));
+    // Secret rooms stay off the map until they've been found.
+    const known = (room) => room.type !== 'secret' || room.revealed;
+    const seen = dungeon.rooms.filter((room) => known(room) && (room.visited || dungeon.neighbors(room).some((n) => n.visited)));
     const { x: mapX, y: mapY, stepX, stepY } = layout;
     // A room's rectangle on the map, in its real shape, centred in its grid step.
     const box = (room) => {
