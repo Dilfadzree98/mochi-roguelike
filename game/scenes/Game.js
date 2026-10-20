@@ -71,7 +71,8 @@ const UPGRADE_SPACING = 80;    // px between the two skill upgrades after a boss
 const SHOP_PRICES = { item: 5, heart: 3, bomb: 3, key: 3 };
 const RESTOCK_PRICES = [[3, 6], [5, 9], [7, 12], [9, 15]]; // random price range for a shop restock, by floor
 
-// Sacrifice altar: costs a full heart a try; the chance of an item grows with each try.
+// Sacrifice altar: costs a full heart a try (even your last one: it can kill you); the chance
+// of an item grows with each try.
 const SACRIFICE = { cost: 2, chance: 0.35, chanceStep: 0.2, maxChance: 0.9, maxItems: 2, itemOffset: 72 };
 const SECRET_ITEM_CHANCE = 0.4; // otherwise a secret room holds a pile of drops
 const SECRET_DROPS = { min: 3, max: 5, weights: { coin: 40, heart: 20, bomb: 15, key: 15, chest: 10 } };
@@ -601,13 +602,16 @@ export class Game extends Phaser.Scene {
   // ---------- Sacrifice room ----------
 
   // An altar of spikes: each go costs a full heart and may give an item (better odds every try).
-  // It never takes your last heart, and gives at most two items.
+  // It will take your last heart too, which ends the run. Gives at most two items.
   setUpSacrifice(room) {
     room.contents ??= { tries: 0, items: 0, pedestals: [] };
     const c = room.contents;
     const altar = this.add.image(CENTER.x, CENTER.y + 12, 'altar').setOrigin(0.5, 1).setDepth(DEPTH.actors + CENTER.y + 12);
     const note = addText(this, CENTER.x, CENTER.y + 30, 'Give a heart?', { tint: 0xe25c4b }).setDepth(DEPTH.shadow);
     this.roomObjects.push(altar, note);
+    // The sign warns you when the next heart would be your last.
+    const updateNote = () => note.active && note.setText((this.player.hp <= SACRIFICE.cost ? 'Give your last heart?' : 'Give a heart?').toUpperCase());
+    updateNote();
     for (const pedestal of c.pedestals) this.placeSacrificeItem(room, pedestal);
 
     this.addPickupSpot(CENTER.x, CENTER.y, [], () => {
@@ -616,16 +620,18 @@ export class Game extends Phaser.Scene {
         this.hint('The altar is quiet');
         return false;
       }
-      if (player.hp <= SACRIFICE.cost) {
-        this.hint('Not enough hearts');
-        return false;
-      }
-      player.hp -= SACRIFICE.cost;
+      player.hp = Math.max(0, player.hp - SACRIFICE.cost);
       player.emitHp();
       player.hurtUntil = this.time.now + 200;
       Audio.play('hurt');
       this.cameras.main.shake(120, 0.01);
       this.burst(CENTER.x, CENTER.y - 4, 'cap_bit', 10, { distance: 22 });
+      if (player.hp === 0) {
+        // The altar took the last heart.
+        player.die();
+        this.onPlayerDied();
+        return false;
+      }
       const chance = Math.min(SACRIFICE.maxChance, SACRIFICE.chance + SACRIFICE.chanceStep * c.tries);
       if (this.rng.chance(chance)) {
         const itemId = this.drawItem();
@@ -641,6 +647,7 @@ export class Game extends Phaser.Scene {
         c.tries += 1;
         this.hint('Nothing... yet');
       }
+      updateNote();
       return false;
     }, { name: 'Sacrifice', description: 'Give a heart for a chance at an item' }).rearm = true;
   }
