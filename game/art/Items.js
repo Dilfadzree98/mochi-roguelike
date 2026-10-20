@@ -147,6 +147,71 @@ const SHOTS = {
     P.blob(5, 5.5, 3.6, 4.4, { base: '#FFE45C', dark: '#B89A2A' });
     P.p([[5.6, 1.8], [3.4, 5.8], [5, 5.8], [4.2, 9], [6.8, 4.6], [5.2, 4.6]], '#4A3A8A');
   },
+  // ---------- Third batch ----------
+  shot_firework: (P) => {
+    for (const [x, y] of [[1, 1], [9, 1], [1, 9], [9, 9], [5, 0.2]]) P.r(x - 0.5, y - 0.5, 1, 1, '#FFE45C');
+    P.blob(5, 5.5, 3.2, 4, { base: '#E8503A', dark: '#8A2A1A' });
+    P.in(() => P.r(1.5, 4.6, 7, 1, '#FFF4B8'));
+  },
+  shot_bean: (P) => {
+    P.e(5, 5.5, 3.4, 4.2, '#4E9A3A');
+    P.in(() => {
+      P.e(6.6, 5.5, 1.4, 1.8, '#2E6A2A');
+      P.e(4, 3.6, 1, 0.8, '#B5E092');
+    });
+    P.r(1, 1, 1, 1, '#FFE45C');
+    P.r(8.4, 8.4, 1, 1, '#FFE45C');
+  },
+  shot_lightning_bug: (P) => {
+    P.e(3.6, 4.4, 2.2, 2, '#3A3430');
+    P.e(6.4, 5.6, 3.2, 3, '#FFE45C');
+    P.in(() => P.e(7, 6, 1.6, 1.4, '#FFF8C0'));
+    P.r(2.4, 3.4, 1, 1, '#FF6B6B');
+  },
+  shot_spiral: (P) => {
+    P.blob(5, 5, 4.2, 4.2, { base: '#E8C67A', dark: '#B8904A' });
+    P.path([[5, 5], [6, 4.6], [6.2, 6], [4.4, 6.6], [3.4, 4.8], [4.6, 3], [7, 3], [8.2, 5.4]], '#8A5A2A', 0.7);
+  },
+  shot_mint: (P) => {
+    P.p([[1, 9], [2, 4], [5, 1], [9, 1], [8.4, 5], [5, 8.4]], '#7FD8C0');
+    P.in(() => P.p([[1, 9], [5, 5], [9, 1], [8.4, 5], [5, 8.4]], '#4FA890'));
+    P.l(1.4, 8.6, 8.4, 1.6, '#2E7060', 0.6);
+    P.r(6.4, 2.6, 1, 1, '#FFFFFF');
+  },
+  shot_beet: (P) => {
+    P.p([[3.6, 3.4], [2.4, 0.4], [4.8, 2.4], [5.6, 0.2], [6, 2.6], [7.8, 0.8], [6.4, 3.6]], '#5E9C3A');
+    P.blob(5, 6, 3.4, 3.2, { base: '#8A2040', dark: '#5A1028', light: '#B84A6A' });
+    P.l(5, 9, 5, 10, '#5A1028', 0.6);
+  },
+  shot_pinball: (P) => {
+    P.blob(5, 5, 4, 4, { base: '#A8C890', dark: '#5E7A50', light: '#F0FFE8' });
+    P.r(3, 3, 1.4, 1.4, '#FFFFFF');
+  },
+  shot_burr: (P) => {
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      P.l(5 + Math.cos(a) * 2.6, 5 + Math.sin(a) * 2.6, 5 + Math.cos(a) * 4.8, 5 + Math.sin(a) * 4.8, '#6E5A3E', 0.7);
+    }
+    P.blob(5, 5, 3, 3, { base: '#8A7454', dark: '#5A4A32' });
+  },
+  shot_sleepy: (P) => {
+    P.blob(5, 6, 3.4, 3.6, { base: '#B8A0E0', dark: '#7A5AA8' });
+    P.l(3, 6, 4.4, 6, '#3A2A5A', 0.6);
+    P.l(5.8, 6, 7.2, 6, '#3A2A5A', 0.6);
+    P.path([[6.6, 0.6], [8.6, 0.6], [6.6, 2.6], [8.6, 2.6]], '#E8E4FF', 0.6);
+  },
+  shot_watermelon: (P) => {
+    P.p([[5, 0.8], [8.4, 5.6], [5, 9.4], [1.6, 5.6]], '#2C2C2A');
+    P.in(() => P.e(4, 4, 0.9, 1.6, '#E8E4DA'));
+  },
+  shot_pea: (P) => {
+    P.blob(5, 5, 3.6, 3.6, { base: '#7FCF5A', dark: '#4E9A3A', light: '#D6F7B8' });
+  },
+  shot_blastberry: (P) => {
+    P.path([[5, 3], [6, 1.4], [7.6, 1]], '#C9A27A', 0.6);
+    P.r(7.6, 0.4, 1.2, 1.2, '#FFD23F');
+    P.blob(5, 6, 3.6, 3.6, { base: '#C2413B', dark: '#7A2420', light: '#FF8A7A' });
+  },
   shot_ghost: (P) => {
     P.o(5, 4.5, 3.6, '#E8F0FF');
     P.p([[1.4, 4.5], [8.6, 4.5], [8.6, 9], [7.2, 8], [5.8, 9], [4.4, 8], [3, 9], [1.4, 8]], '#E8F0FF');
@@ -178,6 +243,18 @@ const SHOT_ITEM_ICONS = {
   golden_kernel: 'shot_golden',
   ghost_pepper: 'shot_ghost',
   thunder_seed: 'seed_thunder',
+  firework_seed: 'shot_firework',
+  magic_bean: 'shot_bean',
+  lightning_bug: 'shot_lightning_bug',
+  spiral_shell: 'shot_spiral',
+  frost_mint: 'shot_mint',
+  vampire_beet: 'shot_beet',
+  pinball_pea: 'shot_pinball',
+  burr_mine: 'shot_burr',
+  sleepy_seed: 'shot_sleepy',
+  watermelon_seed: 'shot_watermelon',
+  pea_pod: 'shot_pea',
+  blast_berry: 'shot_blastberry',
 };
 
 // Icons for the stat items, in the same 10x10 unit box.
@@ -493,6 +570,8 @@ const SHOT_OUTLINE = '#1E1418';
 
 function paintShotsAndIcons(scene, itemDefs) {
   for (const [key, design] of Object.entries(SHOTS)) paint(scene, key, 10, 10, (c) => design(pen(c, 1)), { outline: SHOT_OUTLINE });
+  // The mine Burr Mine leaves on the floor: a bigger burr.
+  paint(scene, 'burr_mine', 16, 16, (c) => SHOTS.shot_burr(pen(c, 1.6)), { outline: SHOT_OUTLINE });
   for (const [key, design] of Object.entries({ ...ICONS, ...UPGRADE_ICONS })) paint(scene, key, 24, 24, (c) => design(pen(c, 2.4)));
   for (const [itemId, shot] of Object.entries(SHOT_ITEM_ICONS)) {
     if (itemDefs[itemId]) paint(scene, itemDefs[itemId].icon, 24, 24, (c) => SHOTS[shot](pen(c, 2.4)));

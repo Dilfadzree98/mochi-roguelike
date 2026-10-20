@@ -353,6 +353,7 @@ const BURN_TINT = 0xff8a3d;
 const SLOW_TINT = 0xa8e0ff;
 const POISON_TINT = 0x9bd86a;
 const DIZZY_TINT = 0xfff0a0;
+const STUN_TINT = 0xc9f2ff;
 const WINDUP_TINT = 0xd9b8ff;
 const ENRAGED_TINT = 0xffb3d0;
 const ENRAGE_AT = 0.5;          // bosses get angry below half health
@@ -381,6 +382,7 @@ export class Enemy {
     this.poison = null; // same shape as burn
     this.slow = null;   // { multiplier, until }
     this.dizzyUntil = 0; // Catnip: wanders around and doesn't attack
+    this.stunUntil = 0;  // Frost Mint: frozen in place
     this.animOffset = scene.fxRng.range(0, ANIM_FRAME_MS * 2);
     this.footOffset = def.hitbox.h / 2 + 2;
     this.size = def.scale ?? 1;
@@ -438,7 +440,9 @@ export class Enemy {
 
     const body = this.hitbox.body;
     if (this.def.stationary) this.stop();
-    if (time < this.knockbackUntil) {
+    if (time < this.stunUntil) {
+      this.stop(); // frozen solid
+    } else if (time < this.knockbackUntil) {
       // knocked back: not moving by itself
     } else if (time < this.dizzyUntil) {
       this.stumble(time);
@@ -492,6 +496,7 @@ export class Enemy {
     else if (this.burn) this.sprite.setTint(BURN_TINT);
     else if (this.poison) this.sprite.setTint(POISON_TINT);
     else if (this.slow) this.sprite.setTint(SLOW_TINT);
+    else if (time < this.stunUntil) this.sprite.setTint(STUN_TINT);
     else if (time < this.dizzyUntil) this.sprite.setTint(DIZZY_TINT);
     else if (this.ai.enraged) this.sprite.setTint(ENRAGED_TINT);
     else this.sprite.clearTint();
@@ -558,6 +563,8 @@ export class Enemy {
     if (effects.slow) this.slow = { multiplier: effects.slow.multiplier, until: time + effects.slow.ms };
     // Bosses shake off dizziness.
     if (effects.confuse && !this.def.boss) this.dizzyUntil = Math.max(this.dizzyUntil, time + effects.confuse);
+    // ...and freezing (Frost Mint).
+    if (effects.stun && !this.def.boss && this.scene.rng.chance(effects.stun.chance)) this.stunUntil = time + effects.stun.ms;
     this.scene.playSfx('enemyHit');
     this.damage(this.def.boss ? damage * this.scene.player.stats.bossDamage : damage);
   }

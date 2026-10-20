@@ -60,6 +60,11 @@ const CHAIN_RANGE = 100;       // px a zap can jump
 const CHAIN_DAMAGE = 0.6;      // times the shot's damage
 
 const TREASURE_SPACING = 88;   // px between the three treasure pedestals
+const BURST_GAP_MS = 80;       // Pea Pod: time between the seeds of a burst
+const BIG_SHOT = { scale: 2, damage: 3 }; // Watermelon Seed: every Nth shot
+const MINE = { armMs: 400, lifeMs: 8000, trigger: 30, radius: 56, damage: 3 }; // Burr Mine (damage x player damage)
+const RICOCHET_RANGE = 160;    // Pinball Pea: how far a shot looks for its next enemy
+const FIREWORK_RANGE = 80;     // Firework Seed: range of the small seeds
 const UPGRADE_SPACING = 80;    // px between the two skill upgrades after a boss
 
 const SHOP_PRICES = { item: 5, heart: 3, bomb: 3, key: 3 };
@@ -119,6 +124,8 @@ export class Game extends Phaser.Scene {
     this.enemies = [];
     this.pickups = [];     // things taken by walking over them
     this.bombs = [];
+    this.mines = [];
+    this.hitCount = 0;
     this.bombBodies = this.physics.add.group(); // hitboxes of placed bombs, so they can be kicked
     this.roomObjects = []; // extra objects owned by the current room, destroyed on leaving
     this.roomColliders = [];
@@ -204,6 +211,7 @@ export class Game extends Phaser.Scene {
     for (const shot of this.shots.getChildren().slice()) shot.update(time, delta);
     for (const bullet of this.enemyShots.getChildren().slice()) bullet.update(time);
     this.updateBombs(delta);
+    this.updateMines(time);
 
     this.collectPickups();
     this.updateTooltip();
@@ -274,6 +282,7 @@ export class Game extends Phaser.Scene {
     this.tweens.getTweens().forEach((tween) => tween.complete());
     this.bombs.forEach((bomb) => bomb.timer.remove());
     this.bombs = [];
+    this.mines = [];
     this.enemies.forEach((enemy) => enemy.destroy());
     this.enemies = [];
     this.shots.clear(true, true);
@@ -642,6 +651,16 @@ export class Game extends Phaser.Scene {
     const chance = COIN_DROP_CHANCE + COIN_DROP_LUCK_BONUS * this.player.stats.luck;
     if (this.rng.chance(chance)) this.dropPickup('coin', enemy.x, enemy.y);
 
+    const blast = this.player.stats.killBlast;
+    if (blast) {
+      const { x, y } = enemy;
+      this.time.delayedCall(0, () => {
+        this.burst(x, y, 'spark', 8, { distance: blast.radius * 0.6 });
+        this.burst(x, y, 'smoke', 6, { distance: blast.radius * 0.5 });
+        this.blastEnemies(x, y, blast.radius, blast.damage, enemy);
+      });
+    }
+
     this.kills += 1;
     const every = this.player.stats.healEvery;
     if (every > 0 && this.kills % every === 0 && this.player.hp < this.player.stats.maxHp) {
@@ -868,7 +887,25 @@ export class Game extends Phaser.Scene {
 
   // ---------- Player shots ----------
 
-  firePlayerShot(x, y, dir, stats) {
+  firePlayerShot(x, y, dir, stats, inBurst = false) {
+    // Pea Pod: more seeds follow one after another.
+    if (stats.burst > 1 && !inBurst) {
+      for (let i = 1; i < stats.burst; i++) {
+        this.time.delayedCall(i * BURST_GAP_MS, () => {
+          if (!this.player.alive || this.transitioning) return;
+          const p = this.player.hitbox;
+          this.firePlayerShot(p.x + dir.x * 12, p.y - 2 + dir.y * 12, dir, stats, true);
+        });
+      }
+    }
+    // Watermelon Seed: every Nth shot is huge and hits much harder.
+    this.shotCount = (this.shotCount ?? 0) + 1;
+    if (stats.bigEvery && this.shotCount % stats.bigEvery === 0) {
+      stats = { ...stats, shotScale: stats.shotScale * BIG_SHOT.scale, damage: stats.damage * BIG_SHOT.damage };
+    }
+    // Burr Mine: every Nth shot also drops a mine at Mochi's feet.
+    if (stats.mineEvery && !inBurst && this.shotCount % stats.mineEvery === 0) this.placeMine(this.player.feet.x, this.player.feet.y - 4);
+
     // Side-by-side seeds (Twin Sprout).
     const count = stats.multishot;
     const side = { x: -dir.y, y: dir.x };
@@ -889,7 +926,6 @@ export class Game extends Phaser.Scene {
     }
 
     // Every Nth shot also sprays a ring (Sprinkler Head).
-    this.shotCount = (this.shotCount ?? 0) + 1;
     if (stats.sprinkler && this.shotCount % stats.sprinkler === 0) {
       for (let i = 0; i < SPRINKLER_SEEDS; i++) {
         this.spawnShot(x, y, fromAngle(angle + (i / SPRINKLER_SEEDS) * Math.PI * 2), { ...stats, range: SPRINKLER_RANGE });
@@ -924,7 +960,84 @@ export class Game extends Phaser.Scene {
     enemy.hit(damage, shot.dir, this.time.now, shot.effects);
     if (shot.stats.chain > 0) this.chainZap(enemy, shot.stats.chain, shot.damage * CHAIN_DAMAGE);
     if (shot.canSplit) this.splitShot(shot, enemy);
+
+    // Vampire Beet: heal every N hits.
+    this.hitCount += 1;
+    const leech = shot.stats.leechEvery;
+    if (leech && this.hitCount % leech === 0 && this.player.hp < this.player.stats.maxHp) {
+      this.player.heal(1);
+      this.burst(this.player.hitbox.x, this.player.hitbox.y - 12, 'cap_bit', 5, { distance: 14 });
+    }
+    // Pinball Pea: bounce on to the next enemy instead of breaking.
+    if (shot.ricochetsLeft > 0 && this.ricochet(shot, enemy)) return;
     if (!shot.pierce) shot.impact();
+  }
+
+  // Turns a shot toward the nearest enemy it hasn't hit yet. Returns false if there's none in range.
+  ricochet(shot, from) {
+    let next = null;
+    let best = RICOCHET_RANGE;
+    for (const enemy of this.enemies) {
+      if (enemy === from || shot.hitEnemies.has(enemy) || enemy.state !== 'active' || enemy.untouchable) continue;
+      const d = Phaser.Math.Distance.Between(shot.x, shot.y, enemy.x, enemy.y);
+      if (d < best) {
+        best = d;
+        next = enemy;
+      }
+    }
+    if (!next) return false;
+    shot.ricochetsLeft -= 1;
+    shot.angleRad = Math.atan2(next.y - shot.y, next.x - shot.x);
+    shot.expiresAt = Math.max(shot.expiresAt, this.time.now + 700);
+    shot.steer(this.time.now, 0);
+    return true;
+  }
+
+  // Firework Seed: a shot that reaches the end of its range bursts into a ring of small seeds.
+  fireworkBurst(shot) {
+    const { x, y, stats } = shot;
+    const count = stats.expireBurst;
+    this.burst(x, y, 'spark', 6, { distance: 14 });
+    this.time.delayedCall(0, () => {
+      for (let i = 0; i < count; i++) {
+        const a = (i / count) * Math.PI * 2;
+        this.spawnShot(x, y, { x: Math.cos(a), y: Math.sin(a) }, { ...stats, range: FIREWORK_RANGE }, { damageScale: 0.5, isFragment: true });
+      }
+    });
+  }
+
+  // ---------- Burr mines ----------
+
+  placeMine(x, y) {
+    const image = this.add.image(x, y, 'burr_mine').setDepth(DEPTH.slime + 1).setAlpha(0.6);
+    this.roomObjects.push(image);
+    this.mines.push({ x, y, image, armedAt: this.time.now + MINE.armMs, until: this.time.now + MINE.lifeMs });
+  }
+
+  // A mine bursts when an enemy steps close, hurting every enemy nearby (never Mochi).
+  updateMines(time) {
+    for (const mine of this.mines.slice()) {
+      if (time >= mine.armedAt && mine.image.alpha < 1) mine.image.setAlpha(1);
+      const near = time >= mine.armedAt && this.enemies.some((e) => e.state === 'active' && !e.untouchable && Phaser.Math.Distance.Between(mine.x, mine.y, e.x, e.y) < MINE.trigger + e.def.hitbox.w / 2);
+      if (!near && time < mine.until) continue;
+      this.mines = this.mines.filter((m) => m !== mine);
+      mine.image.destroy();
+      if (!near) continue; // fizzled out
+      this.burst(mine.x, mine.y, 'husk', 10, { distance: MINE.radius * 0.7 });
+      this.burst(mine.x, mine.y, 'spark', 6, { distance: MINE.radius * 0.5 });
+      Audio.play('bomb');
+      this.blastEnemies(mine.x, mine.y, MINE.radius, this.player.stats.damage * MINE.damage);
+    }
+  }
+
+  // Hurts every active enemy within `radius` (mines, Blast Berry).
+  blastEnemies(x, y, radius, damage, except = null) {
+    for (const enemy of this.enemies) {
+      if (enemy === except || enemy.state !== 'active') continue;
+      if (Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y) > radius + enemy.def.hitbox.w / 2) continue;
+      const angle = Math.atan2(enemy.y - y, enemy.x - x);
+      enemy.hit(damage, { x: Math.cos(angle), y: Math.sin(angle) }, this.time.now);
+    }
   }
 
   // Static Thistle: lightning jumps from enemy to enemy.

@@ -5,6 +5,10 @@ const HOMING_RANGE = 220;      // px: only enemies this close are chased
 const WAVE_SPEED = 14;         // radians per second of the wiggle
 const ACCEL = { from: 0.4, to: 1.8, rampMs: 600 };
 const BOOMERANG_RETURN_MS = 2000;
+const GROW = { max: 2, ms: 500 };            // Magic Bean: up to 2x size and damage, reached after 0.5 s
+const ZIGZAG_MS = 110;                        // Lightning Bug: time between turns
+const SPIRAL_TURN = 9;                        // Spiral Shell: radians per second at first, easing off
+const LURK = { stopAt: 220, goAt: 520, boost: 1.9 }; // Sleepy Seed: pause, then dart
 
 // A player shot. It flies at `angle` and the player's stats shape how:
 // homing, wave, acceleration, boomerang, bounces, pierce, split, splash, burn/slow/poison...
@@ -16,14 +20,19 @@ export class Projectile extends Phaser.Physics.Arcade.Image {
     this.angleRad = Math.atan2(dir.y, dir.x);
     this.baseSpeed = stats.shotSpeed;
     this.damage = stats.damage * damageScale;
+    this.baseDamage = this.damage;
+    this.isFragment = isFragment;
+    this.ricochetsLeft = stats.ricochet;
     this.pierce = stats.pierce;
     this.bouncesLeft = stats.bounces;
     this.canSplit = !isFragment && stats.split > 0;
     this.hitEnemies = new Set(alreadyHit);
     this.bornAt = time;
     this.expiresAt = time + (stats.range / stats.shotSpeed) * 1000;
+    if (stats.lurk && !isFragment) this.expiresAt += LURK.goAt - LURK.stopAt; // the pause doesn't use up range
     this.returning = false;
     const scale = stats.shotScale * (isFragment ? 0.6 : 1);
+    this.baseScale = scale;
     this.setScale(scale);
     this.body.setSize(8 * Math.max(1, scale), 8 * Math.max(1, scale));
     if (stats.phase) this.setAlpha(0.75);
@@ -38,7 +47,7 @@ export class Projectile extends Phaser.Physics.Arcade.Image {
   // Status effects passed to an enemy on hit.
   get effects() {
     const s = this.stats;
-    return { burn: s.burn, slow: s.slow, poison: s.poison, confuse: s.confuse, knockback: s.knockback };
+    return { burn: s.burn, slow: s.slow, poison: s.poison, confuse: s.confuse, knockback: s.knockback, stun: s.stun };
   }
 
   update(time, delta) {
@@ -54,6 +63,8 @@ export class Projectile extends Phaser.Physics.Arcade.Image {
         this.hitEnemies.clear();
         this.expiresAt = time + BOOMERANG_RETURN_MS;
       } else {
+        // Firework Seed: burst into small seeds at the end of the range.
+        if (this.stats.expireBurst && !this.isFragment) this.scene.fireworkBurst(this);
         this.impact();
         return;
       }
@@ -85,8 +96,31 @@ export class Projectile extends Phaser.Physics.Arcade.Image {
     let speed = this.baseSpeed;
     if (stats.accelerate) speed *= Math.min(ACCEL.to, ACCEL.from + ((ACCEL.to - ACCEL.from) * age) / ACCEL.rampMs);
 
-    let vx = Math.cos(this.angleRad) * speed;
-    let vy = Math.sin(this.angleRad) * speed;
+    // Sleepy Seed: hangs in the air for a moment, then darts at the nearest enemy.
+    if (stats.lurk && !this.isFragment && !this.returning) {
+      if (age >= LURK.stopAt && age < LURK.goAt) speed *= 0.08;
+      else if (age >= LURK.goAt && !this.lurked) {
+        this.lurked = true;
+        const target = this.nearestEnemy();
+        if (target) this.angleRad = Math.atan2(target.y - this.y, target.x - this.x);
+        this.baseSpeed *= LURK.boost;
+        speed = this.baseSpeed;
+      }
+    }
+    // Spiral Shell: curls outward, turning less as it goes.
+    if (stats.spiral && !this.returning) this.angleRad += (SPIRAL_TURN / (1 + age / 200)) * dt;
+    // Magic Bean: grows bigger and stronger.
+    if (stats.growing) {
+      const grow = Math.min(GROW.max, 1 + age / GROW.ms);
+      this.setScale(this.baseScale * grow);
+      this.damage = this.baseDamage * grow;
+      this.body.setSize(8 * Math.max(1, this.baseScale * grow), 8 * Math.max(1, this.baseScale * grow));
+    }
+    // Lightning Bug: zigzags either side of its path.
+    const travel = this.angleRad + (stats.zigzag ? (Math.floor(age / ZIGZAG_MS) % 2 ? 1 : -1) * stats.zigzag : 0);
+
+    let vx = Math.cos(travel) * speed;
+    let vy = Math.sin(travel) * speed;
     if (stats.wave > 0) {
       // Side-to-side velocity that makes the shot weave around its path.
       const side = stats.wave * WAVE_SPEED * Math.cos((WAVE_SPEED * age) / 1000);

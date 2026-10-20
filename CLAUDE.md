@@ -84,7 +84,7 @@ game/
     ├── characters.json  playable characters: name, description, texture, stat modifiers, skill
     ├── enemies.json     17 enemies and 7 bosses: stats, behaviour + params, difficulty + weight, onDeath (bosses: idle + 3 moves)
     ├── floors.json      4 floors: palette, wall face, decorations, obstacles
-    └── items.json       57 items, each with a tier (1-4) and a list of stat modifiers
+    └── items.json       69 items, each with a tier (1-4) and a list of stat modifiers
 ```
 
 Adding an enemy: add an entry to `data/enemies.json` using an existing `behaviour` (`chase`, `ring_shooter`, `charger`, `aimed_shooter`, `teleporter`, `wander`, `kiter`, `flutter`, `burrower`, `hopper`, `shell`, `dasher`, `spinner`, `wisp`) with its `params`, a `death` from `DEATHS`, a `difficulty` (1-4) and a `weight` (how common), and a sprite in `art/Critters.js`. Optional: `"flying": true` (passes over obstacles), `onDeath` (`ring` of bullets or `spawn` { type, count }), `maxPerWave`. A new movement pattern goes in `BEHAVIOURS` in Enemy.js. Enemy attacks use Game's `fireRing` / `fireSpread` / `fireSpiral` / `fireSweep` / `rootStrike` / `markStrike`.
@@ -211,6 +211,8 @@ Bosses (7; one random boss per floor, never the same one twice in a run):
   - Tier 2: Garden Hose (shot speed and range), Pine Cone (damage, knockback), Ladybug (blocks the first hit in each room), Compost Heap (heal half a heart every 12 kills), Worm Jar (3 bombs, blasts ×1.5), Rose Thorns (enemies touching Mochi take 4 damage).
   - Tier 3: Sun Hat (fire rate, range), Queen Bee (damage, homing), Golden Watering Can (heart, full heal, damage), Dragonfly Wings (speed, shot speed, +0.5 s invincibility), Pitchfork (bosses take ×1.5 damage).
   - Tier 4: Sunflower Heart (+2 hearts, full heal, damage, fire rate), Thunder Seed (piercing shots that chain-zap twice), World Tree Sap (extra seed, ×1.25 damage, fire rate, range).
+- **Shot items always come with a stat change too** (up or down, said in the description): e.g. Fire Seed burns but shots fly slower, Dewdrop pierces and shots fly faster.
+- **Third batch of shot items (12):** Firework Seed (bursts into 6 at the end of its range; −range), Magic Bean (shots grow to 2x size and damage; −shot speed), Lightning Bug (zigzag; faster fire), Spiral Shell (spiral outward; +damage), Frost Mint (20% chance to freeze a non-boss enemy 1 s; +speed), Vampire Beet (heal half a heart every 25 hits; slower fire), Pinball Pea (bounces on to 2 more enemies; +damage), Burr Mine (every 5th shot drops a mine that bursts near enemies; +luck), Sleepy Seed (pauses, then darts at the nearest enemy; +damage), Watermelon Seed (every 4th shot huge, 3x damage; −speed), Pea Pod (bursts of 3 weaker peas; slower fire), Blast Berry (killed enemies explode for 2 damage; faster shots). Stats: `expireBurst`, `growing`, `zigzag`, `spiral`, `stun`, `leechEvery`, `ricochet`, `mineEvery`, `lurk`, `bigEvery`, `burst`, `killBlast`.
 - Item stats added for these: `enemyHp`, `roomShield`, `healEvery`, `bombPower`, `thorns`, `invulnBonus`, `bossDamage` (defaults in `BASE_STATS`). `maxHp` never drops below 1 heart.
 - `onPickup` supports `heal`, `healFull`, `coins`, `bombs`, `keys`. Shot behaviour stats and their defaults are in `BASE_STATS` (Player.js); caps in `LIMITS` (Items.js). Shots steer by angle each frame in `Projectile.steer()` so homing/wave/accelerate/boomerang combine.
 

@@ -42,6 +42,19 @@ export const BASE_STATS = {
   thorns: 0,         // damage to enemies that touch Mochi
   invulnBonus: 0,    // extra ms of invincibility after a hit
   bossDamage: 1,     // damage multiplier against bosses
+  // Shot behaviours from the third batch of shot items.
+  expireBurst: 0,    // seeds a shot bursts into at the end of its range
+  growing: false,    // shots grow bigger and stronger as they fly
+  zigzag: 0,         // sharp zigzag, radians either side
+  spiral: false,     // shots curl outward in a spiral
+  stun: null,        // { chance, ms }: freeze the enemy hit
+  leechEvery: 0,     // heal half a heart every N hits
+  ricochet: 0,       // times a shot bounces on to another enemy
+  mineEvery: 0,      // every Nth shot also drops a burr mine
+  lurk: false,       // shots pause, then dart at the nearest enemy
+  bigEvery: 0,       // every Nth shot is huge
+  burst: 1,          // seeds fired one after another per shot
+  killBlast: null,   // { radius, damage }: killed enemies explode
 };
 
 const START_INVENTORY = { coins: 0, bombs: 1, keys: 1 };
