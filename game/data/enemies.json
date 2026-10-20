@@ -307,7 +307,7 @@
     "behaviour": "boss",
     "idle": "still",
     "moves": ["hop_slam", "spore_rings", "spore_spiral"],
-    "params": { "cooldownMs": 1000, "hopSpeed": 190, "hopMs": 450 },
+    "params": { "cooldownMs": 1000, "hopSpeed": 150, "hopMs": 450 },
     "hitbox": { "w": 56, "h": 32 },
     "squash": 0.04,
     "death": "pop",

@@ -1023,6 +1023,7 @@ export class Game extends Phaser.Scene {
 
   // A warning crack under the target, then roots burst up.
   rootStrike(x, y) {
+    Audio.play('warn');
     const crack = this.add.image(x, y + 8, 'crack').setDepth(DEPTH.slime);
     this.roomObjects.push(crack);
     this.tweens.add({ targets: crack, alpha: { from: 1, to: 0.4 }, duration: 120, yoyo: true, repeat: -1 });
@@ -1039,6 +1040,7 @@ export class Game extends Phaser.Scene {
 
   // A blinking target mark, then `land` runs and anything on the mark gets hurt.
   markStrike(x, y, delayMs, land) {
+    Audio.play('warn');
     const mark = this.add.image(x, y + 4, 'target').setDepth(DEPTH.slime);
     this.roomObjects.push(mark);
     this.tweens.add({ targets: mark, alpha: { from: 1, to: 0.35 }, duration: 110, yoyo: true, repeat: -1 });

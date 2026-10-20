@@ -49,7 +49,7 @@ function* windup(e, ms) {
 // Shake in place, then wait (the warning before a charge).
 function* rumble(e, ms) {
   e.stop();
-  e.shakeUntil = now(e) + ms;
+  e.shake(ms);
   yield ms;
 }
 
@@ -124,9 +124,9 @@ export const BOSS_MOVES = {
 
   // Rears up, then slides fast at Mochi, leaving thick slime.
   *slime_dash(e, player) {
-    yield* rumble(e, 600);
+    yield* rumble(e, 900);
     let nextBlob = 0;
-    yield* dash(e, angleTo(e, player), rage(e, 240, 300), 1500, () => {
+    yield* dash(e, angleTo(e, player), rage(e, 190, 240), 1800, () => {
       if (now(e) < nextBlob) return;
       nextBlob = now(e) + 50;
       e.scene.dropSlime(e.x, e.y + e.footOffset - 4, e.def.trail);
@@ -163,7 +163,7 @@ export const BOSS_MOVES = {
   *hop_slam(e, player) {
     const p = e.def.params;
     for (let i = 0; i < rage(e, 2, 3); i++) {
-      yield* windup(e, 300);
+      yield* windup(e, 550);
       e.hitbox.body.velocity.setToPolar(angleTo(e, player), p.hopSpeed);
       e.ai.smashing = true;
       const landAt = now(e) + p.hopMs;
@@ -268,8 +268,8 @@ export const BOSS_MOVES = {
   // Charges at Mochi three times in a row, then needs a rest.
   *triple_charge(e, player) {
     for (let i = 0; i < rage(e, 3, 4); i++) {
-      yield* rumble(e, 350);
-      yield* dash(e, angleTo(e, player), 340, 1200);
+      yield* rumble(e, 600);
+      yield* dash(e, angleTo(e, player), 270, 1500);
       e.scene.cameras.main.shake(80, 0.006);
       yield 200;
     }
@@ -373,9 +373,9 @@ export const BOSS_MOVES = {
 
   // Rolls around the room, bouncing off the walls.
   *rolling_bounce(e, player) {
-    yield* rumble(e, 500);
+    yield* rumble(e, 800);
     const a = angleTo(e, player);
-    const speed = rage(e, 230, 280);
+    const speed = rage(e, 185, 225);
     let vx = Math.cos(a) * speed;
     let vy = Math.sin(a) * speed;
     const body = e.hitbox.body;

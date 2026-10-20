@@ -7,6 +7,7 @@ const MUTE_KEY = 'mochi-muted';
 const MASTER_VOLUME = 0.5;
 const MUSIC_VOLUME = 0.22;
 const SFX_MIN_GAP_MS = 40; // the same sound never stacks faster than this
+const SFX_GAPS = { warn: 150 }; // ...or this, for sounds that many enemies make at once
 
 const midiToHz = (note) => 440 * Math.pow(2, (note - 69) / 12);
 
@@ -42,6 +43,8 @@ const SOUNDS = {
   crit: [['square', 1200, 1800, 80, 0.1]],
   meow:[['triangle', 620, 940, 140, 0.16], ['triangle', 940, 520, 260, 0.16, 140]],
   scratch: [['sawtooth', 2200, 700, 60, 0.07], ['sawtooth', 2000, 650, 60, 0.07, 70]],
+  // An attack is coming: a quick rising two-note alert.
+  warn: [['square', 740, 740, 55, 0.07], ['square', 1110, 1110, 80, 0.07, 65]],
   bomb: 'noise',
 };
 
@@ -94,7 +97,7 @@ class AudioSystem {
   play(name) {
     if (!this.ctx || this.muted) return;
     const now = performance.now();
-    if (now - (this.lastPlayed[name] ?? 0) < SFX_MIN_GAP_MS) return;
+    if (now - (this.lastPlayed[name] ?? 0) < (SFX_GAPS[name] ?? SFX_MIN_GAP_MS)) return;
     this.lastPlayed[name] = now;
 
     const sound = SOUNDS[name];

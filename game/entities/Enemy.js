@@ -38,10 +38,12 @@ const BEHAVIOURS = {
         ai.turnAt = time + 600;
       }
       body.velocity.set(ai.dir.x * e.speed, ai.dir.y * e.speed);
-      if (time >= ai.until) Object.assign(ai, { state: 'windup', until: time + p.windupMs });
+      if (time >= ai.until) {
+        Object.assign(ai, { state: 'windup', until: time + p.windupMs });
+        e.shake(p.windupMs);
+      }
     } else if (ai.state === 'windup') {
       e.stop();
-      e.shakeUntil = ai.until;
       if (time >= ai.until) {
         const a = e.scene.chaseAngle(e); // straight at Mochi, or around the obstacle Mochi hides behind
         Object.assign(ai, { state: 'charge', until: time + p.maxChargeMs, started: time, charge: { x: Math.cos(a), y: Math.sin(a) } });
@@ -77,6 +79,7 @@ const BEHAVIOURS = {
       ai.nextAt = time + p.interval;
       ai.fireAt = time + p.windupMs;
       if (e.def.openTexture) e.sprite.setTexture(e.def.openTexture);
+      e.scene.playSfx('warn');
     }
   },
 
@@ -181,7 +184,7 @@ const BEHAVIOURS = {
       if (time >= ai.until) {
         e.stop();
         Object.assign(ai, { phase: 'rising', until: time + p.windupMs });
-        e.shakeUntil = ai.until;
+        e.shake(p.windupMs);
       }
     } else if (ai.phase === 'rising') {
       e.stop();
@@ -259,7 +262,7 @@ const BEHAVIOURS = {
       body.velocity.setToPolar(Math.atan2(ty - e.y, tx - e.x), e.speed);
       if (time >= ai.until) {
         Object.assign(ai, { phase: 'aim', until: time + p.windupMs });
-        e.shakeUntil = ai.until;
+        e.shake(p.windupMs);
       }
     } else if (ai.phase === 'aim') {
       e.stop();
@@ -521,8 +524,16 @@ export class Enemy {
   }
 
   // Glow before an attack so the player can react.
+  // Every attack warning also plays the warning sound.
   windup(ms) {
     this.windupUntil = this.scene.time.now + ms;
+    this.scene.playSfx('warn');
+  }
+
+  // Shake in place: the warning before a charge or dash.
+  shake(ms) {
+    this.shakeUntil = this.scene.time.now + ms;
+    this.scene.playSfx('warn');
   }
 
   // ---------- Damage ----------
