@@ -26,8 +26,7 @@ const WAVE_SIZE = { min: 1, max: 6 };
 const TYPES_PER_WAVE = { 1: 5, 2: 4, 3: 2 }; // weights: one type is most common
 const EMPTY_ROOM_CHANCE = 0.2;              // fight rooms with no obstacles
 const EMPTY_BOSS_ROOM_CHANCE = 0.25;        // boss rooms with no obstacles
-const ROSTER_SIZE = { min: 4, max: 6 };     // enemy types on one floor (floor 1: at most 5)
-const ROSTER_TOP_TYPES = 2;                 // at least this many types of the floor's own difficulty
+const ROOM_TYPES = { min: 2, max: 4 };      // enemy types a fight room picks from
 
 // Some fight rooms are bigger than the screen, with bigger waves.
 const BIG_ROOM_CHANCE = 0.35;
@@ -37,12 +36,12 @@ const WAVE_BONUS = { normal: { min: 0, max: 6 }, wide: { min: 1, max: 8 }, tall:
 const key = (x, y) => `${x},${y}`;
 
 export class Dungeon {
-  constructor(rooms, start, floor, floorIndex, roster) {
+  constructor(rooms, start, floor, floorIndex, pool) {
     this.rooms = rooms;
     this.start = start;
     this.floor = floor; // entry from data/floors.json
     this.floorIndex = floorIndex;
-    this.roster = roster; // { enemyType: weight } for the enemies on this floor
+    this.pool = pool; // { enemyType: weight }: every enemy that can appear on this floor
     this.byKey = new Map(rooms.map((room) => [key(room.x, room.y), room]));
     this.combatRoomCount = rooms.filter((room) => room.waves.length > 0).length;
   }
@@ -72,33 +71,34 @@ export function bossIds(enemyDefs) {
   return Object.keys(enemyDefs).filter((id) => enemyDefs[id].boss);
 }
 
-// Which enemies show up on this floor: a random handful, so some enemies don't appear at all
-// in a given run. Every enemy has a `difficulty` (1-4). Floor N uses difficulties N-2 to N,
-// mostly N and N-1, and always at least ROSTER_TOP_TYPES of difficulty N, so deeper floors
-// get harder enemies and leave the easiest behind.
-export function pickRoster(rng, floorIndex, enemyDefs) {
+// Every enemy has a `difficulty` (1-4). Floor N may use difficulties N-2 to N, weighted toward
+// N, so deeper floors get harder enemies and leave the easiest behind. Returns { type: weight }.
+export function floorPool(floorIndex, enemyDefs) {
   const level = floorIndex + 1;
   const closeness = { 0: 3, 1: 2, 2: 1 }; // weight multiplier by how far below the floor's level
-  const eligible = {};
+  const pool = {};
   for (const [id, def] of Object.entries(enemyDefs)) {
     const gap = level - (def.difficulty ?? 1);
-    if (!def.boss && gap >= 0 && gap <= 2) eligible[id] = (def.weight ?? 1) * closeness[gap];
+    if (!def.boss && gap >= 0 && gap <= 2) pool[id] = (def.weight ?? 1) * closeness[gap];
   }
-  const max = floorIndex === 0 ? ROSTER_SIZE.max - 1 : ROSTER_SIZE.max;
-  const count = Math.min(Object.keys(eligible).length, rng.int(ROSTER_SIZE.min, max));
-  const roster = {};
-  const take = (pool) => {
-    const id = rng.weighted(pool);
-    roster[id] = eligible[id];
-    delete eligible[id];
+  return pool;
+}
+
+// The enemy types for one fight room: a random handful from the floor's pool, always with at
+// least one of the floor's own difficulty. Every room picks its own, so rooms differ from each other.
+export function pickRoomTypes(rng, pool, floorIndex, enemyDefs) {
+  const remaining = { ...pool };
+  const types = {};
+  const take = (from) => {
+    const id = rng.weighted(from);
+    types[id] = remaining[id];
+    delete remaining[id];
   };
-  // The floor's own level first, then anything allowed.
-  for (let i = 0; i < ROSTER_TOP_TYPES; i++) {
-    const top = Object.fromEntries(Object.entries(eligible).filter(([id]) => (enemyDefs[id].difficulty ?? 1) === level));
-    if (Object.keys(top).length) take(top);
-  }
-  while (Object.keys(roster).length < count) take(eligible);
-  return roster;
+  const top = Object.fromEntries(Object.entries(remaining).filter(([id]) => (enemyDefs[id].difficulty ?? 1) === floorIndex + 1));
+  if (Object.keys(top).length) take(top);
+  const count = Math.min(Object.keys(pool).length, rng.int(ROOM_TYPES.min, ROOM_TYPES.max));
+  while (Object.keys(types).length < count) take(remaining);
+  return types;
 }
 
 function pickBoss(rng, enemyDefs) {
@@ -106,7 +106,7 @@ function pickBoss(rng, enemyDefs) {
 }
 
 function tryGenerate(rng, floor, floorIndex, enemyDefs, bossId) {
-  const roster = pickRoster(rng, floorIndex, enemyDefs);
+  const pool = floorPool(floorIndex, enemyDefs);
   const target = rng.int(ROOM_COUNT.min + floorIndex, ROOM_COUNT.max + floorIndex);
   const cells = new Map([[key(START.x, START.y), { ...START }]]);
   const neighborCount = (x, y) => Object.values(DIRS).filter((d) => cells.has(key(x + d.x, y + d.y))).length;
@@ -148,7 +148,7 @@ function tryGenerate(rng, floor, floorIndex, enemyDefs, bossId) {
     const shape = type === 'normal' && rng.chance(BIG_ROOM_CHANCE) ? rng.weighted(BIG_ROOM_WEIGHTS) : 'normal';
 
     let waves = [];
-    if (type === 'normal') waves = normalWaves(rng, roster, enemyDefs, dist + floorIndex, WAVE_BONUS[shape]);
+    if (type === 'normal') waves = normalWaves(rng, pickRoomTypes(rng, pool, floorIndex, enemyDefs), enemyDefs, dist + floorIndex, WAVE_BONUS[shape]);
     if (type === 'boss') waves = [[bossId]]; // no waves: just the boss
 
     const doors = {};
@@ -173,7 +173,7 @@ function tryGenerate(rng, floor, floorIndex, enemyDefs, bossId) {
     };
   });
 
-  return new Dungeon(rooms, rooms.find((room) => room.type === 'start'), floor, floorIndex, roster);
+  return new Dungeon(rooms, rooms.find((room) => room.type === 'start'), floor, floorIndex, pool);
 }
 
 // Fight rooms usually get a layout of the floor's obstacles; boss rooms one of a few cover
@@ -194,7 +194,7 @@ function withKinds(rng, floor, tiles) {
 }
 
 // Two independent waves. Rooms further from the start (and on deeper floors) lean toward
-// bigger waves, and big rooms hold more (`bonus`). `weights` is the floor's enemy mix.
+// bigger waves, and big rooms hold more (`bonus`). `weights` is the room's enemy types.
 function normalWaves(rng, weights, enemyDefs, difficulty, bonus = WAVE_BONUS.normal) {
   return Array.from({ length: WAVES_PER_ROOM }, () => makeWave(rng, weights, enemyDefs, difficulty, bonus));
 }

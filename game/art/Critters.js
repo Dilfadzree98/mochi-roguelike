@@ -1,6 +1,6 @@
 import { paint } from './Pixels.js';
 
-// The smaller garden pests (regular enemies added after the first five). Same rules as
+// The regular enemies added after the first five (the 12 pests, then 16 more). Same rules as
 // Enemies.js: cool or muted colours, no hot pink, side-on ones face right.
 
 const OUTLINE = '#1A1420';
@@ -174,6 +174,217 @@ function rotWorm(c) {
   c.rect(32, 11, 3, 2, '#3A2430');
 }
 
+
+// ---------- The fourth batch: four more at each difficulty ----------
+
+function aphid(c) {
+  for (const x of [3, 7]) c.line(x, 7, x - 1, 10, '#2C2C2A', 1);
+  c.blob(6, 5, 5.5, 4, { base: '#8AB070', dark: '#5E7A4A', light: '#B8D89A' });
+  c.rect(9, 3, 2, 2, '#1A1420');
+}
+
+function fluffDrifter(c) {
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    c.circle(11 + Math.cos(a) * 8, 11 + Math.sin(a) * 8, 2.4, '#E8E4DA');
+  }
+  c.circle(11, 11, 7, '#C9C3B8');
+  c.inside(() => c.circle(10, 10, 4, '#E8E4DA'));
+  c.rect(7, 10, 2, 3, '#3A2E46');
+  c.rect(13, 10, 2, 3, '#3A2E46');
+}
+
+function pillBug(c) {
+  for (const x of [5, 9, 13, 17]) c.line(x, 10, x - 1, 13, '#2C2C2A', 1);
+  c.ellipse(12, 8, 11, 6, '#4A5A6A');
+  c.inside(() => {
+    c.ellipse(11, 7, 10, 5, '#6E7E8E');
+    for (const x of [5, 9, 13, 17]) c.rect(x, 2, 1, 12, '#4A5A6A');
+    c.ellipse(8, 4, 4, 1.4, '#9AAABA');
+  });
+  c.rect(21, 7, 2, 2, '#1A1420');
+}
+
+function pillBugBall(c) {
+  c.blob(8, 8, 8, 8, { base: '#6E7E8E', dark: '#4A5A6A', light: '#9AAABA' });
+  c.inside(() => {
+    c.path([[2, 4], [8, 7], [14, 4]], '#4A5A6A', 1);
+    c.path([[1, 9], [8, 12], [15, 9]], '#4A5A6A', 1);
+  });
+}
+
+function sproutSpitter(c) {
+  c.ellipse(10, 20, 8, 2.5, '#4A3A2A');
+  c.line(10, 19, 10, 10, '#3F7A2A', 2);
+  c.ellipse(5, 13, 4, 2, '#6CA850');
+  c.ellipse(15, 12, 4, 2, '#5E9C3A');
+  c.blob(10, 7, 5, 4.5, { base: '#7A9A5A', dark: '#4E6A3A' });
+  c.circle(10, 6, 2, '#2A1E22');
+}
+
+function firefly(c) {
+  c.ellipse(9, 4, 5, 3, '#C9D6DA');
+  c.ellipse(14, 4, 4, 2.6, '#E0EAEE');
+  c.circle(6, 11, 5.5, '#CFE86A');
+  c.inside(() => c.circle(5, 11, 3, '#F0FFB0'));
+  c.ellipse(13, 10, 5, 3.6, '#3A3430');
+  c.circle(19, 9, 3, '#2C2622');
+  c.rect(20, 8, 1, 1, '#FF6B6B');
+  c.line(20, 6, 22, 2, '#2C2622', 1);
+}
+
+function mantis(c) {
+  c.line(9, 30, 11, 22, '#4E7A3A', 2);
+  c.line(15, 30, 13, 22, '#4E7A3A', 2);
+  c.ellipse(12, 20, 4, 7, '#6CA850');
+  c.inside(() => c.ellipse(11, 18, 2, 5, '#8BC86A'));
+  c.line(12, 14, 15, 8, '#6CA850', 3);
+  c.poly([[15, 4], [21, 6], [15, 10]], '#7FB060');
+  c.rect(18, 5, 2, 2, '#1A1420');
+  // Scythe arms raised in front.
+  c.path([[13, 13], [20, 11], [24, 16]], '#4E7A3A', 2);
+  c.path([[13, 15], [19, 15], [22, 20]], '#4E7A3A', 2);
+}
+
+function grasshopper(c) {
+  c.path([[10, 10], [16, 2], [24, 14]], '#5E7A2A', 2);
+  c.line(6, 11, 3, 15, '#5E7A2A', 1);
+  c.line(10, 11, 9, 15, '#5E7A2A', 1);
+  c.blob(10, 9, 9, 4, { base: '#8A9A3A', dark: '#5E6A2A', light: '#B8C870' });
+  c.circle(20, 8, 3.5, '#8A9A3A');
+  c.rect(21, 7, 1, 2, '#1A1420');
+  c.line(22, 5, 27, 1, '#5E6A2A', 1);
+}
+
+function tulipMortar(c) {
+  c.ellipse(11, 33, 9, 2.5, '#4A3A2A');
+  c.line(11, 32, 11, 16, '#3F6A2A', 2);
+  c.ellipse(6, 26, 5, 2, '#4E7A3A');
+  c.ellipse(16, 22, 5, 2, '#5E8A4A');
+  c.poly([[4, 6], [7, 0], [11, 5], [15, 0], [18, 6], [17, 15], [5, 15]], '#5A3A7A');
+  c.inside(() => {
+    c.poly([[11, 5], [15, 0], [18, 6], [17, 15], [12, 15]], '#3E2858');
+    c.rect(7, 4, 2, 6, '#7A5A9A');
+  });
+  c.ellipse(11, 2, 2.5, 1.2, '#1A1420');
+}
+
+function stagBeetle(c) {
+  for (const [x, dx] of [[8, -3], [14, -1], [20, 2]]) c.line(x, 16, x + dx, 21, '#2C2C2A', 2);
+  c.blob(14, 11, 13, 7, { base: '#5A3A22', dark: '#3A2414', light: '#8A6040' });
+  c.inside(() => c.line(3, 11, 26, 11, '#3A2414', 2));
+  c.circle(28, 11, 4.5, '#3A2414');
+  c.path([[30, 8], [35, 5], [36, 9]], '#7A5232', 2);
+  c.path([[30, 14], [35, 17], [36, 13]], '#7A5232', 2);
+  c.rect(28, 9, 2, 2, '#FF6B6B');
+}
+
+function gardenBat(c) {
+  c.poly([[15, 8], [2, 2], [0, 12], [5, 9], [8, 14], [12, 10]], '#4A3A5A');
+  c.poly([[15, 8], [28, 2], [30, 12], [25, 9], [22, 14], [18, 10]], '#4A3A5A');
+  c.ellipse(15, 10, 4, 5, '#3A2E46');
+  c.poly([[12, 5], [13, 1], [14, 5]], '#3A2E46');
+  c.poly([[16, 5], [17, 1], [18, 5]], '#3A2E46');
+  c.rect(13, 8, 1, 2, '#FFE45C');
+  c.rect(16, 8, 1, 2, '#FFE45C');
+}
+
+function scarecrow(c) {
+  c.line(15, 44, 15, 14, '#6E5032', 3);
+  c.line(2, 22, 28, 22, '#6E5032', 3);
+  c.poly([[8, 20], [22, 20], [24, 36], [6, 36]], '#5A4A7A');
+  c.inside(() => {
+    c.rect(6, 28, 18, 2, '#3E2E5A');
+    c.rect(13, 20, 4, 16, '#7A6A9A');
+  });
+  for (const x of [1, 27]) c.poly([[x, 21], [x + 2, 26], [x + 4, 21]], '#D9B46A');
+  c.circle(15, 13, 6, '#C9A87A');
+  c.inside(() => {
+    c.rect(11, 12, 2, 2, '#1A1420');
+    c.rect(17, 12, 2, 2, '#1A1420');
+    c.path([[11, 16], [13, 17], [15, 16], [17, 17], [19, 16]], '#5A3A22', 1);
+  });
+  c.ellipse(15, 7, 10, 2.5, '#B8904A');
+  c.ellipse(15, 4, 5, 4, '#C9A25A', { bottom: 6 });
+}
+
+function turtleShell(c, cx, cy) {
+  c.blob(cx, cy, 12, 8, { base: '#5E7A5A', dark: '#3E5A3A', light: '#8AA080' });
+  c.inside(() => {
+    c.path([[cx - 8, cy], [cx - 3, cy - 4], [cx + 3, cy - 4], [cx + 8, cy]], '#3E5A3A', 1);
+    c.path([[cx - 3, cy - 4], [cx - 3, cy + 6]], '#3E5A3A', 1);
+    c.path([[cx + 3, cy - 4], [cx + 3, cy + 6]], '#3E5A3A', 1);
+  });
+  for (const [x, y] of [[cx - 8, cy - 6], [cx, cy - 9], [cx + 8, cy - 6]]) c.poly([[x - 2, y + 2], [x, y - 3], [x + 2, y + 2]], '#C9C3A1');
+}
+
+function thornTurtle(c) {
+  for (const x of [8, 22]) c.rect(x, 17, 4, 4, '#7A8A6A');
+  c.ellipse(30, 13, 4, 3.5, '#7A8A6A');
+  c.rect(31, 12, 1, 1, '#1A1420');
+  turtleShell(c, 15, 12);
+}
+
+function venusFlytrap(c, open) {
+  c.ellipse(15, 33, 10, 2.5, '#4A3A2A');
+  c.line(15, 32, 15, 20, '#3F6A2A', 3);
+  c.ellipse(8, 28, 6, 2.2, '#4E7A3A');
+  c.ellipse(22, 27, 6, 2.2, '#4E7A3A');
+  if (open) {
+    // Jaws wide open, teeth showing.
+    c.poly([[2, 4], [15, 16], [6, 18]], '#5E9C3A');
+    c.poly([[28, 4], [15, 16], [24, 18]], '#5E9C3A');
+    c.inside(() => {
+      c.poly([[4, 7], [14, 15], [8, 16]], '#A8402A');
+      c.poly([[26, 7], [16, 15], [22, 16]], '#A8402A');
+    });
+    for (const [x, y] of [[3, 3], [6, 6], [27, 3], [24, 6]]) c.rect(x, y - 3, 1, 3, '#E8E4DA');
+    return;
+  }
+  c.ellipse(15, 12, 10, 8, '#5E9C3A');
+  c.inside(() => {
+    c.ellipse(15, 13, 8, 3, '#A8402A');
+    c.line(5, 12, 25, 12, '#2E5A2A', 1);
+  });
+  for (const x of [6, 10, 14, 18, 22]) c.rect(x, 3, 1, 3, '#E8E4DA');
+}
+
+function lanternSpirit(c) {
+  c.rect(9, 0, 4, 3, '#3A3430');
+  c.rect(4, 3, 14, 3, '#5A4A3A');
+  c.rect(5, 6, 12, 18, '#2E3B4A');
+  c.inside(() => {
+    c.rect(7, 8, 8, 14, '#6FB8D8');
+    c.ellipse(11, 16, 3, 5, '#C9F2FF');
+    c.rect(8, 13, 2, 2, '#1E3A50');
+    c.rect(12, 13, 2, 2, '#1E3A50');
+  });
+  c.rect(4, 24, 14, 3, '#5A4A3A');
+}
+
+function shadowFox(c) {
+  c.path([[2, 8], [0, 3], [3, 0]], '#2A2440', 3);
+  c.blob(14, 12, 12, 6, { base: '#3A3458', dark: '#241E3A', light: '#5A5478' });
+  for (const x of [8, 12, 18, 22]) c.rect(x, 16, 2, 5, '#241E3A');
+  c.circle(27, 9, 5, '#3A3458');
+  c.poly([[24, 5], [25, 0], [28, 4]], '#3A3458');
+  c.poly([[28, 4], [31, 0], [31, 6]], '#3A3458');
+  c.poly([[30, 10], [35, 11], [30, 13]], '#3A3458');
+  c.rect(27, 8, 2, 2, '#B57BFF');
+}
+
+function waspNest(c) {
+  c.ellipse(15, 29, 13, 2.5, '#4A3A2A');
+  c.blob(15, 16, 12, 13, { base: '#9A948A', dark: '#6E6A60', light: '#C9C3B8' });
+  c.inside(() => {
+    for (const y of [8, 14, 20, 26]) c.path([[3, y], [15, y + 2], [27, y]], '#7A766C', 1);
+    c.ellipse(15, 20, 3.5, 3, '#1A1420');
+    c.circle(9, 12, 1.5, '#1A1420');
+    c.circle(21, 13, 1.5, '#1A1420');
+  });
+  c.rect(14, 0, 2, 4, '#5A4A3A');
+}
+
 export function makeCritterTextures(scene) {
   const o = { outline: OUTLINE };
   paint(scene, 'bramble_mite', 22, 14, brambleMite, o);
@@ -193,4 +404,24 @@ export function makeCritterTextures(scene) {
   paint(scene, 'sunflower_sentry', 30, 41, sunflowerSentry, o);
   paint(scene, 'wisp', 22, 26, wisp, { outline: '#1E3A50' });
   paint(scene, 'rot_worm', 36, 16, rotWorm, o);
+
+  paint(scene, 'aphid', 12, 10, aphid, o);
+  paint(scene, 'fluff_drifter', 22, 22, fluffDrifter, o);
+  paint(scene, 'pill_bug', 24, 14, pillBug, o);
+  paint(scene, 'pill_bug_ball', 16, 16, pillBugBall, o);
+  paint(scene, 'sprout_spitter', 20, 22, sproutSpitter, o);
+  paint(scene, 'firefly', 23, 17, firefly, o);
+  paint(scene, 'mantis', 25, 31, mantis, o);
+  paint(scene, 'grasshopper', 28, 16, grasshopper, o);
+  paint(scene, 'tulip_mortar', 20, 35, tulipMortar, o);
+  paint(scene, 'stag_beetle', 37, 22, stagBeetle, o);
+  paint(scene, 'garden_bat', 30, 15, gardenBat, o);
+  paint(scene, 'scarecrow', 30, 45, scarecrow, o);
+  paint(scene, 'thorn_turtle', 34, 21, thornTurtle, o);
+  paint(scene, 'thorn_turtle_hide', 28, 20, (c) => turtleShell(c, 14, 12), o);
+  paint(scene, 'venus_flytrap', 30, 35, (c) => venusFlytrap(c, false), o);
+  paint(scene, 'venus_flytrap_open', 30, 35, (c) => venusFlytrap(c, true), o);
+  paint(scene, 'lantern_spirit', 22, 27, lanternSpirit, { outline: '#1E2A36' });
+  paint(scene, 'shadow_fox', 35, 21, shadowFox, o);
+  paint(scene, 'wasp_nest', 30, 31, waspNest, o);
 }

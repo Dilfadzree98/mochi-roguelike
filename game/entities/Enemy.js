@@ -242,6 +242,7 @@ const BEHAVIOURS = {
       ai.until = time + (ai.armored ? p.hideMs : p.outMs);
       e.sprite.setTexture(ai.armored ? e.def.hideTexture : e.def.texture);
       e.squish();
+      if (!ai.armored && p.outRing) e.scene.fireRing(e.x, e.y - 8, p.outRing, p.bulletSpeed, p.bullet, e.scene.rng.range(0, 1), p.range);
     }
     if (ai.armored) e.stop();
     else e.hitbox.body.velocity.setToPolar(e.scene.chaseAngle(e), e.speed);
@@ -272,6 +273,7 @@ const BEHAVIOURS = {
       }
     } else if (time >= ai.until || bumped(e, body.velocity.x, body.velocity.y)) {
       e.stop();
+      if (p.endRing) e.scene.fireRing(e.x, e.y - 8, p.endRing, p.bulletSpeed, p.bullet, e.scene.rng.range(0, 1), p.range);
       Object.assign(ai, { phase: 'hover', until: time + p.hoverMs });
     }
   },
@@ -310,6 +312,182 @@ const BEHAVIOURS = {
       e.scene.tweens.add({ targets: e.sprite, alpha: ai.untouchable ? 0.25 : 1, duration: 250 });
     }
     e.hitbox.body.velocity.setToPolar(angleTo(e, player), e.speed * (ai.untouchable ? 1.5 : 1));
+  },
+
+  // Drifts about (flying) and now and then puffs a single slow spore at Mochi.
+  drifter(e, player, time) {
+    BEHAVIOURS.wander(e, player, time);
+    const p = e.def.params;
+    const ai = e.ai;
+    ai.shootAt ??= time + e.scene.rng.range(800, p.interval);
+    if (time < ai.shootAt) return;
+    ai.shootAt = time + p.interval;
+    e.squish();
+    e.scene.fireEnemyBullet(e.x, e.y - 8, angleTo(e, player), p.bulletSpeed, p.bullet, p.range);
+  },
+
+  // Crawls after Mochi; every so often curls into a ball and rolls fast, bouncing off walls.
+  roller(e, player, time) {
+    const p = e.def.params;
+    const ai = e.ai;
+    const body = e.hitbox.body;
+    ai.phase ??= 'crawl';
+    ai.until ??= time + e.scene.rng.range(800, p.interval);
+    if (ai.phase === 'crawl') {
+      body.velocity.setToPolar(e.scene.chaseAngle(e), e.speed);
+      if (time >= ai.until) {
+        e.stop();
+        Object.assign(ai, { phase: 'curl', until: time + p.windupMs });
+        e.shake(p.windupMs);
+        e.sprite.setTexture(e.def.rollTexture);
+      }
+    } else if (ai.phase === 'curl') {
+      e.stop();
+      if (time >= ai.until) {
+        const a = angleTo(e, player);
+        ai.roll = { x: Math.cos(a), y: Math.sin(a) };
+        Object.assign(ai, { phase: 'roll', until: time + p.rollMs });
+      }
+    } else {
+      if (bumped(e, ai.roll.x, 0)) ai.roll.x = -ai.roll.x;
+      if (bumped(e, 0, ai.roll.y)) ai.roll.y = -ai.roll.y;
+      const speed = p.rollSpeed * e.speedScale * (e.slow ? e.slow.multiplier : 1);
+      body.velocity.set(ai.roll.x * speed, ai.roll.y * speed);
+      if (time >= ai.until) {
+        e.stop();
+        e.sprite.setTexture(e.def.texture);
+        e.squish();
+        Object.assign(ai, { phase: 'crawl', until: time + p.interval });
+      }
+    }
+  },
+
+  // Stalks up close, then lunges and slashes a short fan of thorns.
+  slasher(e, player, time) {
+    const p = e.def.params;
+    const ai = e.ai;
+    const body = e.hitbox.body;
+    ai.phase ??= 'stalk';
+    if (ai.phase === 'stalk') {
+      body.velocity.setToPolar(e.scene.chaseAngle(e), e.speed);
+      const d = Phaser.Math.Distance.Between(e.x, e.y, player.hitbox.x, player.hitbox.y);
+      if (d < p.reach && time >= (ai.restUntil ?? 0)) {
+        e.stop();
+        e.windup(p.windupMs);
+        Object.assign(ai, { phase: 'raise', until: time + p.windupMs });
+      }
+    } else if (ai.phase === 'raise') {
+      e.stop();
+      if (time >= ai.until) {
+        ai.angle = angleTo(e, player);
+        body.velocity.setToPolar(ai.angle, p.lungeSpeed * e.speedScale);
+        Object.assign(ai, { phase: 'lunge', until: time + p.lungeMs });
+      }
+    } else if (time >= ai.until || bumped(e, body.velocity.x, body.velocity.y)) {
+      e.stop();
+      e.squish();
+      e.scene.fireSpread(e.x, e.y - 8, ai.angle, p.bullets, p.spreadDeg, p.bulletSpeed, p.bullet, p.range);
+      Object.assign(ai, { phase: 'stalk', restUntil: time + p.restMs });
+    }
+  },
+
+  // Rooted; lobs a seed that lands where Mochi is standing (a target mark shows where) and splashes.
+  mortar(e, player, time) {
+    const p = e.def.params;
+    const ai = e.ai;
+    ai.nextAt ??= time + e.scene.rng.range(900, p.interval);
+    if (!ai.aimAt && time >= ai.nextAt) {
+      ai.aimAt = time + p.windupMs;
+      e.windup(p.windupMs);
+    }
+    if (ai.aimAt && time >= ai.aimAt) {
+      ai.aimAt = 0;
+      ai.nextAt = time + p.interval;
+      e.squish();
+      const { x, y } = player.hitbox;
+      e.scene.markStrike(x, y, p.delayMs, () => e.scene.fireRing(x, y, p.bullets, p.bulletSpeed, p.bullet, e.scene.rng.range(0, 1), p.range));
+    }
+  },
+
+  // Rooted; calls in helpers (never more than `cap` of them) and fires a fan at Mochi.
+  summoner(e, player, time) {
+    const p = e.def.params;
+    const ai = e.ai;
+    ai.nextAt ??= time + e.scene.rng.range(1200, p.interval);
+    if (!ai.castAt && time >= ai.nextAt) {
+      ai.castAt = time + p.windupMs;
+      e.windup(p.windupMs);
+    }
+    if (!ai.castAt || time < ai.castAt) return;
+    ai.castAt = 0;
+    ai.nextAt = time + p.interval;
+    e.squish();
+    const scene = e.scene;
+    const alive = scene.enemies.filter((o) => o.def === scene.enemyDefs[p.minion] && o.state !== 'dead').length;
+    for (let i = 0; i < Math.min(p.count, p.cap - alive); i++) {
+      const a = scene.rng.range(0, Math.PI * 2);
+      scene.spawnEnemyAt(p.minion, e.x + Math.cos(a) * 30, e.y + Math.sin(a) * 24);
+    }
+    if (p.bullets) scene.fireSpread(e.x, e.y - 16, angleTo(e, player), p.bullets, p.spreadDeg, p.bulletSpeed, p.bullet, p.range);
+  },
+
+  // Rooted; snaps its jaws when Mochi comes close, and spits a fan of thorns from further away.
+  snapper(e, player, time) {
+    const p = e.def.params;
+    const ai = e.ai;
+    const scene = e.scene;
+    if (ai.snapAt) {
+      if (time < ai.snapAt) return;
+      ai.snapAt = 0;
+      e.sprite.setTexture(e.def.texture);
+      e.squish();
+      scene.burst(e.x, e.y - 8, 'leaf', 8, { distance: p.snapRadius * 0.7 });
+      scene.hurtPlayerNear(e.x, e.y, p.snapRadius);
+      ai.readyAt = time + p.cooldownMs;
+      return;
+    }
+    if (time < (ai.readyAt ?? 0)) return;
+    const d = Phaser.Math.Distance.Between(e.x, e.y, player.hitbox.x, player.hitbox.y);
+    if (d < p.snapRange) {
+      ai.snapAt = time + p.windupMs;
+      e.windup(p.windupMs);
+      e.sprite.setTexture(e.def.openTexture);
+      return;
+    }
+    ai.shootAt ??= time + scene.rng.range(800, p.interval);
+    if (time >= ai.shootAt) {
+      ai.shootAt = time + p.interval;
+      e.squish();
+      scene.fireSpread(e.x, e.y - 16, angleTo(e, player), p.bullets, p.spreadDeg, p.bulletSpeed, p.bullet, p.range);
+    }
+  },
+
+  // Creeps toward Mochi almost invisible; when close it shows itself, crouches and lunges.
+  stalker(e, player, time) {
+    const p = e.def.params;
+    const ai = e.ai;
+    const body = e.hitbox.body;
+    ai.phase ??= 'creep';
+    if (ai.phase === 'creep') {
+      e.sprite.setAlpha(0.18);
+      body.velocity.setToPolar(e.scene.chaseAngle(e), e.speed);
+      const d = Phaser.Math.Distance.Between(e.x, e.y, player.hitbox.x, player.hitbox.y);
+      if (d < p.revealRange && time >= (ai.restUntil ?? 0)) {
+        e.stop();
+        e.sprite.setAlpha(1);
+        e.shake(p.windupMs);
+        Object.assign(ai, { phase: 'crouch', until: time + p.windupMs });
+      }
+    } else if (ai.phase === 'crouch') {
+      e.stop();
+      if (time >= ai.until) {
+        body.velocity.setToPolar(angleTo(e, player), p.dashSpeed * e.speedScale);
+        Object.assign(ai, { phase: 'lunge', until: time + p.dashMs });
+      }
+    } else if (time >= ai.until || bumped(e, body.velocity.x, body.velocity.y)) {
+      e.stop();
+      Object.assign(ai, { phase: 'creep', restUntil: time + p.restMs });
+    }
   },
 
   // Every boss: idles, then runs one of its three moves (see BossMoves.js).

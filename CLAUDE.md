@@ -52,7 +52,7 @@ game/
 │   ├── Pixels.js        software canvas: shapes, `inside` shading, auto 2px outline, crop; paint()
 │   ├── Characters.js    Mochi + outfits (Mangkok, Lilo) and all their variants; Chinggu
 │   ├── Enemies.js       the first 5 enemies, bosses (size-factor designs), pink enemy bullets
-│   ├── Critters.js      the 12 later enemies (and the mole mound / hiding snail frames)
+│   ├── Critters.js      the 28 later enemies and their extra frames (mole mound, hiding shells, rolled pill bug, open flytrap)
 │   ├── Items.js         shots, all item icons, pickups, hearts, skill icons
 │   ├── World.js         floor/wall tiles and wall faces, doors, obstacles, decorations, particles
 │   └── PixelFont.js     3x5 bitmap font drawn at 2x by default, CAPITALS ONLY; use addText() (it uppercases); uppercase before setText()
@@ -82,12 +82,12 @@ game/
 │   └── Save.js          localStorage (best floor, rooms cleared, wins)
 └── data/
     ├── characters.json  playable characters: name, description, texture, stat modifiers, skill
-    ├── enemies.json     17 enemies and 7 bosses: stats, behaviour + params, difficulty + weight, onDeath (bosses: idle + 3 moves)
+    ├── enemies.json     33 enemies and 7 bosses: stats, behaviour + params, difficulty + weight, onDeath (bosses: idle + 3 moves)
     ├── floors.json      4 floors: palette, wall face, decorations, obstacles
     └── items.json       69 items, each with a tier (1-4) and a list of stat modifiers
 ```
 
-Adding an enemy: add an entry to `data/enemies.json` using an existing `behaviour` (`chase`, `ring_shooter`, `charger`, `aimed_shooter`, `teleporter`, `wander`, `kiter`, `flutter`, `burrower`, `hopper`, `shell`, `dasher`, `spinner`, `wisp`) with its `params`, a `death` from `DEATHS`, a `difficulty` (1-4) and a `weight` (how common), and a sprite in `art/Critters.js`. Optional: `"flying": true` (passes over obstacles), `onDeath` (`ring` of bullets or `spawn` { type, count }), `maxPerWave`. A new movement pattern goes in `BEHAVIOURS` in Enemy.js. Enemy attacks use Game's `fireRing` / `fireSpread` / `fireSpiral` / `fireSweep` / `rootStrike` / `markStrike`.
+Adding an enemy: add an entry to `data/enemies.json` using an existing `behaviour` (`chase`, `ring_shooter`, `charger`, `aimed_shooter`, `teleporter`, `wander`, `kiter`, `flutter`, `burrower`, `hopper`, `shell`, `dasher`, `spinner`, `wisp`, `drifter`, `roller`, `slasher`, `mortar`, `summoner`, `snapper`, `stalker`) with its `params`, a `death` from `DEATHS`, a `difficulty` (1-4) and a `weight` (how common), and a sprite in `art/Critters.js`. Optional: `"flying": true` (passes over obstacles), `onDeath` (`ring` of bullets or `spawn` { type, count }), `maxPerWave`. A new movement pattern goes in `BEHAVIOURS` in Enemy.js. Enemy attacks use Game's `fireRing` / `fireSpread` / `fireSpiral` / `fireSweep` / `rootStrike` / `markStrike`.
 
 Adding a boss: an entry in `data/enemies.json` with `"boss": true`, `"behaviour": "boss"`, an `idle` (`still`, `chase`, `wander`), three `moves` and `params.cooldownMs`. Moves are generators in `BOSS_MOVES` (entities/BossMoves.js): `yield ms` waits, a bare `yield` waits one frame. It joins the boss pool automatically.
 
@@ -109,7 +109,7 @@ Implementation patterns to keep:
 - **Characters:** Mangkok Mochi (boy, blue cap with a burger on it) and Lilo Mochi (girl, pink flower on her right ear, eyelashes). Each has stat `modifiers` in characters.json, applied like an item (Mangkok: damage +0.25, speed -6; Lilo: speed +8). The select screen shows hearts plus Damage/Speed/Fire rate as 1-5 pips (3 = base Mochi; `STAT_ROWS` in CharacterSelect.js).
 - **Skills** (systems/Skills.js): every `skill.every` (30) shots charge the character's skill. When it's ready (a sound, a "ready - Space" hint and a blinking meter), **Space** casts it (`Skills.tryCast`) for `skill.durationMs` (2 s). It stays charged until used, even between rooms. Shots don't charge it while it's ready or running. **Burger Beam** (Mangkok): a beam in the facing direction that stops at walls and burns through obstacles (each breaks after 2 ticks / 0.2 s, via `Game.breakObstacle`, same as bombs), damages every enemy it overlaps (0.6 x damage per 100 ms tick), pops enemy bullets, slows Mochi, and replaces normal shots. **Spawn Chinggu** (Lilo, 4 s): Chinggu, a calico cat (white with orange and black patches, pink bow), appears next to Lilo, runs to the nearest enemy using `Game.pathAngle()` and scratches it (1.5 x damage every 450 ms); with no enemies she follows Lilo. Enemies ignore her and she can't be hurt. The HUD meter (icon + bar) fills per shot, blinks when ready and drains while active. Skills stop when leaving a room or dying. Their sprites are base Mochi plus an outfit drawn on top (`OUTFITS` in art/Characters.js; `makeCharacter` builds `<key>`, `_hurt`, `_wilt`, `_wilt_hurt`, `_bare`). The sprout leaf stays visible on both because it shows health. The character id travels Select → Game → GameOver/Pause restart. Adding one: an outfit in `OUTFITS` + an entry in `characters.json` (keep descriptions ≤ 22 characters so the two cards don't overlap).
 - **Tooltips:** any pickup spot created with an `info` ({ name, description }) shows a tooltip when Mochi is within 48 px: a small panel in the bottom-left corner of the room with the name at normal size and the description at half size (font scale 1).
-- **Enemy rosters:** each floor of a run picks a random 4-6 enemy types (4-5 on floor 1) (`pickRoster` in DungeonGen.js, stored as `dungeon.roster`). Floor N may use enemies of difficulty N-2 to N, weighted ×3 for difficulty N, ×2 for N-1, ×1 for N-2 (times each enemy's `weight`), and always includes at least 2 types of difficulty N. So deeper floors get harder enemies and drop the easy ones, any enemy can be missing from a run, and floors look different every time. Regular enemies also get +20% health and +8% speed per floor (`speedScale` in Enemy.js).
+- **Enemy types per room:** every enemy has a `difficulty` (1-4). Floor N may use difficulties N-2 to N, weighted ×3 for N, ×2 for N-1, ×1 for N-2, times each enemy's `weight` (`floorPool` in DungeonGen.js). Each fight room then picks its own 2-4 types from that pool, always including one of the floor's own difficulty (`pickRoomTypes`), and its waves use only those. So neighbouring rooms have different enemies, deeper floors are harder, and any enemy can be missing from a run. Regular enemies also get +20% health and +8% speed per floor (`speedScale` in Enemy.js).
 - **Room sizes:** `ROOM_SIZES` in constants.js: normal 13x7 floor tiles (one screen), wide 21x7, tall 13x11, big 21x11. 35% of fight rooms are bigger (wide 4 : tall 3 : big 2); start, treasure, shop and boss rooms are always normal. A room stores `shape` and `size`; `enterRoom` calls `setRoomSize`, which updates the shared `ROOM` (tiles) and `FLOOR` (pixel bounds) that walls, doors (always mid-wall), pathing, spawns and shots read. The camera follows Mochi within the room (`setBounds` + `startFollow`; one-screen rooms don't scroll). Banners and the item panel use `setScrollFactor(0)`. Bigger rooms get more obstacles (scatter scaled by area), more decorations and bigger waves (`WAVE_BONUS`: wide/tall up to 8 enemies, big up to 9). Vignettes are made per room size (`roomVignette`).
 - **Enemy states that matter to Game:** `enemy.untouchable` (mole underground, faded wisp: shots pass through, touching doesn't hurt), `enemy.ai.armored` (snail in its shell: hits glance off), `enemy.passesObstacles` (flying, or underground: the obstacle collider skips it). A boss's death sets `Game.clearingMinions` so dying minions don't split or burst.
 - **Waves:** `makeWave` in DungeonGen.js: each wave is 1-6 enemies of 1-3 types (weights `TYPES_PER_WAVE`), types drawn from the floor's roster without repeats; the minimum size grows with distance from start + floor; `maxPerWave` in enemies.json caps strong enemies (gnome 2, thornvine/grumpshroom 3, beetle 4).
@@ -169,7 +169,7 @@ Cute but slightly creepy pixel art. A soft, warm hero in a world that grows dark
 
 ### Enemies
 
-17 enemies; each floor uses a random 4–6, harder ones deeper down (difficulty 1 on floor 1; 1–2 on floor 2; 1–3 on floor 3; 2–4 on floor 4).
+33 enemies; each fight room uses a random 2–4 types, harder ones deeper down (difficulty 1 on floor 1; 1–2 on floor 2; 1–3 on floor 3; 2–4 on floor 4).
 
 | Enemy | Difficulty | HP | Behaviour |
 |---|---|---|---|
@@ -190,6 +190,22 @@ Cute but slightly creepy pixel art. A soft, warm hero in a world that grows dark
 | Sunflower Sentry | 4 | 10 | Stationary; sprays a turning 2-arm stream, then rests |
 | Wisp | 4 | 5 | Floats through obstacles, fades out (can't hurt or be hurt) |
 | Rot Worm | 1 | 6 | Chaser; splits into 2 Bramble Mites when killed |
+| Aphid | 1 | 1 | Tiny, fast chaser |
+| Fluff Drifter | 1 | 3 | Floats about (flying), puffs single slow spores |
+| Pill Bug | 1 | 5 | Crawls; curls into a ball and rolls fast, bouncing off walls |
+| Sprout Spitter | 1 | 4 | Stationary; small ring of 4 seeds |
+| Firefly | 2 | 4 | Flies in a wobbly line, drops rings of 3 seeds |
+| Mantis | 2 | 7 | Stalks close, raises its arms, lunges and slashes a fan of 3 thorns |
+| Grasshopper | 2 | 5 | Long, fast leaps at Mochi |
+| Tulip Mortar | 2 | 7 | Stationary; lobs a seed onto a target mark under Mochi that splashes into 6 spores |
+| Stag Beetle | 3 | 10 | Faster, tougher charger |
+| Garden Bat | 3 | 6 | Flies circles, swoops at Mochi and bursts into a ring of 6 |
+| Scarecrow | 3 | 12 | Stationary; calls up to 4 Bramble Mites and fires 3 thorns |
+| Thorn Turtle | 3 | 12 | Hides in its shell (shots glance off); comes out with a ring of 8 thorns |
+| Venus Flytrap | 4 | 14 | Stationary; snaps (70 px) when Mochi comes within 80 px, else fires 5 thorns |
+| Lantern Spirit | 4 | 11 | Teleports, fires 5 hex orbs and a ring of 8 every time |
+| Shadow Fox | 4 | 9 | Creeps nearly invisible, appears and lunges when close |
+| Wasp Nest | 4 | 16 | Stationary; sends out Wasps (up to 3) |
 
 Bosses (7; one random boss per floor, never the same one twice in a run):
 
