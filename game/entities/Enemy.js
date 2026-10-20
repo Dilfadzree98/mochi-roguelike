@@ -535,8 +535,8 @@ const STUN_TINT = 0xc9f2ff;
 const WINDUP_TINT = 0xd9b8ff;
 const ENRAGED_TINT = 0xffb3d0;
 const ENRAGE_AT = 0.5;          // bosses get angry below half health
-const ENRAGED_COOLDOWN = 0.65;  // and rest this much less between moves
-const FIRST_MOVE_MS = 1200;
+const ENRAGED_COOLDOWN = 0.75;  // and rest this much less between moves
+const FIRST_MOVE_MS = 1600;
 const SHADOW_WIDTH = 24; // the 'shadow' texture, stretched to each enemy's width
 const SPEED_PER_FLOOR = 0.08; // regular enemies move 8% faster on each floor
 
