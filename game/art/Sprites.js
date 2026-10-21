@@ -4,6 +4,7 @@ import { makeEnemyTextures } from './Enemies.js';
 import { makeCritterTextures, makeMiniBossTextures } from './Critters.js';
 import { makeItemTextures } from './Items.js';
 import { makeWorldTextures } from './World.js';
+import { makeMapIconTextures } from './MapIcons.js';
 
 // Placeholder pixel art drawn in code (see Pixels.js), so the game runs without image files.
 // Sprites follow one style: built at the game's 480x272 resolution, characters about 40x40,
@@ -15,6 +16,7 @@ export function makeTextures(scene, { floors, items }) {
   makeCritterTextures(scene);
   makeMiniBossTextures(scene);
   makeItemTextures(scene, items);
+  makeMapIconTextures(scene);
   // Fixed seed: tiles look the same every run. Run randomness only decides placement.
   makeWorldTextures(scene, floors, new Rng(20261018));
 }

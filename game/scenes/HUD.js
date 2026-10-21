@@ -14,10 +14,11 @@ const BOSS_BAR = { left: 64, right: 416, barX: 216, h: 6, y: GAME_HEIGHT - 12 };
 // doesn't hide the fight. Holding Tab shows a big map in the middle of the screen.
 // Each room is drawn in its real shape: `w` x `h` for a one-screen room, `wideW` / `tallH` for the
 // bigger rooms (21 and 11 tiles instead of 13 and 7), centred in its grid step.
-const MINIMAP = { w: 9, h: 6, wideW: 14, tallH: 9, stepX: 16, stepY: 11 };
+const MINIMAP = { w: 9, h: 6, wideW: 14, tallH: 9, stepX: 16, stepY: 11, iconScale: 1 };
 MINIMAP.x = GAME_WIDTH - 8 - GRID_W * MINIMAP.stepX;
 MINIMAP.y = HUD_HEIGHT + 8;
 const MINIMAP_ALPHA = 0.4;
+const MINIMAP_ICON_ALPHA = 0.7; // the special-room icons stay easier to spot
 
 // The stats panel on the left side: the player's actual stat values.
 // Every one of these is better when higher; a change flashes green (up) or red (down).
@@ -30,7 +31,7 @@ const STAT_LINES = [
   { label: 'Speed', value: (s) => Math.round(s.speed) },
   { label: 'Luck', value: (s) => s.luck },
 ];
-const BIG_MAP = { w: 26, h: 16, wideW: 42, tallH: 26, stepX: 46, stepY: 32 };
+const BIG_MAP = { w: 26, h: 16, wideW: 42, tallH: 26, stepX: 46, stepY: 32, iconScale: 2 };
 BIG_MAP.x = Math.round((GAME_WIDTH - (GRID_W * BIG_MAP.stepX - 6)) / 2);
 BIG_MAP.y = Math.round((GAME_HEIGHT - (GRID_H * BIG_MAP.stepY - 6)) / 2);
 const MAP_COLORS = {
@@ -38,14 +39,9 @@ const MAP_COLORS = {
   current: 0xffffff,
   visited: 0x9a8fb0,
   seen: 0x4a4058, // next to a visited room, not entered yet
-  // Room-type marks
-  boss: 0xb57bff,
-  treasure: 0xf2c94c,
-  shop: 0xf2a0a8,
-  miniboss: 0xe25c4b,
-  sacrifice: 0x8a2a36,
-  secret: 0xc9c3a1,
 };
+// Special rooms get a little picture on the map (textures `map_<type>`, art/MapIcons.js).
+const MAP_ICONS = { boss: 'Boss', miniboss: 'Mini boss', treasure: 'Treasure', shop: 'Shop', sacrifice: 'Sacrifice', secret: 'Secret' };
 
 // Top bar over the top wall (hearts on the left; skill and wave/floor on the right), coin/bomb/key
 // counters under the hearts, minimap (Tab for a big one) and boss health bar. Runs on top of the Game scene and listens to its events.
@@ -59,6 +55,7 @@ export class HUD extends Phaser.Scene {
     this.hearts = [];
     this.waveText = addText(this, GAME_WIDTH - 8, HUD_HEIGHT / 2, '', { originX: 1, tint: UI.muted });
     this.map = this.add.graphics().setAlpha(MINIMAP_ALPHA);
+    this.mapIcons = this.add.container(0, 0).setAlpha(MINIMAP_ICON_ALPHA);
 
     // Coin, bomb and key counters stacked under the hearts, over the left wall.
     this.counters = {};
@@ -82,25 +79,29 @@ export class HUD extends Phaser.Scene {
       addText(this, GAME_WIDTH / 2, 36, 'Map', { scale: 4, tint: UI.peach }),
     ]);
     this.bigMapRooms = this.add.graphics();
-    this.bigMap.add(this.bigMapRooms);
+    this.bigMapIcons = this.add.container(0, 0);
+    this.bigMap.add([this.bigMapRooms, this.bigMapIcons]);
+    // Legend: "You" is a white box, the special rooms show their icons.
     const legend = [
-      [['You', MAP_COLORS.current], ['Boss', MAP_COLORS.boss], ['Treasure', MAP_COLORS.treasure], ['Shop', MAP_COLORS.shop]],
-      [['Mini boss', MAP_COLORS.miniboss], ['Sacrifice', MAP_COLORS.sacrifice], ['Secret', MAP_COLORS.secret]],
+      ['current', 'boss', 'treasure', 'shop'],
+      ['miniboss', 'sacrifice', 'secret'],
     ];
     legend.forEach((row, r) => {
       const y = GAME_HEIGHT - 38 + r * 18;
-      const parts = row.map(([label, color]) => {
-        const box = this.add.rectangle(0, y, 10, 10, color).setOrigin(0, 0.5);
-        const text = addText(this, 0, y, label, { originX: 0, tint: UI.muted });
+      const parts = row.map((type) => {
+        const box = type === 'current'
+          ? this.add.rectangle(0, y, 10, 10, MAP_COLORS.current).setOrigin(0, 0.5)
+          : this.add.image(0, y, `map_${type}`).setScale(BIG_MAP.iconScale);
+        const text = addText(this, 0, y, type === 'current' ? 'You' : MAP_ICONS[type], { originX: 0, tint: UI.muted });
         return { box, text };
       });
-      const total = parts.reduce((sum, { text }) => sum + 16 + text.width, 0) + 24 * (parts.length - 1);
+      const total = parts.reduce((sum, { text }) => sum + 22 + text.width, 0) + 20 * (parts.length - 1);
       let lx = Math.round(GAME_WIDTH / 2 - total / 2);
       for (const { box, text } of parts) {
-        box.setX(lx);
-        text.setX(lx + 16);
+        box.setX(box.type === 'Image' ? lx + 9 : lx + 4);
+        text.setX(lx + 22);
         this.bigMap.add([box, text]);
-        lx += 16 + text.width + 24;
+        lx += 22 + text.width + 20;
       }
     });
     this.tabKey = this.input.keyboard.addKey('TAB'); // also stops Tab moving focus off the game
@@ -121,8 +122,8 @@ export class HUD extends Phaser.Scene {
         if (wave === 0) this.drawBossBar(null);
       },
       room: (dungeon, room) => {
-        this.drawMap(this.map, dungeon, room, MINIMAP, true);
-        this.drawMap(this.bigMapRooms, dungeon, room, BIG_MAP, false);
+        this.drawMap(this.map, this.mapIcons, dungeon, room, MINIMAP, true);
+        this.drawMap(this.bigMapRooms, this.bigMapIcons, dungeon, room, BIG_MAP, false);
       },
       inventory: (inventory) => this.drawCounters(inventory),
       floor: () => this.drawRightLabel(game),
@@ -218,8 +219,9 @@ export class HUD extends Phaser.Scene {
 
   // Shows visited rooms and the rooms next to them, like a map filled in while exploring.
   // `layout` is MINIMAP or BIG_MAP (position and cell sizes).
-  drawMap(g, dungeon, current, layout, backing) {
+  drawMap(g, icons, dungeon, current, layout, backing) {
     g.clear();
+    icons.removeAll(true);
     // Secret rooms stay off the map until they've been found.
     const known = (room) => room.type !== 'secret' || room.revealed;
     const seen = dungeon.rooms.filter((room) => known(room) && (room.visited || dungeon.neighbors(room).some((n) => n.visited)));
@@ -255,14 +257,14 @@ export class HUD extends Phaser.Scene {
       }
     }
 
-    const iconSize = Math.round(layout.h / 2);
     for (const room of seen) {
       const { x, y, w, h } = box(room);
       const color = room === current ? MAP_COLORS.current : room.visited ? MAP_COLORS.visited : MAP_COLORS.seen;
       g.fillStyle(color, 1).fillRect(x, y, w, h);
 
-      const icon = MAP_COLORS[room.type];
-      if (icon) g.fillStyle(icon, 1).fillRect(Math.round(x + (w - iconSize) / 2), Math.round(y + (h - iconSize) / 2), iconSize, iconSize);
+      if (MAP_ICONS[room.type]) {
+        icons.add(this.add.image(Math.round(x + w / 2), Math.round(y + h / 2), `map_${room.type}`).setScale(layout.iconScale));
+      }
     }
   }
 }
