@@ -609,9 +609,6 @@ export class Game extends Phaser.Scene {
     const altar = this.add.image(CENTER.x, CENTER.y + 12, 'altar').setOrigin(0.5, 1).setDepth(DEPTH.actors + CENTER.y + 12);
     const note = addText(this, CENTER.x, CENTER.y + 30, 'Give a heart?', { tint: 0xe25c4b }).setDepth(DEPTH.shadow);
     this.roomObjects.push(altar, note);
-    // The sign warns you when the next heart would be your last.
-    const updateNote = () => note.active && note.setText((this.player.hp <= SACRIFICE.cost ? 'Give your last heart?' : 'Give a heart?').toUpperCase());
-    updateNote();
     for (const pedestal of c.pedestals) this.placeSacrificeItem(room, pedestal);
 
     this.addPickupSpot(CENTER.x, CENTER.y, [], () => {
@@ -647,7 +644,6 @@ export class Game extends Phaser.Scene {
         c.tries += 1;
         this.hint('Nothing... yet');
       }
-      updateNote();
       return false;
     }, { name: 'Sacrifice', description: 'Give a heart for a chance at an item' }).rearm = true;
   }
