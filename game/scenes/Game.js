@@ -19,6 +19,9 @@ const SPAWN_MIN_PLAYER_DISTANCE = 128;
 const SPAWN_MIN_ENEMY_DISTANCE = 40;
 const PICKUP_RADIUS = 18;
 const TOOLTIP_RADIUS = 48;
+// Walking up to an unbeaten mini boss room's door warns you first.
+const DOOR_WARNING_RADIUS = 72;
+const MINI_BOSS_WARNING = { name: 'Danger: mini bosses!', description: 'Two waves, no way out until they are beaten. Enter at your own risk' };
 const FADE_MS = 150;
 const FADE_COLOR = [18, 14, 22];
 const GAME_OVER_DELAY_MS = 1600;
@@ -286,6 +289,9 @@ export class Game extends Phaser.Scene {
     if (room.type === 'sacrifice') this.setUpSacrifice(room);
     if (room.type === 'secret') this.setUpSecret(room);
     room.pickups.forEach((pickup) => this.spawnPickup(pickup));
+    this.doorWarnings = this.view.doors
+      .filter((door) => door.neighbor.type === 'miniboss' && !door.neighbor.cleared)
+      .map((door) => ({ x: door.x, y: door.y, radius: DOOR_WARNING_RADIUS, warning: true, info: MINI_BOSS_WARNING }));
 
     this.events.emit('room', this.dungeon, room);
     this.events.emit('wave', 0, 0);
@@ -941,11 +947,12 @@ export class Game extends Phaser.Scene {
   updateTooltip() {
     const { x, y } = this.player.hitbox;
     let nearest = null;
-    let nearestDistance = TOOLTIP_RADIUS;
-    for (const spot of this.pickups) {
+    let nearestDistance = Infinity;
+    // Items and wares, plus the warning by a mini boss door (which shows from further away).
+    for (const spot of [...this.pickups, ...(this.doorWarnings ?? [])]) {
       if (!spot.info) continue;
       const d = Phaser.Math.Distance.Between(spot.x, spot.y, x, y);
-      if (d < nearestDistance) {
+      if (d < (spot.radius ?? TOOLTIP_RADIUS) && d < nearestDistance) {
         nearest = spot;
         nearestDistance = d;
       }
@@ -959,7 +966,8 @@ export class Game extends Phaser.Scene {
   showTooltip(spot) {
     const left = TILE + 4;
     const top = GAME_HEIGHT - HUD_HEIGHT - 26;
-    const name = addText(this, left + 5, top + 8, spot.info.name, { tint: UI.gold, originX: 0 });
+    if (spot.warning) Audio.play('warn');
+    const name = addText(this, left + 5, top + 8, spot.info.name, { tint: spot.warning ? 0xe25c4b : UI.gold, originX: 0 });
     const parts = [name];
     const description = addText(this, left + 5, top + 18, spot.info.description, { scale: 1, originX: 0 });
     parts.push(description);
