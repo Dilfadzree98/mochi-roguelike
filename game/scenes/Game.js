@@ -3,6 +3,7 @@ import { addText } from '../art/PixelFont.js';
 import { Rng, newSeed } from '../systems/Rng.js';
 import { Save } from '../systems/Save.js';
 import { Audio } from '../systems/Audio.js';
+import { track } from '../systems/Analytics.js';
 import { bossIds, generateDungeon } from '../systems/DungeonGen.js';
 import { TIER_WEIGHTS, drawItem, makeItemPool } from '../systems/Items.js';
 import { buildRoom } from '../systems/Room.js';
@@ -164,6 +165,7 @@ export class Game extends Phaser.Scene {
     this.tooltip = null;
 
     this.startFloor(0);
+    track(`run/start/${this.character.id}`);
     this.scene.launch('HUD');
     this.enterRoom(this.dungeon.start, null);
     this.banner(this.dungeon.floor.name, UI.peach, 'Floor 1');
@@ -175,6 +177,7 @@ export class Game extends Phaser.Scene {
     this.dungeon = generateDungeon(this.rng, this.floors[index], index, this.enemyDefs, this.bossOrder[index % this.bossOrder.length]);
     Audio.startMusic(index);
     this.events.emit('floor', index, this.floors[index]);
+    if (index > 0) track(`run/reached-floor-${index + 1}`);
   }
 
   // Esc or P opens the pause menu; leaving the window or tab pauses automatically.
@@ -1407,6 +1410,7 @@ export class Game extends Phaser.Scene {
   endRun(won, delay) {
     const floorReached = this.floorIndex + 1;
     const newBest = Save.recordRun({ roomsCleared: this.roomsCleared, floor: floorReached, won });
+    track(won ? 'run/won' : `run/died-on-floor-${floorReached}`);
     this.time.delayedCall(delay, () => {
       this.scene.stop('HUD');
       this.scene.start('GameOver', {

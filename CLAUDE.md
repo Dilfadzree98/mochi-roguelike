@@ -38,6 +38,7 @@ URL options: `?seed=12345` replays a run, `?debug` shows hitboxes.
 - Live game: https://dilfadzree98.github.io/mochi-roguelike/
 - `.github/workflows/pages.yml` publishes the `game/` folder to GitHub Pages on every push to `main`. Only files inside `game/` are served, so use paths relative to `game/index.html`.
 - Design PDFs/DOCX are git-ignored and stay local.
+- Visitor stats: GoatCounter (free, no cookies), dashboard https://mochi-roguelike.goatcounter.com. The script tag in `index.html` counts visits; `track(path)` in `systems/Analytics.js` counts game events (`run/start/<character>`, `run/reached-floor-<n>`, `run/died-on-floor-<n>`, `run/won`). Visits from localhost aren't counted.
 
 ## Code structure
 
@@ -79,7 +80,8 @@ game/
 │   ├── Items.js         computeStats() (add/mul/set modifiers) and the per-run item pool
 │   ├── Room.js          draws one room, its walls, door gaps and door blockers
 │   ├── Fx.js            hit flash
-│   └── Save.js          localStorage (best floor, rooms cleared, wins)
+│   ├── Save.js          localStorage (best floor, rooms cleared, wins)
+│   └── Analytics.js     track(): game events for the GoatCounter dashboard
 └── data/
     ├── characters.json  playable characters: name, description, texture, stat modifiers, skill
     ├── enemies.json     33 enemies, 7 bosses and 10 mini bosses: stats, behaviour + params, difficulty + weight, onDeath (bosses: idle + 3 moves)
