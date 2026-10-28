@@ -4,6 +4,7 @@ import { Rng, newSeed } from '../systems/Rng.js';
 import { Save } from '../systems/Save.js';
 import { Audio } from '../systems/Audio.js';
 import { track } from '../systems/Analytics.js';
+import { isHeld } from '../systems/HeldKeys.js';
 import { bossIds, generateDungeon } from '../systems/DungeonGen.js';
 import { TIER_WEIGHTS, drawItem, makeItemPool } from '../systems/Items.js';
 import { buildRoom } from '../systems/Room.js';
@@ -189,9 +190,17 @@ export class Game extends Phaser.Scene {
       if (!this.over && !this.transitioning) this.skills.tryCast();
     });
 
-    // Keys released while paused never reached this scene, so forget held keys on resume.
+    // Keys released while paused never reached this scene, so on resume forget every key
+    // except the ones still held down, which keep working without being pressed again.
     const onResume = () => {
-      this.input.keyboard.resetKeys();
+      const keyboard = this.input.keyboard;
+      keyboard.resetKeys();
+      for (const key of keyboard.keys) {
+        if (!key || !isHeld(key.keyCode)) continue;
+        key.isDown = true;
+        key.isUp = false;
+        key.timeDown = performance.now();
+      }
       Audio.setMusicPaused(false);
     };
     const onBlur = () => this.pause();

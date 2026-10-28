@@ -69,7 +69,7 @@ const FIRE_DIRS = {
 
 const HITBOX = { w: 20, h: 20 };
 const FOOT_OFFSET = HITBOX.h / 2 + 2; // from hitbox centre down to the sprite's feet
-const ACCEL = 14;                     // how fast velocity eases toward the input (per second)
+const ACCEL = 28;                     // how fast velocity eases toward the input (per second): ~80 ms to full speed
 const INVULN_MS = 2000;               // invincible for 2 seconds after a hit
 const HURT_FACE_MS = 200;
 const WILT_AT_HP = 2;                 // leaf droops at one heart or less
@@ -91,6 +91,7 @@ export class Player {
     this.alive = true;
     this.speedMultiplier = 1; // set each frame by slowing hazards
     this.nextFireAt = 0;
+    this.queuedFire = null; // an arrow tapped during the reload, fired when it ends
     this.invulnUntil = 0;
     this.hurtUntil = 0;
     this.recoil = 0;
@@ -134,17 +135,22 @@ export class Player {
     this.moving = ix !== 0 || iy !== 0;
   }
 
-  // The most recently pressed arrow key wins when several are held.
+  // The most recently pressed arrow key wins when several are held. An arrow tapped and
+  // released during the reload still fires once the reload ends, so quick taps aren't lost.
   tryFire(time) {
     let held = null;
     for (const name of Object.keys(FIRE_DIRS)) {
       const key = this.keys[name];
+      if (Phaser.Input.Keyboard.JustDown(key)) this.queuedFire = name;
       if (key.isDown && (!held || key.timeDown > this.keys[held].timeDown)) held = name;
     }
-    if (held) this.facing = FIRE_DIRS[held];
-    if (!held || time < this.nextFireAt || time < this.beamUntil) return;
+    if (time < this.beamUntil) this.queuedFire = null; // the beam replaces seeds; don't save taps for after it
+    const aim = this.queuedFire ?? held;
+    if (aim) this.facing = FIRE_DIRS[aim];
+    if (!aim || time < this.nextFireAt || time < this.beamUntil) return;
 
-    const dir = FIRE_DIRS[held];
+    const dir = FIRE_DIRS[aim];
+    this.queuedFire = null;
     this.nextFireAt = time + this.stats.fireDelay;
     this.recoil = 1;
     this.scene.firePlayerShot(this.hitbox.x + dir.x * 12, this.hitbox.y - 2 + dir.y * 12, dir, this.stats);
