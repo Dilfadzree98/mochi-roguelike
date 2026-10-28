@@ -157,6 +157,7 @@ export class Game extends Phaser.Scene {
     this.physics.add.overlap(this.enemyBodies, this.bombBodies, (_, zone) => zone.body.setVelocity(0, 0));
 
     this.roomsCleared = 0;
+    this.runTime = 0; // ms played this run; paused time doesn't count
     this.kills = 0;
     this.waveIndex = 0;
     this.waveActive = false;
@@ -232,6 +233,8 @@ export class Game extends Phaser.Scene {
   }
 
   update(time, delta) {
+    // A paused scene doesn't update, so pauses (and auto-pauses on leaving the tab) aren't timed.
+    if (!this.over) this.runTime += delta;
     if (this.transitioning) return;
 
     this.player.speedMultiplier = this.slowAt(this.player.feet);
@@ -1425,6 +1428,7 @@ export class Game extends Phaser.Scene {
       this.scene.start('GameOver', {
         won,
         roomsCleared: this.roomsCleared,
+        runTime: this.runTime,
         floor: floorReached,
         floorName: this.dungeon.floor.name,
         bossName: this.enemyDefs[this.dungeon.rooms.find((r) => r.type === 'boss').waves[0][0]].name,

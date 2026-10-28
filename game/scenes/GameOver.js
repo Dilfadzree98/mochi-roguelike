@@ -4,6 +4,7 @@ import { newSeed } from '../systems/Rng.js';
 import { Save } from '../systems/Save.js';
 import { Audio } from '../systems/Audio.js';
 import { drawItemRow } from './Pause.js';
+import { formatRunTime } from './HUD.js';
 
 // End of a run, won (last floor's boss defeated) or lost.
 export class GameOver extends Phaser.Scene {
@@ -11,7 +12,7 @@ export class GameOver extends Phaser.Scene {
     super('GameOver');
   }
 
-  create({ won, roomsCleared, floor, floorName, bossName, seed, character, newBest, items = [] }) {
+  create({ won, roomsCleared, runTime = 0, floor, floorName, bossName, seed, character, newBest, items = [] }) {
     const cx = GAME_WIDTH / 2;
     Audio.stopMusic();
 
@@ -20,7 +21,7 @@ export class GameOver extends Phaser.Scene {
     this.add.image(cx, 120, won ? character.texture : `${character.texture}_wilt`).setOrigin(0.5, 1).setScale(2);
 
     addText(this, cx, 134, won ? `${bossName} is beaten` : `Floor ${floor}: ${floorName}`);
-    addText(this, cx, 148, `Rooms cleared ${roomsCleared}`, { tint: UI.muted });
+    addText(this, cx, 148, `Rooms cleared ${roomsCleared}   Time ${formatRunTime(runTime)}`, { tint: UI.muted });
     if (newBest) addText(this, cx, 162, 'New best!', { tint: UI.gold });
     else addText(this, cx, 162, `Best: floor ${Save.best().floor}`, { tint: UI.dim });
     drawItemRow(this, cx, 186, items, { rowGap: 24 });

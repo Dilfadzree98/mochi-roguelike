@@ -4,6 +4,16 @@ import { Save } from '../systems/Save.js';
 import { GRID_W, GRID_H } from '../systems/DungeonGen.js';
 
 const HEART_KEYS = ['heart_empty', 'heart_half', 'heart_full'];
+const COUNTER_Y = (i) => HUD_HEIGHT + 11 + i * 18; // coin, bomb, key rows; the run timer sits below them
+
+// Run time as m:ss, or h:mm:ss after an hour.
+export function formatRunTime(ms) {
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = String(total % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+}
 // No backing bar: hearts, counters and the meter sit straight on the wall. The middle stays
 // clear so the top door is visible.
 const SKILL_METER = { x: 310, w: 60, h: 6 };
@@ -60,10 +70,14 @@ export class HUD extends Phaser.Scene {
     // Coin, bomb and key counters stacked under the hearts, over the left wall.
     this.counters = {};
     ['coins', 'bombs', 'keys'].forEach((kind, i) => {
-      const y = HUD_HEIGHT + 11 + i * 18;
+      const y = COUNTER_Y(i);
       this.add.image(14, y, kind.slice(0, -1));
       this.counters[kind] = addText(this, 26, y, '', { originX: 0, tint: UI.muted });
     });
+
+    // Run timer under the counters (pauses don't count).
+    this.gameScene = game; // `this.game` is Phaser's own game object
+    this.timerText = addText(this, 8, COUNTER_Y(3), formatRunTime(game.runTime), { originX: 0, tint: UI.muted });
 
     // Stats panel (toggled with I or from the pause menu).
     this.statTexts = STAT_LINES.map((line, i) =>
@@ -171,6 +185,9 @@ export class HUD extends Phaser.Scene {
 
   update(time) {
     this.bigMap.setVisible(this.tabKey.isDown);
+
+    const runTime = formatRunTime(this.gameScene.runTime);
+    if (runTime !== this.timerText.text) this.timerText.setText(runTime);
 
     // Blink the full meter while the skill waits for Space.
     if (!this.skillState?.ready) return;
